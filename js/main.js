@@ -347,7 +347,7 @@ function getGroundHeightAt(x, z) {
 // === WAND & SPARKS ===
 function setupWand() {
   const gltfLoader = new GLTFLoader();
-  gltfLoader.setPath('../assets/');
+  gltfLoader.setPath(window.location.origin + '/assets/');
   gltfLoader.load('Yew_Wand.glb', (gltf) => {
     wand = gltf.scene;
     wand.scale.set(1.2, 1.2, 1.2);
