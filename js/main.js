@@ -348,7 +348,7 @@ function getGroundHeightAt(x, z) {
 function setupWand() {
   const gltfLoader = new GLTFLoader();
   gltfLoader.setPath('./assets/');
-  gltfLoader.load('Yew_Wand.glb', (gltf) => {
+  gltfLoader.load('/Yew_Wand.glb', (gltf) => {
     wand = gltf.scene;
     wand.scale.set(1.2, 1.2, 1.2);
     wand.position.copy(wandBasePosition);
