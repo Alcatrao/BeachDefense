@@ -416,12 +416,12 @@ let ghostModel = null;
 
 // Load ghost model once
 function loadGhostModel(callback) {
-  const loader = new GLTFLoader();
-  loader.setPath('./assets/Khaimera Ghost/');
-  loader.load('ghost.gltf', (gltf) => {
-    const model = gltf.scene;
+  const loader = new FBXLoader();
+  loader.setPath('./assets/Ghost/');
+  loader.load('Halloween Ghost.fbx', (fbx) => {
+    // fbx is a THREE.Group
     let meshCount = 0;
-    model.traverse(child => {
+    fbx.traverse(child => {
       if (child.isMesh) {
         child.material.transparent = true;
         child.material.opacity = 0.95;
@@ -432,14 +432,15 @@ function loadGhostModel(callback) {
     });
     console.log("Total meshes found:", meshCount);
 
-    console.log("Available animations:");
-    if (gltf.animations && gltf.animations.length > 0) {
-      gltf.animations.forEach((clip, i) => {
+    // FBXLoader puts animations on the object itself
+    let animations = fbx.animations || [];
+    if (animations.length > 0) {
+      animations.forEach((clip, i) => {
         console.log(i, clip.name);
       });
     }
-    // Store both model and animations for use in Ghost class
-    ghostModel = { scene: model, animations: gltf.animations };
+
+    ghostModel = { scene: fbx, animations: animations };
     if (callback) callback();
   });
 }
