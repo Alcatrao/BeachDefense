@@ -3,6 +3,7 @@ import { Water } from 'Water';
 import { Sky } from 'Sky';
 import { PointerLockControls } from 'PointerLockControls';
 import { GLTFLoader } from 'https://unpkg.com/three@0.155.0/examples/jsm/loaders/GLTFLoader.js';
+import { FBXLoader } from 'https://unpkg.com/three@0.155.0/examples/jsm/loaders/FBXLoader.js';
 import * as SkeletonUtils from 'https://unpkg.com/three@0.155.0/examples/jsm/utils/SkeletonUtils.js';
 
 // === CONSTANTS ===
@@ -21,14 +22,13 @@ const maxX = BORDER_HALF_X;
 const minZ = -BORDER_LENGTH_Z;
 const maxZ = 0;
 
-const FLAT_SAND_WIDTH = 100; // Flat for 100 units from the sealine
-const DUNE_WIDTH = 100; // Dune region width
+const FLAT_SAND_WIDTH = 100;
+const DUNE_WIDTH = 100;
 const DUNE_MAX_HEIGHT = 50;
-const DUNE_START = -BORDER_LENGTH_Z + DUNE_WIDTH; 
-const DUNE_END = -BORDER_LENGTH_Z - DUNE_WIDTH * 2;   
+const DUNE_START = -BORDER_LENGTH_Z + DUNE_WIDTH;
+const DUNE_END = -BORDER_LENGTH_Z - DUNE_WIDTH * 2;
 
 const MAX_ACTIVE_SPARKS = 30;
-            
 
 // === GLOBALS ===
 let scene, camera, renderer, character, controls;
@@ -48,6 +48,230 @@ const keys = { w: false, a: false, s: false, d: false, space: false };
 const sparks = [];
 const SPARK_SPEED = 1000, SPARK_MAX_DIST = 1500;
 
+// === GHOST MODELS ===
+let npcs = [];
+let npcSpawnTimer = 0;
+let npcSpawnInterval = 15; // seconds
+let npcWave = 1;
+let gameActive = false;
+let playerAlive = true;
+let halloweenGhostModel = null;
+let khaimeraGhostModel = null;
+
+// === GHOST CLASSES ===
+class Ghost {
+  constructor(modelObj, wave, options = {}) {
+    this.HP = options.HP || 1;
+    this.speed = options.speed || 1;
+    this.size = options.size || 15;
+    this.chaseDistance = options.chaseDistance || 150; // Default chase distance
+    this.mesh = SkeletonUtils.clone(modelObj.scene);
+
+    // Ensure each mesh has its own material instance!
+    this.mesh.traverse(child => {
+      if (child.isMesh && child.material) {
+        if (Array.isArray(child.material)) {
+          child.material = child.material.map(mat =>
+            mat && typeof mat.clone === 'function' ? mat.clone() : mat
+          );
+        } else if (typeof child.material.clone === 'function') {
+          child.material = child.material.clone();
+        }
+      }
+    });
+
+    // Scale ghost to desired size
+    scene.add(this.mesh);
+    this.mesh.updateMatrixWorld(true);
+    let box = new THREE.Box3().setFromObject(this.mesh);
+    let originalHeight = box.max.y - box.min.y;
+    if (!isFinite(originalHeight) || originalHeight <= 0) {
+      this.mesh.scale.setScalar(0.1);
+    } else {
+      const scale = this.size / originalHeight;
+      this.mesh.scale.setScalar(scale);
+    }
+
+    // Animation
+    if (modelObj.animations && modelObj.animations.length > 0) {
+      this.mixer = new THREE.AnimationMixer(this.mesh);
+      this.action = this.mixer.clipAction(modelObj.animations[0]);
+      this.action.play();
+    }
+  }
+
+  updateFadeAndBlink() { /* base: do nothing */ }
+  setOpacity(opacity, transparent) {
+    this.mesh.traverse(child => {
+      if (child.material && child.material.opacity !== undefined) {
+        child.material.transparent = transparent;
+        child.material.opacity = opacity;
+      }
+    });
+  }
+}
+
+// Halloween Ghost (fading, blinking, air/ground)
+class HalloweenGhost extends Ghost {
+  constructor(modelObj, wave) {
+    super(modelObj, wave, {
+      HP: 1,
+      speed: 0.9,
+      size: 15,
+      chaseDistance: 150
+    });
+
+    // AIR GHOST LOGIC
+    this.isAirGhost = Math.random() < 0.5;
+    let y;
+    if (this.isAirGhost) {
+      y = 15 + Math.random() * 45; // 15 to 60
+      this.airTargetY = 40 + Math.random() * 20; // 40 to 60
+    } else {
+      y = getGroundHeightAt(0, 0);
+      this.airTargetY = null;
+    }
+
+    // Set position
+    const x = minX + Math.random() * (maxX - minX);
+    const z = 300 + Math.random() * 50;
+    this.mesh.position.set(x, this.isAirGhost ? y : getGroundHeightAt(x, z), z);
+
+    // Set target
+    this.mesh.userData.target = this.isAirGhost
+      ? { x: x, z: -740, y: this.airTargetY }
+      : { x: x, z: -740 };
+
+    // Fading and blinking
+    const fadeProb = Math.min(0.15 + 0.12 * (wave - 1), 0.29);
+    this.shouldFade = Math.random() < fadeProb;
+    this.blinkTimer = Math.random() * 1.5;
+    this.lastOpacity = 1;
+  }
+
+  updateFadeAndBlink(delta, playerPos) {
+    if (!this.shouldFade) {
+      this.setOpacity(1, false);
+      return;
+    }
+    // Distance to player
+    const dx = playerPos.x - this.mesh.position.x;
+    const dz = playerPos.z - this.mesh.position.z;
+    const distToPlayer = Math.sqrt(dx * dx + dz * dz);
+
+    // Fade calculation
+    let fadeT = 0;
+    if (distToPlayer >= 400) fadeT = 1;
+    else if (distToPlayer <= 150) fadeT = 0;
+    else fadeT = (distToPlayer - 150) / (400 - 150);
+
+    let baseOpacity = 1 - fadeT;
+    let targetOpacity = baseOpacity;
+
+    // Blinking if faded
+    if (baseOpacity < 1) {
+      this.blinkTimer += delta;
+      const cycle = this.blinkTimer % 1.5;
+      const blinkVisible = cycle < 0.1 || (cycle >= 0.2 && cycle < 0.3);
+      if (blinkVisible) targetOpacity = 1;
+    }
+
+    this.setOpacity(targetOpacity, true);
+    this.lastOpacity = targetOpacity;
+  }
+}
+
+// Khaimera Ghost (tank, ground only, no fade)
+class KhaimeraGhost extends Ghost {
+  constructor(modelObj, wave) {
+    super(modelObj, wave, {
+      HP: 20,
+      speed: 1.2,
+      size: 20,
+      chaseDistance: 400
+    });
+
+    this.isAirGhost = false;
+    this.airTargetY = null;
+    this.dead = false;
+    this.deathTimer = 0;
+    this.hasStoodUp = false;
+    this.canMove = false;
+    this.isAttacking = false;
+    this.attackAnimEndTime = 0;
+
+    // Set position (ground only)
+    const x = minX + Math.random() * (maxX - minX);
+    const z = 300 + Math.random() * 50;
+    const y = getGroundHeightAt(x, z);
+    this.mesh.position.set(x, y, z);
+
+    // Set target
+    this.mesh.userData.target = { x: x, z: -740 };
+
+    // Animation setup
+    this.animations = {};
+    if (modelObj.animations) {
+      for (const clip of modelObj.animations) {
+        this.animations[clip.name] = clip;
+      }
+    }
+    this.mixer = new THREE.AnimationMixer(this.mesh);
+    this.currentAction = null;
+    this.playAnimation('StandUp', false);
+  }
+
+playAnimation(name, loop = true, fadeDuration = 0.1) {
+  if (!this.animations[name]) return;
+  if (this.currentAnimName === name && this.currentAction && this.currentAction.isRunning()) return;
+
+  const prevAction = this.currentAction;
+  const nextAction = this.mixer.clipAction(this.animations[name]);
+  nextAction.reset();
+
+  // Set loop mode
+  if (name === 'Walk') {
+    nextAction.setLoop(THREE.LoopRepeat, Infinity);
+  } else {
+    nextAction.setLoop(loop ? THREE.LoopRepeat : THREE.LoopOnce, 1);
+  }
+  nextAction.clampWhenFinished = true;
+
+  // Speed up attack animations from 0.5x to 0.8x (0.5 / 0.8 = 0.625)
+  if (['Punch', 'Punching', 'Swiping'].includes(name)) {
+    nextAction.timeScale = 0.8;
+  } else {
+    nextAction.timeScale = 1;
+  }
+
+  nextAction.play();
+
+  if (prevAction && prevAction !== nextAction) {
+    prevAction.crossFadeTo(nextAction, fadeDuration, false);
+  }
+
+  this.currentAction = nextAction;
+  this.currentAnimName = name;
+
+  // Adjust attack durations to match new speed (multiply by 0.625)
+  if (name === 'Punch') {
+    this.isAttacking = true;
+    this.attackAnimEndTime = performance.now() + Math.round(1200 * 0.625); // 750 ms
+  } else if (name === 'Swiping') {
+    this.isAttacking = true;
+    this.attackAnimEndTime = performance.now() + Math.round(2850 * 0.625); // 1781 ms
+  } else if (name === 'Punching') {
+    this.isAttacking = true;
+    this.attackAnimEndTime = performance.now() + Math.round(3100 * 0.625); // 1938 ms
+  } else {
+    this.isAttacking = false;
+  }
+}
+
+  updateFadeAndBlink() {
+    this.setOpacity(1, false);
+  }
+}
 
 // === INIT FUNCTIONS ===
 function initScene() {
@@ -55,11 +279,11 @@ function initScene() {
   character = new THREE.Object3D();
 
   // Spawn at center of playable area, slightly above ground
-  const spawnZ = -300; // 100 units inland from the sealine
+  const spawnZ = -300;
   const spawnX = 0;
   const groundY = getGroundHeightAt(spawnX, spawnZ);
-  character.position.set(spawnX, groundY + 10, spawnZ); // +10 to spawn slightly above ground
-
+  character.position.set(spawnX, groundY + 10, spawnZ);
+  character.rotation.set(0, 180, 0);
 
   scene.add(character);
 
@@ -72,7 +296,6 @@ function initScene() {
 
   controls = new PointerLockControls(character, renderer.domElement);
 
-  // Listen for pointer lock change
   controls.addEventListener('lock', () => {
     const hint = document.getElementById('focusHint');
     if (hint) hint.style.display = 'none';
@@ -80,7 +303,6 @@ function initScene() {
     document.getElementById('pauseMenu').style.display = 'none';
   });
   controls.addEventListener('unlock', () => {
-    // Only show pause menu if game is active and player is alive
     if (gameActive && playerAlive) {
       gamePaused = true;
       document.getElementById('pauseMenu').style.display = 'flex';
@@ -89,7 +311,6 @@ function initScene() {
     if (hint) hint.style.display = 'none';
   });
 
-  // Only lock pointer on canvas click, not on every click
   renderer.domElement.addEventListener('click', () => {
     if (!controls.isLocked) {
       controls.lock();
@@ -119,7 +340,6 @@ function initSkyAndLights() {
 }
 
 function createWater() {
-  // Only cover the sea (z >= 0)
   const waterGeometry = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE / 2, 200, 100);
   const water = new Water(waterGeometry, {
     textureWidth: 512,
@@ -133,11 +353,9 @@ function createWater() {
     distortionScale: 4.5,
   });
   water.rotation.x = -Math.PI / 2;
-  // Position so front edge is at z = -100, extending to positive z
-  water.position.set(0, 0, MAP_SIZE / 4 - 150); // y = 0, z = (MAP_SIZE/4 - 109)
+  water.position.set(0, 0, MAP_SIZE / 4 - 150);
   scene.add(water);
 
-  // Manipulate vertices for waves
   const waterPosition = waterGeometry.attributes.position;
   for (let i = 0; i < waterPosition.count; i++) {
     const x = waterPosition.getX(i);
@@ -155,90 +373,77 @@ function createWater() {
 
 function createBeach() {
   const sandColorMap = new THREE.TextureLoader().load('./textures/ground_0024_color_1k.jpg');
-const sandNormalMap = new THREE.TextureLoader().load('./textures/ground_0024_normal_opengl_1k.png');
-const sandRoughnessMap = new THREE.TextureLoader().load('./textures/ground_0024_roughness_1k.jpg');
-const sandAoMap = new THREE.TextureLoader().load('./textures/ground_0024_ao_1k.jpg');
-const sandHeightMap = new THREE.TextureLoader().load('./textures/ground_0024_height_1k.png');
+  const sandNormalMap = new THREE.TextureLoader().load('./textures/ground_0024_normal_opengl_1k.png');
+  const sandRoughnessMap = new THREE.TextureLoader().load('./textures/ground_0024_roughness_1k.jpg');
+  const sandAoMap = new THREE.TextureLoader().load('./textures/ground_0024_ao_1k.jpg');
+  const sandHeightMap = new THREE.TextureLoader().load('./textures/ground_0024_height_1k.png');
 
-// Set repeat and wrapping for all maps
-[sandColorMap, sandNormalMap, sandRoughnessMap, sandAoMap, sandHeightMap].forEach(tex => {
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(100, 100);
-});
+  [sandColorMap, sandNormalMap, sandRoughnessMap, sandAoMap, sandHeightMap].forEach(tex => {
+    tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
+    tex.repeat.set(100, 100);
+  });
 
-// Use MeshStandardMaterial for PBR
-const beachMaterial = new THREE.MeshStandardMaterial({
-  map: sandColorMap,
-  normalMap: sandNormalMap,
-  roughnessMap: sandRoughnessMap,
-  aoMap: sandAoMap,
-  displacementMap: sandHeightMap,
-  displacementScale: 2, // Adjust for effect strength
-  roughness: .5, // Default, can tweak
-  metalness: 0.0, // Sand is not metallic
-});
+  const beachMaterial = new THREE.MeshStandardMaterial({
+    map: sandColorMap,
+    normalMap: sandNormalMap,
+    roughnessMap: sandRoughnessMap,
+    aoMap: sandAoMap,
+    displacementMap: sandHeightMap,
+    displacementScale: 2,
+    roughness: .5,
+    metalness: 0.0,
+  });
 
   const beachGeometry = new THREE.PlaneGeometry(BEACH_WIDTH, BEACH_HEIGHT, BEACH_SEGMENTS, BEACH_SEGMENTS);
 
-  // Parameters for the wavy sealine
-  const SEALINE_WAVE_AMPLITUDE = 30; // How far the sealine moves inland/outland
-  const SEALINE_WAVE_FREQUENCY = 2;  // Number of waves across the beach width
-
+  const SEALINE_WAVE_AMPLITUDE = 30;
+  const SEALINE_WAVE_FREQUENCY = 2;
   const positionAttribute = beachGeometry.attributes.position;
-  const SEALINE_EXTENSION = 10; // How far to extend sand under the water (in units)
+  const SEALINE_EXTENSION = 10;
+  const SAND_HEIGHT_OFFSET = 0.5;
 
-const SAND_HEIGHT_OFFSET = 0.5; // Always keep sand above y=0
+  for (let i = 0; i < positionAttribute.count; i++) {
+    const x = positionAttribute.getX(i);
+    const y = positionAttribute.getY(i);
 
-for (let i = 0; i < positionAttribute.count; i++) {
-  const x = positionAttribute.getX(i);
-  const y = positionAttribute.getY(i);
+    const nx = ((x + 600) - minX) / (maxX - minX);
 
-  // Normalize x to [0, 1] across the whole visible beach, shifted 600 units to the left
-const nx = ((x + 600) - minX) / (maxX - minX);
+    let sealineOffset =
+      Math.sin(nx * Math.PI * 1) * 60 +
+      Math.sin(nx * Math.PI * 2) * 20
+      + 50;
 
-// Curvy sealine across the entire width, with large, gentle curves and negative bias
-let sealineOffset =
-  Math.sin(nx * Math.PI * 1) * 60 +   // One big, smooth curve
-  Math.sin(nx * Math.PI * 2) * 20     // Gentle secondary undulation
-  + 50;                               // Negative bias to keep shoreline always inland      // Negative bias to keep shoreline always inland
+    if (nx >= 0.6 && nx <= 1.0) {
+      const t = (nx - 0.6) / 0.4;
+      const smoothT = t * t * (3 - 2 * t);
+      const bay = Math.sin(t * Math.PI) * 100;
+      sealineOffset += smoothT * bay;
+    }
 
-// Example: bay in the rightmost 40% of the visible area (optional)
-if (nx >= 0.6 && nx <= 1.0) {
-  const t = (nx - 0.6) / 0.4;
-  const smoothT = t * t * (3 - 2 * t);
-  const bay = Math.sin(t * Math.PI) * 100;
-  sealineOffset += smoothT * bay;
-}
-  // === End bay logic ===
+    const zRaw = - (y + BEACH_HEIGHT / 2) - sealineOffset;
+    const z = Math.max(zRaw, -BEACH_HEIGHT);
+    const zClamped = Math.min(z, 0);
 
-  const zRaw = - (y + BEACH_HEIGHT / 2) - sealineOffset;
+    let height = SEA_LEVEL_OFFSET;
+    if (zClamped >= -FLAT_SAND_WIDTH) {
+      height = SEA_LEVEL_OFFSET;
+    } else if (zClamped < -FLAT_SAND_WIDTH && zClamped >= DUNE_START) {
+      const t = (zClamped + FLAT_SAND_WIDTH) / (DUNE_START + FLAT_SAND_WIDTH);
+      height = t * 20 + SEA_LEVEL_OFFSET;
+    } else if (zClamped < DUNE_START && zClamped >= DUNE_END) {
+      const t = (DUNE_START - zClamped) / (DUNE_START - DUNE_END);
+      const smooth = t * t * (3 - 2 * t);
+      height = SEA_LEVEL_OFFSET + 20 + smooth * DUNE_MAX_HEIGHT;
+    } else if (zClamped < DUNE_END) {
+      height = SEA_LEVEL_OFFSET + 20 + DUNE_MAX_HEIGHT;
+    }
 
-  // Clamp so sand never goes above z = -SEALINE_EXTENSION (always fills under water)
-  const z = Math.max(zRaw, -BEACH_HEIGHT); // Don't go further inland than -BEACH_HEIGHT
-const zClamped = Math.min(z, 0); // Don't go in front of the water (z > 0)
+    height += SAND_HEIGHT_OFFSET;
 
-  let height = SEA_LEVEL_OFFSET;
-  if (zClamped >= -FLAT_SAND_WIDTH) {
-    height = SEA_LEVEL_OFFSET;
-  } else if (zClamped < -FLAT_SAND_WIDTH && zClamped >= DUNE_START) {
-    const t = (zClamped + FLAT_SAND_WIDTH) / (DUNE_START + FLAT_SAND_WIDTH);
-    height = t * 20 + SEA_LEVEL_OFFSET;
-  } else if (zClamped < DUNE_START && zClamped >= DUNE_END) {
-    const t = (DUNE_START - zClamped) / (DUNE_START - DUNE_END);
-    const smooth = t * t * (3 - 2 * t);
-    height = SEA_LEVEL_OFFSET + 20 + smooth * DUNE_MAX_HEIGHT;
-  } else if (zClamped < DUNE_END) {
-    height = SEA_LEVEL_OFFSET + 20 + DUNE_MAX_HEIGHT;
+    positionAttribute.setY(i, height);
+    positionAttribute.setZ(i, zClamped);
   }
-
-  height += SAND_HEIGHT_OFFSET;
-
-  positionAttribute.setY(i, height);
-  positionAttribute.setZ(i, zClamped);
-}
   positionAttribute.needsUpdate = true;
-
-
 
   const beach = new THREE.Mesh(beachGeometry, beachMaterial);
   beach.position.set(0, 0, 0);
@@ -305,17 +510,17 @@ function updateMovement() {
     velocityY = jumpStrength;
   }
   if (isJumping) {
-    velocityY += gravity;
-    character.position.y += velocityY;
-    const groundY = getGroundHeightAt(character.position.x, character.position.z);
-    if (character.position.y <= groundY) {
-      character.position.y = groundY;
-      isJumping = false;
-      velocityY = 0;
-    }
-  } else {
-    character.position.y = getGroundHeightAt(character.position.x, character.position.z);
+  velocityY += gravity;
+  character.position.y += velocityY;
+  const groundY = getGroundHeightAt(character.position.x, character.position.z) + 10;
+  if (character.position.y <= groundY) {
+    character.position.y = groundY;
+    isJumping = false;
+    velocityY = 0;
   }
+} else {
+  character.position.y = getGroundHeightAt(character.position.x, character.position.z) + 10;
+}
 
   // Clamp to box
   character.position.x = Math.max(minX, Math.min(maxX, character.position.x));
@@ -326,22 +531,18 @@ function updateMovement() {
 function getGroundHeightAt(x, z) {
   let height = SEA_LEVEL_OFFSET;
   if (z >= -FLAT_SAND_WIDTH) {
-    // Flat sand near the sea
     height = SEA_LEVEL_OFFSET;
   } else if (z < -FLAT_SAND_WIDTH && z >= DUNE_START) {
-    // Gentle rise after flat area, up to the dunes
-    const t = (z + FLAT_SAND_WIDTH) / (DUNE_START + FLAT_SAND_WIDTH); // t from 0 (at -FLAT_SAND_WIDTH) to 1 (at DUNE_START)
+    const t = (z + FLAT_SAND_WIDTH) / (DUNE_START + FLAT_SAND_WIDTH);
     height = t * 20 + SEA_LEVEL_OFFSET;
   } else if (z < DUNE_START && z >= DUNE_END) {
-    // Dune region (at the back)
-    const t = (DUNE_START - z) / (DUNE_START - DUNE_END); // 0 at start, 1 at end
-    const smooth = t * t * (3 - 2 * t); // smoothstep
+    const t = (DUNE_START - z) / (DUNE_START - DUNE_END);
+    const smooth = t * t * (3 - 2 * t);
     height = SEA_LEVEL_OFFSET + 20 + smooth * DUNE_MAX_HEIGHT;
   } else if (z < DUNE_END) {
-    // Beyond dune: keep at max height
     height = SEA_LEVEL_OFFSET + 20 + DUNE_MAX_HEIGHT;
   }
-  return height + 10; // +10 to keep character above ground
+  return height;
 }
 
 // === WAND & SPARKS ===
@@ -376,7 +577,6 @@ function shootSpark() {
   camera.getWorldDirection(dir);
   const wandTip = new THREE.Vector3();
   wand.localToWorld(wandTip.set(0, 0, -2.5));
-  // Main spark (always released)
   const spark = new THREE.Mesh(
     new THREE.SphereGeometry(2, 16, 16),
     new THREE.MeshBasicMaterial({ color: 0xffffff })
@@ -384,7 +584,6 @@ function shootSpark() {
   spark.position.copy(wandTip);
   scene.add(spark);
 
-  // Only add trail/effects if under MAX_ACTIVE_SPARKS
   let enableTrail = sparks.length < MAX_ACTIVE_SPARKS;
 
   sparks.push({
@@ -403,61 +602,84 @@ function shootSpark() {
   }
 }
 
-// === NPC GHOSTS ===
-import { FBXLoader } from 'https://unpkg.com/three@0.155.0/examples/jsm/loaders/FBXLoader.js';
+// === GHOST MODEL LOADING ===
+function loadAllGhostModels(callback) {
+  let loaded = 0;
+  const check = () => { loaded++; if (loaded === 2) callback(); };
 
-let npcs = [];
-let npcSpawnTimer = 0;
-let npcSpawnInterval = 10; // seconds
-let npcWave = 1;
-let gameActive = false;
-let playerAlive = true;
-let ghostModel = null;
-
-// Load ghost model once
-function loadGhostModel(callback) {
-  const loader = new FBXLoader();
-  loader.setPath('./assets/Ghost/');
-  loader.load('Halloween Ghost.fbx', (fbx) => {
-    // fbx is a THREE.Group
-    let meshCount = 0;
+  // Halloween Ghost (FBX)
+  const fbxLoader = new FBXLoader();
+  fbxLoader.setPath('./assets/Ghost/');
+  fbxLoader.load('Halloween Ghost.fbx', (fbx) => {
     fbx.traverse(child => {
       if (child.isMesh) {
         child.material.transparent = true;
         child.material.opacity = 0.95;
         child.castShadow = true;
-        meshCount++;
-        console.log("Found mesh:", child.name, child);
       }
     });
-    console.log("Total meshes found:", meshCount);
-
-    // FBXLoader puts animations on the object itself
-    let animations = fbx.animations || [];
-    if (animations.length > 0) {
-      animations.forEach((clip, i) => {
-        console.log(i, clip.name);
-      });
-    }
-
-    ghostModel = { scene: fbx, animations: animations };
-    if (callback) callback();
+    halloweenGhostModel = { scene: fbx, animations: fbx.animations || [] };
+    check();
   });
+
+  // Khaimera Ghost (GLTF)
+  const gltfLoader = new GLTFLoader();
+  gltfLoader.setPath('./assets/Khaimera Ghost/');
+  gltfLoader.load('ghost.gltf', (gltf) => {
+    gltf.scene.traverse(child => {
+      if (child.isMesh) {
+        child.material.transparent = true;
+        child.material.opacity = 0.95;
+        child.castShadow = true;
+      }
+  });
+  khaimeraGhostModel = { scene: gltf.scene, animations: gltf.animations || [] };
+
+  // Log available animation names
+  if (gltf.animations && gltf.animations.length > 0) {
+    console.log("Khaimera Ghost Animations:");
+    gltf.animations.forEach((clip, idx) => {
+      console.log(`[${idx}] ${clip.name} duration: ${clip.duration}s`);
+    });
+  } else {
+    console.log("No animations found for Khaimera Ghost.");
+  }
+  check();
+});
 }
 
-// Spawn NPCs
+// === NPC SPAWNING ===
 function spawnNPCs() {
-  if (!ghostModel) return;
+  if (!halloweenGhostModel || !khaimeraGhostModel) return;
   const count = Math.ceil(npcWave * 1.3);
-  for (let i = 0; i < count; i++) {
-    const ghost = new Ghost(ghostModel, npcWave);
+
+  // Force at least one Khaimera ghost at wave 1 for testing
+  let khaimeraCount = 1;
+
+  // (Optional: keep your original logic for higher waves)
+  if (npcWave >= 5) {
+    if (npcWave % 5 === 0) khaimeraCount = 1;
+    for (let i = khaimeraCount; i < count; i++) {
+      if (Math.random() < 0.05) khaimeraCount++;
+    }
+    khaimeraCount = Math.min(khaimeraCount, count);
+  }
+
+  // Spawn Khaimera ghosts
+  for (let i = 0; i < khaimeraCount; i++) {
+    const ghost = new KhaimeraGhost(khaimeraGhostModel, npcWave);
+    npcs.push(ghost);
+  }
+  // Spawn Halloween ghosts for the rest
+  for (let i = khaimeraCount; i < count; i++) {
+    const ghost = new HalloweenGhost(halloweenGhostModel, npcWave);
     npcs.push(ghost);
   }
   npcWave++;
   npcSpawnTimer = 0;
 }
 
-// Update NPCs
+// === NPC UPDATE ===
 function updateNPCs(delta) {
   if (!gameActive || !playerAlive) return;
   for (let i = npcs.length - 1; i >= 0; i--) {
@@ -471,27 +693,117 @@ function updateNPCs(delta) {
       ghost.mesh.userData.target = target;
     }
 
-    // Check player proximity
-    const dx = character.position.x - pos.x;
-    const dz = character.position.z - pos.z;
-    const dist = Math.sqrt(dx * dx + dz * dz);
+    // Khaimera death handling
+    if (ghost instanceof KhaimeraGhost && ghost.dead) {
+      ghost.deathTimer -= delta;
+      if (ghost.deathTimer <= 0) {
+        scene.remove(ghost.mesh);
+        npcs.splice(i, 1);
+      }
+      ghost.mixer.update(delta);
+      continue;
+    }
 
-    if (dist < 150) {
-      ghost.mesh.userData.state = 'chasePlayer';
-      target = ghost.isAirGhost
-        ? { x: character.position.x, z: character.position.z, y: character.position.y + 10 } // chase player in 3D
-        : { x: character.position.x, z: character.position.z };
-    } else if (ghost.mesh.userData.state === 'chasePlayer') {
-      ghost.mesh.userData.state = 'toDunes';
-      target = ghost.isAirGhost
-        ? { x: pos.x, z: -800, y: ghost.airTargetY }
-        : { x: pos.x, z: -800 };
+    // Check player proximity
+const dx = character.position.x - pos.x;
+const dz = character.position.z - pos.z;
+const dist = Math.sqrt(dx * dx + dz * dz);
+
+// --- State logic: set chasePlayer if within chaseDistance ---
+if (dist < ghost.chaseDistance) {
+  ghost.mesh.userData.state = 'chasePlayer';
+  target = ghost.isAirGhost
+    ? { x: character.position.x, z: character.position.z, y: character.position.y + 10 }
+    : { x: character.position.x, z: character.position.z };
+} else if (ghost.mesh.userData.state === 'chasePlayer') {
+  ghost.mesh.userData.state = 'toDunes';
+  target = ghost.isAirGhost
+    ? { x: pos.x, z: -800, y: ghost.airTargetY }
+    : { x: pos.x, z: -800 };
+}
+
+// Animation state logic for Khaimera
+if (ghost instanceof KhaimeraGhost) {
+  // StandUp only once at spawn, immobile during StandUp
+  if (!ghost.hasStoodUp && ghost.currentAnimName === 'StandUp') {
+    ghost.mixer.update(delta);
+    if (ghost.currentAction.time >= ghost.currentAction._clip.duration - 0.1) {
+      ghost.hasStoodUp = true;
+      ghost.canMove = true;
+      ghost.playAnimation('Walk');
+    }
+    continue; // Don't move or animate further until StandUp is done
+  } else if (ghost.hasStoodUp) {
+    // If currently attacking, let the attack animation finish
+    if (ghost.isAttacking) {
+  ghost.mixer.update(delta);
+
+  // --- PLAYER KILL CHECK: ---
+if (
+  ghost.mesh.userData.state === 'chasePlayer' &&
+  dist < 50
+) {
+  const action = ghost.currentAction;
+  if (action && action._clip && action._clip.duration > 0) {
+    const progress = action.time / action._clip.duration;
+    // Debug output:
+    console.log('Khaimera attack progress:', progress, 'isAttacking:', ghost.isAttacking, 'dist:', dist);
+    if (progress >= 0.4 && progress < 0.5) {
+      const forward = new THREE.Vector3(0, 0, 1).applyQuaternion(ghost.mesh.quaternion).normalize();
+      const toPlayer = new THREE.Vector3(
+        character.position.x - ghost.mesh.position.x,
+        0,
+        character.position.z - ghost.mesh.position.z
+      ).normalize();
+      const dot = forward.dot(toPlayer);
+      // Debug output:
+      console.log('dot:', dot);
+      if (dot > 0.5) {
+        console.log('Player killed by Khaimera!');
+        endGame(true);
+        return;
+      }
+    }
+  }
+}
+
+  // Check if attack animation finished
+  if (performance.now() >= ghost.attackAnimEndTime) {
+    ghost.isAttacking = false;
+    ghost.playAnimation('Walk');
+  }
+  continue; // Don't switch to walk or attack again until finished
+}
+    // If in attack range and not already attacking, start a random attack
+    if (ghost.mesh.userData.state === 'chasePlayer' && dist < 30) {
+      if (
+        !ghost.isAttacking &&
+        !['Punch', 'Punching', 'Swiping'].includes(ghost.currentAnimName)
+      ) {
+        const attacks = ['Punch', 'Punching', 'Swiping'];
+        const attackAnim = attacks[Math.floor(Math.random() * attacks.length)];
+        ghost.playAnimation(attackAnim, false);
+      }
+    } else {
+      // Only play walk if not already walking
+      if (ghost.currentAnimName !== 'Walk') {
+        ghost.playAnimation('Walk');
+      }
+    }
+  }
+}
+
+
+
+    // Face movement direction (for all ghosts)
+    const tx = target.x - pos.x;
+    const tz = target.z - pos.z;
+    if (tx !== 0 || tz !== 0) {
+      ghost.mesh.rotation.y = Math.atan2(tx, tz);
     }
 
     // --- Movement ---
-    const speed = (0.7 + Math.random() * 0.2) * 1.5;
-    const tx = target.x - pos.x;
-    const tz = target.z - pos.z;
+    const speed = ghost.speed;
     let ty = 0;
     let len = Math.sqrt(tx * tx + tz * tz);
 
@@ -508,15 +820,16 @@ function updateNPCs(delta) {
       }
     }
 
-    if (len > 1) {
-      pos.x += (tx / len) * speed * delta * 60;
-      pos.z += (tz / len) * speed * delta * 60;
-      if (ghost.isAirGhost) {
-        pos.y += (ty / len) * speed * delta * 60;
-      } else {
-        pos.y = getGroundHeightAt(pos.x, pos.z);
-      }
-    }
+    const canMove = !(ghost instanceof KhaimeraGhost) || ghost.canMove;
+if (len > 1 && canMove) {
+  pos.x += (tx / len) * speed * delta * 60;
+  pos.z += (tz / len) * speed * delta * 60;
+  if (ghost.isAirGhost) {
+    pos.y += (ty / len) * speed * delta * 60;
+  } else {
+    pos.y = getGroundHeightAt(pos.x, pos.z);
+  }
+}
 
     // Fading and blinking
     ghost.updateFadeAndBlink(delta, character.position);
@@ -534,7 +847,7 @@ function updateNPCs(delta) {
   }
 }
 
-// Remove NPC if hit by spark
+// === REMOVE NPC IF HIT BY SPARK ===
 function checkSparkHits() {
   for (let i = npcs.length - 1; i >= 0; i--) {
     const npc = npcs[i];
@@ -545,8 +858,19 @@ function checkSparkHits() {
       const dy = spark.mesh.position.y - npc.mesh.position.y;
       const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
       if (dist < 10) {
-        scene.remove(npc.mesh);
-        npcs.splice(i, 1);
+        npc.HP--;
+        if (npc.HP <= 0) {
+          if (npc instanceof KhaimeraGhost) {
+            if (!npc.dead) {
+              npc.dead = true;
+              npc.playAnimation('Death', false);
+              npc.deathTimer = npc.animations['Death'] ? npc.animations['Death'].duration : 2.0;
+            }
+          } else {
+            scene.remove(npc.mesh);
+            npcs.splice(i, 1);
+          }
+        }
         break;
       }
     }
@@ -560,10 +884,9 @@ function showMenu(id, show) {
 }
 
 function startGame() {
-  // Reset game state variables
   gameActive = true;
   playerAlive = true;
-  npcWave = 1; // Reset wave count
+  npcWave = 1;
   npcSpawnTimer = 0;
   isJumping = false;
   velocityY = 0;
@@ -574,13 +897,11 @@ function startGame() {
   ghostStates = {};
   survivalTime = 0;
 
-  // Remove all ghosts from scene and array
   for (let i = npcs.length - 1; i >= 0; i--) {
     scene.remove(npcs[i].mesh);
     npcs.splice(i, 1);
   }
 
-  // Remove all sparks
   if (sparks && sparks.length) {
     for (let i = sparks.length - 1; i >= 0; i--) {
       scene.remove(sparks[i].mesh);
@@ -594,23 +915,20 @@ function startGame() {
     }
   }
 
-  // Reset player position and orientation
   if (character) {
     const spawnZ = -300;
     const spawnX = 0;
     const groundY = getGroundHeightAt(spawnX, spawnZ);
     character.position.set(spawnX, groundY + 10, spawnZ);
-    character.rotation.set(0, 0, 0); // Reset orientation
-    if (camera) camera.rotation.set(0, 0, 0); // Also reset camera if needed
+    character.rotation.set(0, 0, 0);
+    if (camera) camera.rotation.set(0, 0, 0);
   }
 
-  // Reset wand position and rotation
   if (wand) {
     wand.position.copy(wandBasePosition);
     wand.rotation.copy(wandBaseRotation);
   }
 
-  // Hide menus and score
   showMenu('startMenu', false);
   showMenu('endMenu', false);
   const scoreEl = document.getElementById('scoreMessage');
@@ -625,32 +943,25 @@ function endGame(playerDied) {
     ? "You were caught! Game Over!"
     : "The ghosts reached the dunes! Game Over!";
 
-
-    // Show score
   const scoreEl = document.getElementById('scoreMessage');
   if (scoreEl) {
     scoreEl.innerText = `Score: ${Math.floor(survivalTime)} seconds survived`;
     scoreEl.style.display = 'block';
   }
 
-  // Hide all buttons in endMenu except restart
   const endMenu = document.getElementById('endMenu');
   if (endMenu) {
-    // Hide all buttons
     const buttons = endMenu.querySelectorAll('button');
     buttons.forEach(btn => btn.style.display = 'none');
-    // Show restart and go back to main menu buttons
     const restartBtn = document.getElementById('restartButton');
     if (restartBtn) restartBtn.style.display = 'inline-block';
     const backBtn = document.getElementById('backToMenuButton');
-if (backBtn) backBtn.style.display = 'inline-block';
+    if (backBtn) backBtn.style.display = 'inline-block';
   }
 
-  // Hide the focus hint if visible
   const hint = document.getElementById('focusHint');
   if (hint) hint.style.display = 'none';
 
-  // Exit pointer lock to free the mouse for menu interaction
   if (document.exitPointerLock) {
     document.exitPointerLock();
   } else if (document.mozExitPointerLock) {
@@ -658,39 +969,36 @@ if (backBtn) backBtn.style.display = 'inline-block';
   }
 }
 
-
-
-// Boot function to set up menus and pointer lock
-let ghostModelLoaded = false;
+// === BOOT ===
+let ghostModelsLoaded = false;
 
 function boot() {
-  loadGhostModel(() => {
-    ghostModelLoaded = true;
+  loadAllGhostModels(() => {
+    ghostModelsLoaded = true;
     showMenu('startMenu', true);
     document.getElementById('loadingMessage').style.display = 'none';
   });
 
   document.getElementById('startButton').onclick = () => {
-  if (!ghostModelLoaded) {
-    document.getElementById('loadingMessage').style.display = 'block';
-    return;
-  }
-  startGame();
-  showMenu('startMenu', false);
-  main();      // Only called once, on first start
-  spawnNPCs();
-  // Optionally, disable this button after first use to prevent double main()
-};
+    if (!ghostModelsLoaded) {
+      document.getElementById('loadingMessage').style.display = 'block';
+      return;
+    }
+    startGame();
+    showMenu('startMenu', false);
+    main();
+    spawnNPCs();
+  };
 
-document.getElementById('restartButton').onclick = () => {
-  if (!ghostModelLoaded) {
-    document.getElementById('loadingMessage').style.display = 'block';
-    return;
-  }
-  startGame();
-  showMenu('endMenu', false);
-  spawnNPCs(); // Only reset state and spawn new NPCs
-};
+  document.getElementById('restartButton').onclick = () => {
+    if (!ghostModelsLoaded) {
+      document.getElementById('loadingMessage').style.display = 'block';
+      return;
+    }
+    startGame();
+    showMenu('endMenu', false);
+    spawnNPCs();
+  };
 
   document.getElementById('exitButton').onclick = () => {
     showMenu('startMenu', true);
@@ -705,12 +1013,11 @@ document.getElementById('restartButton').onclick = () => {
   };
 
   document.getElementById('backToMenuButton').onclick = () => {
-  showMenu('endMenu', false);
-  showMenu('startMenu', true);
-};
+    showMenu('endMenu', false);
+    showMenu('startMenu', true);
+  };
 }
 
-// Only call boot() on page load
 boot();
 
 // === ANIMATION LOOP ===
@@ -721,7 +1028,7 @@ function animate() {
 
   if (!gamePaused && gameActive && playerAlive) {
     npcSpawnTimer += delta;
-    survivalTime += delta; 
+    survivalTime += delta;
     if (npcSpawnTimer >= npcSpawnInterval) {
       spawnNPCs();
     }
@@ -737,64 +1044,59 @@ function animate() {
     if (water) water.material.uniforms['time'].value += delta;
 
     // Animate sparks
-for (let i = sparks.length - 1; i >= 0; i--) {
-  const spark = sparks[i];
-  const move = spark.direction.clone().multiplyScalar(SPARK_SPEED * delta);
-  spark.mesh.position.add(move);
-  spark.distance += move.length();
+    for (let i = sparks.length - 1; i >= 0; i--) {
+      const spark = sparks[i];
+      const move = spark.direction.clone().multiplyScalar(SPARK_SPEED * delta);
+      spark.mesh.position.add(move);
+      spark.distance += move.length();
 
-  // --- TRAIL LOGIC ---
-  if (spark.enableTrail) {
-    if (!spark.lastTrailPos || spark.mesh.position.distanceTo(spark.lastTrailPos) > 4) {
-      // Blue trail sphere
-      const blueTrailSphere = new THREE.Mesh(
-        new THREE.SphereGeometry(0.18, 6, 6),
-        new THREE.MeshBasicMaterial({ color: 0x2196f3, transparent: true, opacity: 0.7, depthWrite: false })
-      );
-      blueTrailSphere.position.copy(spark.mesh.position);
-      scene.add(blueTrailSphere);
+      if (spark.enableTrail) {
+        if (!spark.lastTrailPos || spark.mesh.position.distanceTo(spark.lastTrailPos) > 4) {
+          const blueTrailSphere = new THREE.Mesh(
+            new THREE.SphereGeometry(0.18, 6, 6),
+            new THREE.MeshBasicMaterial({ color: 0x2196f3, transparent: true, opacity: 0.7, depthWrite: false })
+          );
+          blueTrailSphere.position.copy(spark.mesh.position);
+          scene.add(blueTrailSphere);
 
-      // White trail sphere
-      const trailSphere = new THREE.Mesh(
-        new THREE.SphereGeometry(0.29, 6, 6),
-        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthWrite: false })
-      );
-      trailSphere.position.copy(spark.mesh.position);
-      scene.add(trailSphere);
+          const trailSphere = new THREE.Mesh(
+            new THREE.SphereGeometry(0.29, 6, 6),
+            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthWrite: false })
+          );
+          trailSphere.position.copy(spark.mesh.position);
+          scene.add(trailSphere);
 
-      spark.trail = spark.trail || [];
-      spark.trail.push({ mesh: trailSphere, blueMesh: blueTrailSphere, life: 0.5 });
-      spark.lastTrailPos = spark.mesh.position.clone();
-    }
+          spark.trail = spark.trail || [];
+          spark.trail.push({ mesh: trailSphere, blueMesh: blueTrailSphere, life: 0.5 });
+          spark.lastTrailPos = spark.mesh.position.clone();
+        }
 
-    // Animate and fade trail
-    if (spark.trail) {
-      for (let j = spark.trail.length - 1; j >= 0; j--) {
-        const t = spark.trail[j];
-        t.life -= delta;
-        t.mesh.material.opacity = Math.max(0, t.life * 1.4);
-        t.blueMesh.material.opacity = Math.max(0, t.life * 1.2);
-        if (t.life <= 0) {
-          scene.remove(t.mesh);
-          scene.remove(t.blueMesh);
-          spark.trail.splice(j, 1);
+        if (spark.trail) {
+          for (let j = spark.trail.length - 1; j >= 0; j--) {
+            const t = spark.trail[j];
+            t.life -= delta;
+            t.mesh.material.opacity = Math.max(0, t.life * 1.4);
+            t.blueMesh.material.opacity = Math.max(0, t.life * 1.2);
+            if (t.life <= 0) {
+              scene.remove(t.mesh);
+              scene.remove(t.blueMesh);
+              spark.trail.splice(j, 1);
+            }
+          }
         }
       }
-    }
-  }
 
-  // Remove spark if too far or below ground
-  if (spark.distance > SPARK_MAX_DIST || spark.mesh.position.y < 0) {
-    scene.remove(spark.mesh);
-    if (spark.trail) {
-      for (const t of spark.trail) {
-        scene.remove(t.mesh);
-        scene.remove(t.blueMesh);
+      if (spark.distance > SPARK_MAX_DIST || spark.mesh.position.y < 0) {
+        scene.remove(spark.mesh);
+        if (spark.trail) {
+          for (const t of spark.trail) {
+            scene.remove(t.mesh);
+            scene.remove(t.blueMesh);
+          }
+        }
+        sparks.splice(i, 1);
       }
     }
-    sparks.splice(i, 1);
-  }
-}
 
     // Animate wand
     if (wand && wandIsAnimating) {
@@ -810,7 +1112,6 @@ for (let i = sparks.length - 1; i >= 0; i--) {
         wandIsAnimating = false;
       }
     }
-    // Wand wobble
     if (wand) {
       if ((keys.w || keys.a || keys.s || keys.d) && !isJumping) {
         wandWobbleTime += delta * 8;
@@ -826,13 +1127,11 @@ for (let i = sparks.length - 1; i >= 0; i--) {
         wandWobbleTime = 0;
       }
     }
-    // Fade wand light
     if (wandLight && wandLight.intensity > 0) {
       wandLight.intensity -= 8 * delta;
       if (wandLight.intensity < 0) wandLight.intensity = 0;
     }
 
-    // Border fade logic
     const px = character.position.x, pz = character.position.z;
     const FADE_START = 300, FADE_END = 150;
     const dists = [
@@ -847,23 +1146,20 @@ for (let i = sparks.length - 1; i >= 0; i--) {
       else opacity = 0;
       borders[i].material.opacity = opacity;
     }
-
-    // Always show the dune border (back border at minZ)
     if (borders[1]) {
       borders[1].material.opacity = 1;
     }
+    if (borders && borders.length === 4) {
+      borders[0].position.y = getGroundHeightAt(0, maxZ) + 1;
+      borders[1].position.y = getGroundHeightAt(0, minZ) + 1;
+      borders[2].position.y = getGroundHeightAt(minX, (minZ + maxZ) / 2) + 1;
+      borders[3].position.y = getGroundHeightAt(maxX, (minZ + maxZ) / 2) + 1;
+    }
+  }
 
-    // Update border Y positions to follow ground height
-if (borders && borders.length === 4) {
-  // Top border (sea side)
-  borders[0].position.y = getGroundHeightAt(0, maxZ) + 1;
-  // Dune border (back)
-  borders[1].position.y = getGroundHeightAt(0, minZ) + 1;
-  // Left border
-  borders[2].position.y = getGroundHeightAt(minX, (minZ + maxZ) / 2) + 1;
-  // Right border
-  borders[3].position.y = getGroundHeightAt(maxX, (minZ + maxZ) / 2) + 1;
-}
+  // Animate ghost models
+  for (const ghost of npcs) {
+    if (ghost.mixer) ghost.mixer.update(delta);
   }
 
   renderer.render(scene, camera);
@@ -880,116 +1176,3 @@ function main() {
   setupWand();
   animate();
 }
-
-class Ghost {
-  constructor(modelObj, wave) {
-    // modelObj: { scene, animations }
-    this.mesh = SkeletonUtils.clone(modelObj.scene);
-
-    // Ensure each mesh has its own material instance!
-    this.mesh.traverse(child => {
-      if (child.isMesh && child.material) {
-        if (Array.isArray(child.material)) {
-          child.material = child.material.map(mat =>
-            mat && typeof mat.clone === 'function' ? mat.clone() : mat
-          );
-        } else if (typeof child.material.clone === 'function') {
-          child.material = child.material.clone();
-        }
-      }
-    });
-
-    // Scale ghost to height 15 units
-    scene.add(this.mesh);
-    this.mesh.updateMatrixWorld(true);
-    let box = new THREE.Box3().setFromObject(this.mesh);
-    let originalHeight = box.max.y - box.min.y;
-    if (!isFinite(originalHeight) || originalHeight <= 0) {
-      this.mesh.scale.setScalar(0.1);
-    } else {
-      const scale = 15 / originalHeight;
-      this.mesh.scale.setScalar(scale);
-    }
-
-    // AIR GHOST LOGIC
-    this.isAirGhost = Math.random() < 0.5;
-    let y;
-    if (this.isAirGhost) {
-      y = 15 + Math.random() * 45; // 15 to 60
-      this.airTargetY = 40 + Math.random() * 20; // 40 to 60
-    } else {
-      y = getGroundHeightAt(0, 0); // will be set properly below
-      this.airTargetY = null;
-    }
-
-    // Set position
-    const x = minX + Math.random() * (maxX - minX);
-    const z = 300 + Math.random() * 50;
-    this.mesh.position.set(x, this.isAirGhost ? y : getGroundHeightAt(x, z), z);
-
-    // Set target
-    this.mesh.userData.target = this.isAirGhost
-      ? { x: x, z: -740, y: this.airTargetY }
-      : { x: x, z: -740 };
-
-    // Fading and blinking
-    const fadeProb = Math.min(0.15 + 0.12 * (wave - 1), 0.29);
-    this.shouldFade = Math.random() < fadeProb;
-    this.blinkTimer = Math.random() * 1.5;
-    this.lastOpacity = 1;
-
-    // Animation
-    if (modelObj.animations && modelObj.animations.length > 0) {
-      this.mixer = new THREE.AnimationMixer(this.mesh);
-      this.action = this.mixer.clipAction(modelObj.animations[0]);
-      this.action.play();
-    }
-  }
-
-  updateFadeAndBlink(delta, playerPos) {
-    if (!this.shouldFade) {
-      this.setOpacity(1, false);
-      return;
-    }
-    // Distance to player
-    const dx = playerPos.x - this.mesh.position.x;
-    const dz = playerPos.z - this.mesh.position.z;
-    const distToPlayer = Math.sqrt(dx * dx + dz * dz);
-
-    // Fade calculation
-    let fadeT = 0;
-    if (distToPlayer >= 400) fadeT = 1;
-    else if (distToPlayer <= 150) fadeT = 0;
-    else fadeT = (distToPlayer - 150) / (400 - 150);
-
-    let baseOpacity = 1 - fadeT;
-    let targetOpacity = baseOpacity;
-
-    // Blinking if faded
-    if (baseOpacity < 1) {
-      this.blinkTimer += delta;
-      const cycle = this.blinkTimer % 1.5;
-      const blinkVisible = cycle < 0.1 || (cycle >= 0.2 && cycle < 0.3);
-      if (blinkVisible) targetOpacity = 1;
-    }
-
-    this.setOpacity(targetOpacity, true);
-    this.lastOpacity = targetOpacity;
-  }
-
-  setOpacity(opacity, transparent) {
-    this.mesh.traverse(child => {
-      if (child.material && child.material.opacity !== undefined) {
-        child.material.transparent = transparent;
-        child.material.opacity = opacity;
-      }
-    });
-  }
-}
-
-// In your animate() loop:
-for (const ghost of npcs) {
-  if (ghost.mixer) ghost.mixer.update(delta);
-}
-
-
