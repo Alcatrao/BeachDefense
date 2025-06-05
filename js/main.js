@@ -69,6 +69,7 @@ class Ghost {
     this.chaseDistance = options.chaseDistance || 150; // Default chase distance
     this.hitboxRadius = (options.hitboxRadius || this.size * 0.5) * 1.3;
     this.mesh = SkeletonUtils.clone(modelObj.scene);
+    this.mesh.renderOrder = 1; // Ensure ghosts are drawn above the ground
     
 
     // Ensure each mesh has its own material instance!
@@ -547,18 +548,48 @@ function createBorders() {
     emissiveIntensity: 1,
     transparent: true,
     opacity: 0,
+    depthWrite: false,
+    depthTest: false
   });
-  borders = [
-    new THREE.Mesh(new THREE.BoxGeometry(BORDER_LENGTH_X, borderHeight, borderThickness), edgeMaterial.clone()),
-    new THREE.Mesh(new THREE.BoxGeometry(BORDER_LENGTH_X, borderHeight, borderThickness), edgeMaterial.clone()),
-    new THREE.Mesh(new THREE.BoxGeometry(borderThickness, borderHeight, BORDER_LENGTH_Z), edgeMaterial.clone()),
-    new THREE.Mesh(new THREE.BoxGeometry(borderThickness, borderHeight, BORDER_LENGTH_Z), edgeMaterial.clone()),
-  ];
-  borders[0].position.set(0, borderHeight / 2 + borderYOffset, maxZ);
-  borders[1].position.set(0, borderHeight / 2 + borderYOffset, minZ);
-  borders[2].position.set(minX, borderHeight / 2 + borderYOffset, (minZ + maxZ) / 2);
-  borders[3].position.set(maxX, borderHeight / 2 + borderYOffset, (minZ + maxZ) / 2);
-  for (const mesh of borders) scene.add(mesh);
+
+  // Top and bottom borders (parallel to sea line, flat)
+  const borderTop = new THREE.Mesh(new THREE.BoxGeometry(BORDER_LENGTH_X, borderHeight, borderThickness), edgeMaterial.clone());
+  const borderBottom = new THREE.Mesh(new THREE.BoxGeometry(BORDER_LENGTH_X, borderHeight, borderThickness), edgeMaterial.clone());
+
+  borderTop.position.set(0, getGroundHeightAt(0, maxZ) + 1, maxZ);
+  borderBottom.position.set(0, getGroundHeightAt(0, minZ) + 1, minZ);
+
+  // Left and right borders (perpendicular to sea line, inclined)
+  const borderLeft = new THREE.Mesh(new THREE.BoxGeometry(borderThickness, borderHeight, BORDER_LENGTH_Z), edgeMaterial.clone());
+  const borderRight = new THREE.Mesh(new THREE.BoxGeometry(borderThickness, borderHeight, BORDER_LENGTH_Z), edgeMaterial.clone());
+
+  // For each, sample ground height at both ends (z = minZ and maxZ)
+  const leftY1 = getGroundHeightAt(minX, minZ); // dunes
+  const leftY2 = getGroundHeightAt(minX, maxZ); // sealine
+  const rightY1 = getGroundHeightAt(maxX, minZ); // dunes
+  const rightY2 = getGroundHeightAt(maxX, maxZ); // sealine
+
+  // Midpoints
+  const leftMidY = (leftY1 + leftY2) / 2;
+  const rightMidY = (rightY1 + rightY2) / 2;
+  const midZ = (minZ + maxZ) / 2;
+
+  // Set positions
+  borderLeft.position.set(minX - 4, leftMidY, midZ);
+  borderRight.position.set(maxX - 4, rightMidY, midZ);
+
+  // Calculate inclination (rotation around X axis)
+  const dz = maxZ - minZ;
+  const leftDeltaY = leftY2 - leftY1;   // sealine - dunes
+  const rightDeltaY = rightY2 - rightY1; // sealine - dunes
+  borderLeft.rotation.x = -Math.atan2(leftDeltaY, dz);
+  borderRight.rotation.x = -Math.atan2(rightDeltaY, dz);
+
+  borders = [borderTop, borderBottom, borderLeft, borderRight];
+  for (const mesh of borders) {
+    mesh.renderOrder = 0;
+    scene.add(mesh);
+  }
 }
 
 // === MOVEMENT & INPUT ===
@@ -1113,6 +1144,8 @@ function boot() {
     showMenu('startMenu', false);
     main();
     spawnNPCs();
+    // Automatically lock pointer on start
+    if (controls && !controls.isLocked) controls.lock();
   };
 
   document.getElementById('restartButton').onclick = () => {
@@ -1123,6 +1156,8 @@ function boot() {
     startGame();
     showMenu('endMenu', false);
     spawnNPCs();
+    // Automatically lock pointer on restart
+    if (controls && !controls.isLocked) controls.lock();
   };
 
   document.getElementById('exitButton').onclick = () => {
@@ -1307,6 +1342,32 @@ function animate() {
 
 // === MAIN ===
 function main() {
+  // Remove old renderer if it exists
+  if (renderer && renderer.domElement && renderer.domElement.parentNode) {
+    renderer.domElement.parentNode.removeChild(renderer.domElement);
+  }
+  // Remove old controls event listeners if needed
+  if (controls) {
+    controls.dispose && controls.dispose();
+    controls = null;
+  }
+  // Reset globals
+  scene = null;
+  camera = null;
+  renderer = null;
+  character = null;
+  borders = [];
+  wand = null;
+  wandLight = null;
+  wandIsAnimating = false;
+  wandAnimTimer = 0;
+  wandWobbleTime = 0;
+  isJumping = false;
+  velocityY = 0;
+  ghostStates = {};
+  npcs = [];
+  sparks.length = 0;
+  // Now re-initialize everything
   initScene();
   initSkyAndLights();
   createWater();
