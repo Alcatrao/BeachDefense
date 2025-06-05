@@ -29,6 +29,8 @@ const DUNE_START = -BORDER_LENGTH_Z + DUNE_WIDTH;
 const DUNE_END = -BORDER_LENGTH_Z - DUNE_WIDTH * 2;
 
 const MAX_ACTIVE_SPARKS = 30;
+const sparkPool = [];
+const trailPool = [];
 
 // === GLOBALS ===
 let scene, camera, renderer, character, controls;
@@ -65,7 +67,9 @@ class Ghost {
     this.speed = options.speed || 1;
     this.size = options.size || 15;
     this.chaseDistance = options.chaseDistance || 150; // Default chase distance
+    this.hitboxRadius = (options.hitboxRadius || this.size * 0.5) * 1.3;
     this.mesh = SkeletonUtils.clone(modelObj.scene);
+    
 
     // Ensure each mesh has its own material instance!
     this.mesh.traverse(child => {
@@ -85,12 +89,25 @@ class Ghost {
     this.mesh.updateMatrixWorld(true);
     let box = new THREE.Box3().setFromObject(this.mesh);
     let originalHeight = box.max.y - box.min.y;
+    let scale = 1;
     if (!isFinite(originalHeight) || originalHeight <= 0) {
       this.mesh.scale.setScalar(0.1);
+      this.height = 0.1 * 1; // fallback
     } else {
-      const scale = this.size / originalHeight;
+      scale = this.size / originalHeight;
       this.mesh.scale.setScalar(scale);
+      this.height = this.size; // after scaling, height is now this.size
     }
+
+    // Set hitbox radius to cover the whole height
+    this.hitboxRadius = this.height / 2;
+
+    // Set hitbox center to the middle of the model
+    this.hitboxCenter = new THREE.Vector3(
+      this.mesh.position.x,
+      this.mesh.position.y + this.height / 2,
+      this.mesh.position.z
+    );
 
     // Animation
     if (modelObj.animations && modelObj.animations.length > 0) {
@@ -272,6 +289,77 @@ playAnimation(name, loop = true, fadeDuration = 0.1) {
     this.setOpacity(1, false);
   }
 }
+
+function getGridKey3D(x, y, z, cellSize) {
+  const gx = Math.floor(x / cellSize);
+  const gy = Math.floor(y / cellSize);
+  const gz = Math.floor(z / cellSize);
+  return `${gx},${gy},${gz}`;
+}
+
+function getSparkMesh() {
+  let mesh = sparkPool.pop();
+  if (mesh) {
+    mesh.visible = true;
+    return mesh;
+  }
+  // Create new if pool is empty
+  return new THREE.Mesh(
+    new THREE.SphereGeometry(2, 12, 12),
+    new THREE.MeshBasicMaterial({ color: 0xffffff })
+  );
+}
+
+function getTrailMesh(color, size, opacity) {
+  let mesh = trailPool.pop();
+  if (!mesh) {
+    console.warn('Trail pool exhausted! color:', color, 'size:', size, 'opacity:', opacity);
+    mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 6, 6),
+      new THREE.MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false })
+    );
+  }
+  mesh.material.color.set(color);
+  mesh.material.opacity = opacity;
+  mesh.scale.setScalar(size); // Use size directly
+  mesh.visible = true;
+  mesh.position.set(0, 0, 0);
+  mesh.rotation.set(0, 0, 0);
+  mesh.updateMatrixWorld();
+  return mesh;
+}
+
+function releaseSparkMesh(mesh) {
+  mesh.visible = false;
+  sparkPool.push(mesh);
+}
+
+function releaseTrailMesh(mesh) {
+  mesh.visible = false;
+  trailPool.push(mesh);
+}
+
+function clearMeshPool(pool, maxSize = 100) {
+  while (pool.length > maxSize) {
+    const mesh = pool.pop();
+    if (mesh.geometry) mesh.geometry.dispose();
+    if (mesh.material) mesh.material.dispose();
+  }
+}
+
+function preloadPools() {
+  for (let i = 0; i < 100; i++) sparkPool.push(getSparkMesh());
+  for (let i = 0; i < 500; i++) { // 10x more!
+    const mesh = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 6, 6),
+      new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 1, depthWrite: false })
+    );
+    mesh.visible = false;
+    trailPool.push(mesh);
+  }
+}
+
+
 
 // === INIT FUNCTIONS ===
 function initScene() {
@@ -577,10 +665,7 @@ function shootSpark() {
   camera.getWorldDirection(dir);
   const wandTip = new THREE.Vector3();
   wand.localToWorld(wandTip.set(0, 0, -2.5));
-  const spark = new THREE.Mesh(
-    new THREE.SphereGeometry(2, 16, 16),
-    new THREE.MeshBasicMaterial({ color: 0xffffff })
-  );
+  const spark = getSparkMesh();
   spark.position.copy(wandTip);
   scene.add(spark);
 
@@ -653,10 +738,8 @@ function spawnNPCs() {
   if (!halloweenGhostModel || !khaimeraGhostModel) return;
   const count = Math.ceil(npcWave * 1.3);
 
-  // Force at least one Khaimera ghost at wave 1 for testing
-  let khaimeraCount = 1;
-
-  // (Optional: keep your original logic for higher waves)
+  // Restore original Khaimera spawn logic: only spawn starting at wave 5
+  let khaimeraCount = 0;
   if (npcWave >= 5) {
     if (npcWave % 5 === 0) khaimeraCount = 1;
     for (let i = khaimeraCount; i < count; i++) {
@@ -692,6 +775,11 @@ function updateNPCs(delta) {
         : { x: pos.x, z: -740 };
       ghost.mesh.userData.target = target;
     }
+    ghost.hitboxCenter.set(
+      ghost.mesh.position.x,
+      ghost.mesh.position.y + ghost.height / 2,
+      ghost.mesh.position.z
+    );
 
     // Khaimera death handling
     if (ghost instanceof KhaimeraGhost && ghost.dead) {
@@ -759,7 +847,7 @@ if (
       // Debug output:
       console.log('dot:', dot);
       if (dot > 0.5) {
-        console.log('Player killed by Khaimera!');
+        console.log('Player killed by Khaimera Ghost!');
         endGame(true);
         return;
       }
@@ -849,30 +937,56 @@ if (len > 1 && canMove) {
 
 // === REMOVE NPC IF HIT BY SPARK ===
 function checkSparkHits() {
-  for (let i = npcs.length - 1; i >= 0; i--) {
-    const npc = npcs[i];
-    for (let j = sparks.length - 1; j >= 0; j--) {
-      const spark = sparks[j];
-      const dx = spark.mesh.position.x - npc.mesh.position.x;
-      const dz = spark.mesh.position.z - npc.mesh.position.z;
-      const dy = spark.mesh.position.y - npc.mesh.position.y;
-      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
-      if (dist < 10) {
-        npc.HP--;
-        if (npc.HP <= 0) {
-          if (npc instanceof KhaimeraGhost) {
-            if (!npc.dead) {
-              npc.dead = true;
-              npc.playAnimation('Death', false);
-              npc.deathTimer = npc.animations['Death'] ? npc.animations['Death'].duration : 2.0;
+  const cellSize = 20;
+  // 1. Build ghost hash table (now 3D)
+  const ghostHash = new Map();
+  for (const npc of npcs) {
+    const hash = getGridKey3D(npc.hitboxCenter.x, npc.hitboxCenter.y, npc.hitboxCenter.z, cellSize);
+    if (!ghostHash.has(hash)) ghostHash.set(hash, []);
+    ghostHash.get(hash).push(npc);
+  }
+  // 2. For each spark, check ghosts in the same and neighboring cells (3x3x3 = 27)
+  for (let j = sparks.length - 1; j >= 0; j--) {
+    const spark = sparks[j];
+    const sx = Math.floor(spark.mesh.position.x / cellSize);
+    const sy = Math.floor(spark.mesh.position.y / cellSize);
+    const sz = Math.floor(spark.mesh.position.z / cellSize);
+    let hit = false;
+    for (let dx = -1; dx <= 1; dx++) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dz = -1; dz <= 1; dz++) {
+          const hash = getGridKey3D(sx + dx, sy + dy, sz + dz, 1); // 1 because sx,sy,sz are already cell indices
+          const ghosts = ghostHash.get(hash);
+          if (!ghosts) continue;
+          for (let i = ghosts.length - 1; i >= 0; i--) {
+            const npc = ghosts[i];
+            const dx = spark.mesh.position.x - npc.hitboxCenter.x;
+            const dz = spark.mesh.position.z - npc.hitboxCenter.z;
+            const dy = spark.mesh.position.y - npc.hitboxCenter.y;
+            const dist = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (dist < (npc.hitboxRadius || 15)) {
+              npc.HP--;
+              if (npc.HP <= 0) {
+                if (npc instanceof KhaimeraGhost) {
+                  if (!npc.dead) {
+                    npc.dead = true;
+                    npc.playAnimation('Death', false);
+                    npc.deathTimer = npc.animations['Death'] ? npc.animations['Death'].duration : 2.0;
+                  }
+                } else {
+                  scene.remove(npc.mesh);
+                  npcs.splice(npcs.indexOf(npc), 1);
+                }
+              }
+              hit = true;
+              break; // Only one hit per spark per frame
             }
-          } else {
-            scene.remove(npc.mesh);
-            npcs.splice(i, 1);
           }
+          if (hit) break;
         }
-        break;
+        if (hit) break;
       }
+      if (hit) break;
     }
   }
 }
@@ -902,18 +1016,29 @@ function startGame() {
     npcs.splice(i, 1);
   }
 
+  clearMeshPool(sparkPool);
+  clearMeshPool(trailPool);
+  preloadPools();
+
   if (sparks && sparks.length) {
-    for (let i = sparks.length - 1; i >= 0; i--) {
-      scene.remove(sparks[i].mesh);
-      if (sparks[i].trail) {
-        for (const t of sparks[i].trail) {
-          if (t.mesh) scene.remove(t.mesh);
-          if (t.blueMesh) scene.remove(t.blueMesh);
+  for (let i = sparks.length - 1; i >= 0; i--) {
+    scene.remove(sparks[i].mesh);
+    releaseSparkMesh(sparks[i].mesh); // Pool it!
+    if (sparks[i].trail) {
+      for (const t of sparks[i].trail) {
+        if (t.mesh) {
+          scene.remove(t.mesh);
+          releaseTrailMesh(t.mesh); // Pool it!
+        }
+        if (t.blueMesh) {
+          scene.remove(t.blueMesh);
+          releaseTrailMesh(t.blueMesh); // Pool it!
         }
       }
-      sparks.splice(i, 1);
     }
+    sparks.splice(i, 1);
   }
+}
 
   if (character) {
     const spawnZ = -300;
@@ -1052,17 +1177,22 @@ function animate() {
 
       if (spark.enableTrail) {
         if (!spark.lastTrailPos || spark.mesh.position.distanceTo(spark.lastTrailPos) > 4) {
-          const blueTrailSphere = new THREE.Mesh(
-            new THREE.SphereGeometry(0.18, 6, 6),
-            new THREE.MeshBasicMaterial({ color: 0x2196f3, transparent: true, opacity: 0.7, depthWrite: false })
-          );
-          blueTrailSphere.position.copy(spark.mesh.position);
-          scene.add(blueTrailSphere);
+          // Count blue trails in this spark's trail
+          let blueTrailCount = 0;
+          if (spark.trail) {
+            for (const t of spark.trail) {
+              if (t.blueMesh) blueTrailCount++;
+            }
+          }
 
-          const trailSphere = new THREE.Mesh(
-            new THREE.SphereGeometry(0.29, 6, 6),
-            new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.45, depthWrite: false })
-          );
+          let blueTrailSphere = null;
+          if (blueTrailCount < 2) {
+            blueTrailSphere = getTrailMesh(0x2196f3, 0.18, 0.7);
+            blueTrailSphere.position.copy(spark.mesh.position);
+            scene.add(blueTrailSphere);
+          }
+
+          const trailSphere = getTrailMesh(0xffffff, 0.29, 0.45);
           trailSphere.position.copy(spark.mesh.position);
           scene.add(trailSphere);
 
@@ -1076,10 +1206,14 @@ function animate() {
             const t = spark.trail[j];
             t.life -= delta;
             t.mesh.material.opacity = Math.max(0, t.life * 1.4);
-            t.blueMesh.material.opacity = Math.max(0, t.life * 1.2);
+            if (t.blueMesh) t.blueMesh.material.opacity = Math.max(0, t.life * 1.2);
             if (t.life <= 0) {
               scene.remove(t.mesh);
-              scene.remove(t.blueMesh);
+              releaseTrailMesh(t.mesh);
+              if (t.blueMesh) {
+                scene.remove(t.blueMesh);
+                releaseTrailMesh(t.blueMesh);
+              }
               spark.trail.splice(j, 1);
             }
           }
@@ -1088,10 +1222,16 @@ function animate() {
 
       if (spark.distance > SPARK_MAX_DIST || spark.mesh.position.y < 0) {
         scene.remove(spark.mesh);
+        releaseSparkMesh(spark.mesh); // <-- Pool it after removal
+
         if (spark.trail) {
           for (const t of spark.trail) {
             scene.remove(t.mesh);
-            scene.remove(t.blueMesh);
+            if (t.mesh) releaseTrailMesh(t.mesh);
+            if (t.blueMesh) {
+              scene.remove(t.blueMesh);
+              releaseTrailMesh(t.blueMesh);
+            }
           }
         }
         sparks.splice(i, 1);
