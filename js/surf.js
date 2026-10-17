@@ -153,6 +153,11 @@ function crestState(fn, x, dc, o) {
   o.thetaMax = m(A.thetaMax, B.thetaMax) * sstep(15, 45, dc); o.pc = m(A.pc, B.pc); // no lip thrown onto dry sand
   return o;
 }
+// lumpy whitewater displacement (per unit wave height), mirrored in GLSL
+function boreLumps(x, z, t) {
+  return 0.035 * Math.sin(x * 0.11 + z * 0.07 + t * 2.3) + 0.03 * Math.sin(-x * 0.19 + z * 0.23 + t * 3.1)
+    + 0.02 * Math.sin(x * 0.37 - z * 0.29 + t * 4.7);
+}
 function nGauss(x, w, L) {
   const e = Math.exp(-((0.5 * L / w) ** 2));
   return (Math.exp(-((x / w) ** 2)) - e) / (1 - e);
@@ -182,7 +187,11 @@ export function evalSurf(x, z, t, curl, out = {}) {
   const wf = L * (0.13 + (0.035 - 0.13) * sh);
   const wb = L * (0.2 + (0.32 - 0.2) * bore);
   const bump = s2 < 0 ? nGauss(s2, wf, L) : nGauss(s2, wb, L);
-  let y = H * (bump - 0.2);
+  // trough level: towards a crest-independent level near psi = +-0.5, so the trough behind one wave
+  // meets the trough ahead of the next without a step (each crest's own -0.2 H differs)
+  const tw = sstep(0.25, 0.5, Math.abs(psi));
+  const Ht = H + (0.45 * SURF.Hbase * sstep(20, 120, d) - H) * tw;
+  let y = H * bump - 0.2 * Ht;
   let dA = dc + s2;
 
   const pivY = 0.18 * H, topY = 0.8 * H;
@@ -199,6 +208,10 @@ export function evalSurf(x, z, t, curl, out = {}) {
     }
   }
 
+  // turbulent, lumpy whitewater on the bore front and just behind it
+  const turb = bore * (1 - sstep(0.15 * L, 0.45 * L, s2)) * sstep(-wf - 4, -0.3 * wf, s2);
+  if (turb > 0) y += turb * H * boreLumps(x, z, t);
+
   // land clamp + swash
   const sand = 0.5 + landH(z);
   if (d < 0) y = Math.min(y, sand - 1.6);
@@ -212,9 +225,15 @@ export function evalSurf(x, z, t, curl, out = {}) {
     const r = tt < 1 ? R * (tt < 0.3 ? Math.sin(tt / 0.3 * 1.5708) : Math.cos((tt - 0.3) / 0.7 * 1.5708)) : 0;
     wet = sstep(-r - 3, -r + 12, d);
     const bed = d > 0 ? sand - SURF.slope * d : sand;
-    const ys = bed + SURF.film * wet - 1.5 * (1 - wet);
+    // sand the swash has wetted (up to the highest run-up of this or the last wave) keeps a thin layer just above it
+    const Rw = Math.max(tt < 0.3 ? r : R, SURF.runup * waveHn(f0 - 1, x) * 0.8);
+    const dampSand = sstep(-Rw - 12, -Rw - 4, d); // drops below the sand only where it is already invisible
+    const ys = bed + SURF.film * wet + (0.2 * dampSand - 1.5 * (1 - dampSand)) * (1 - wet);
     const k = sstep(40, 20, d);
-    if (ys > y) { y += (ys - y) * k; dA += (d - dA) * k; }
+    // smooth max of the sea surface and the swash film: a hard max leaves a crease the grid renders as a staircase
+    const hm = Math.min(Math.max(0.5 + 0.5 * (ys - y) / 2.5, 0), 1);
+    const ym = y + (ys - y) * hm + 2.5 * hm * (1 - hm);
+    y += (ym - y) * k; dA += (d - dA) * k * hm;
   }
 
   out.x = x; out.y = y; out.z = zs + dA;
@@ -329,7 +348,7 @@ float nGauss(float x, float w, float L) {
   return (exp(-pow(x / w, 2.0)) - e) / (1.0 - e);
 }
 // returns displaced position; foam/thin/wet via out params
-vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut) {
+vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out float sandW, out float age) {
   float x = xz.x, z = xz.y;
   float zs = shoreZ(x);
   float d = z - zs;
@@ -370,7 +389,8 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut) {
   float wf = L * mix(0.13, 0.035, sh);
   float wb = L * mix(0.2, 0.32, bore);
   float bump = s2 < 0.0 ? nGauss(s2, wf, L) : nGauss(s2, wb, L);
-  float y = H * (bump - 0.2);
+  float Ht = mix(H, 0.45 * HBASE * sstep(20.0, 120.0, d), sstep(0.25, 0.5, abs(psi)));
+  float y = H * bump - 0.2 * Ht;
   float dA = dc + s2;
 
   float pivY = 0.18 * H, topY = 0.8 * H;
@@ -388,10 +408,16 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut) {
   // small wind chop, kept off the lip and the swash
   float chopK = (1.0 - hw * bw * chopP) * sstep(-10.0, 60.0, d);
   y += chopK * (0.45 * sin(x * 0.071 + z * 0.052 - uTime * 1.9) + 0.3 * sin(-x * 0.047 + z * 0.093 - uTime * 2.6));
+  // turbulent, lumpy whitewater on the bore front and just behind it
+  float turb = bore * (1.0 - sstep(0.15 * L, 0.45 * L, s2)) * sstep(-wf - 4.0, -0.3 * wf, s2);
+  y += turb * H * (0.035 * sin(x * 0.11 + z * 0.07 + uTime * 2.3) + 0.03 * sin(-x * 0.19 + z * 0.23 + uTime * 3.1)
+    + 0.02 * sin(x * 0.37 - z * 0.29 + uTime * 4.7));
 
   float sand = 0.5 + landH(z);
   if (d < 0.0) y = min(y, sand - 1.6);
   float wet = 0.0;
+  float filmP = d > 0.0 ? 1.0 : 0.0; // is there water here (not just damp sand)?
+  sandW = 0.0;
   if (d < 40.0) {
     float phi0 = phaseAt(x, 0.0);
     float f0 = floor(phi0 / TAU);
@@ -400,10 +426,21 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut) {
     float tt = tau / 0.75;
     float r = tt < 1.0 ? R * (tt < 0.3 ? sin(tt / 0.3 * 1.5708) : cos((tt - 0.3) / 0.7 * 1.5708)) : 0.0;
     wet = sstep(-r - 3.0, -r + 12.0, d);
+    filmP = max(filmP, wet);
     float bed = d > 0.0 ? sand - SLOPE * d : sand;
-    float ys = bed + FILM * wet - 1.5 * (1.0 - wet);
+    // sand the swash has wetted (up to the highest run-up of this or the last wave) keeps a thin layer just above it
+    float Rw = max(tt < 0.3 ? r : R, RUNUP * waveHn(f0 - 1.0, x) * 0.8);
+    float dampSand = sstep(-Rw - 12.0, -Rw - 4.0, d);
+    float ys = bed + FILM * wet + (0.2 * dampSand - 1.5 * (1.0 - dampSand)) * (1.0 - wet);
     float k = sstep(40.0, 20.0, d);
-    if (ys > y) { y += (ys - y) * k; dA += (d - dA) * k; }
+    float hm = clamp(0.5 + 0.5 * (ys - y) / 2.5, 0.0, 1.0);
+    float ym = y + (ys - y) * hm + 2.5 * hm * (1.0 - hm);
+    y += (ym - y) * k; dA += (d - dA) * k * hm;
+    // wet-sand look: dark where damp, a glassy film just behind the retreating water
+    float edge = max(-d - r, 0.0);
+    float glaze = tt > 0.3 ? exp(-edge / (0.25 * R + 4.0)) : 0.0;
+    float damp = sstep(-Rw - 2.0, -Rw + 6.0, d) * (1.0 - sstep(-r - 6.0, -r + 2.0, d)) * sstep(10.0, 0.0, d);
+    sandW = damp * (1.0 + glaze) * 0.5; // 0..0.5 damp, up to 1 with the glassy film
     // foam on the swash, densest at the uprush tip
     float tip = sstep(-r - 3.0, -r + 4.0, d) * (1.0 - sstep(-r + 4.0, -r + 20.0, d));
     wet = clamp(max(wet * 0.3 * sstep(10.0, -5.0, d), 0.85 * tip), 0.0, 1.0) * sstep(1.0, 0.9, tt);
@@ -415,7 +452,14 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut) {
   float fBore = bore * (0.18 + 0.32 * (1.0 - sstep(0.0, 0.9 * L, s2)) + 0.5 * sstep(-wf * 1.2, 0.0, s2) * (1.0 - sstep(0.0, 0.2 * L, s2)));
   float fZone = 0.22 * sstep(dbz + 30.0, dbz - 60.0, d) * (0.5 + 0.5 * sin(x * 0.013 + z * 0.021 + fn));
   float fCap = 0.25 * sstep(0.85, 1.0, bump) * capP;
-  foam = clamp(max(max(fLip, fFace), max(max(fBore, fZone), max(fCap, wet))), 0.0, 1.0);
+  // residual foam left behind by broken waves: thins out as it ages (behind this crest, or the previous one)
+  float ageB = s2 > 0.0 ? s2 / L : 1.0 + s2 / L;  // ~time since a crest passed, in wave periods
+  float zoneIn = max(sstep(dbz + 10.0, dbz - 50.0, d), 0.7 * sstep(BAROUT + 10.0, BAROUT - 50.0, d) * sstep(REF1 - 40.0, REF0, d));
+  float broke = s2 > 0.0 ? max(bore, lip2) : 1.0;
+  float fRes = zoneIn * broke * (0.12 + 0.5 * exp(-3.0 * ageB));
+  foam = clamp(max(max(max(fLip, fFace), max(fBore, fZone)), max(fCap, fRes)) * filmP, 0.0, 1.0);
+  foam = max(foam, wet);
+  age = clamp(mix(ageB, 0.0, max(max(fLip, fBore * (1.0 - sstep(0.0, 0.3 * L, s2))), max(fFace, wet))), 0.0, 1.0);
   thin = hw * bw * sh;
   wetOut = wet;
   return vec3(x, y, zs + dA);
@@ -429,12 +473,17 @@ varying vec3 vNrm;
 varying float vFoam;
 varying float vThin;
 varying float vDepth;
+varying float vSand;
+varying float vAge;
+varying float vLand;
 void main() {
-  float f, th, wt, f1, t1, w1;
+  float f, th, wt, sw, ag, f1, t1, w1, s1, a1;
   vec2 xz = position.xz;
-  vec3 P = surfPos(xz, f, th, wt);
-  vec3 P1 = surfPos(xz + vec2(0.7, 0.0), f1, t1, w1);
-  vec3 P2 = surfPos(xz + vec2(0.0, 0.7), f1, t1, w1);
+  vec3 P = surfPos(xz, f, th, wt, sw, ag);
+  vec3 P1 = surfPos(xz + vec2(0.7, 0.0), f1, t1, w1, s1, a1);
+  vec3 P2 = surfPos(xz + vec2(0.0, 0.7), f1, t1, w1, s1, a1);
+  vSand = sw;
+  vAge = ag;
   vec3 n = cross(P2 - P, P1 - P);
   vNrm = length(n) > 1e-6 ? normalize(n) : vec3(0.0, 1.0, 0.0);
   vWorld = P;
@@ -443,6 +492,7 @@ void main() {
   float zs = shoreZ(xz.x);
   float bed = max(0.5 + landH(xz.y) - SLOPE * max(xz.y - zs, 0.0), -70.0);
   vDepth = P.y - bed;
+  vLand = 1.0 - smoothstep(-3.0, 3.0, xz.y - zs);
   gl_Position = projectionMatrix * viewMatrix * vec4(P, 1.0);
 }
 `;
@@ -457,6 +507,41 @@ varying vec3 vNrm;
 varying float vFoam;
 varying float vThin;
 varying float vDepth;
+varying float vSand;
+varying float vAge;
+varying float vLand;
+
+vec2 hash2(vec2 p) {
+  p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+  return fract(sin(p) * 43758.5453);
+}
+// distance to the nearest cell wall of a slowly churning cellular pattern (0 on the walls)
+float cellWall(vec2 p, float t) {
+  vec2 i = floor(p), f = fract(p);
+  float d1 = 8.0, d2 = 8.0;
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+    vec2 g = vec2(float(x), float(y));
+    vec2 o = hash2(i + g);
+    o = 0.5 + 0.42 * sin(t + 6.2831 * o);
+    float dd = length(g + o - f);
+    if (dd < d1) { d2 = d1; d1 = dd; } else if (dd < d2) d2 = dd;
+  }
+  return d2 - d1;
+}
+
+// foam pattern for one projection: lacy foam, where bubble rafts gather on the walls of a churning cell
+// pattern drifting with the water (stretched into streaks on steep faces), over the foam texture.
+// Returns the "emptiness" e (0 on the lace, 1 in the holes); ft = contrast-stretched texture.
+float foamField(vec2 fw, vec2 st, float lw, out float ft) {
+  ft = texture2D(uFoamTex, fw * 0.031 + vec2(0.0, uTime * 0.012)).r * 0.65 + texture2D(uFoamTex, fw * 0.083 - vec2(uTime * 0.01, 0.0)).r * 0.35;
+  ft = clamp((ft - 0.58) / 0.36, 0.0, 1.0); // the texture is mostly bright: stretch its contrast
+  if (lw <= 0.0) return 1.0 - ft;
+  vec2 lp = fw + vec2(0.0, -uTime * 1.6);
+  float w1 = cellWall(lp * 0.11 * st, uTime * 0.35);
+  float w2 = cellWall(lp * 0.31 * st + 7.3, uTime * 0.6);
+  float e = 0.62 * min(w1 / 0.55, 1.0) + 0.23 * min(w2 / 0.55, 1.0) + 0.15 * (1.0 - ft);
+  return mix(1.0 - ft, e, lw);
+}
 
 const vec3 HORIZON = vec3(0.80, 0.82, 0.82);
 const vec3 ZENITH  = vec3(0.18, 0.45, 0.85);
@@ -496,17 +581,27 @@ void main() {
   F *= 1.0 - 0.6 * vThin; // a steep, thin breaking face shows its body colour more than the sky
   vec3 col = mix(body, sky, F) + spec * (1.0 - vFoam);
 
-  // foam: texture thresholded by the foam amount, solid where it is dense
-  // project foam from the side on steep faces so it does not streak down the lip
-  vec2 fw = mix(vWorld.xz, vec2(vWorld.x + vWorld.z * 0.3, vWorld.y * 1.3 + vWorld.z), smoothstep(0.35, 0.75, 1.0 - abs(normalize(vNrm).y)));
-  vec2 fuv = fw * 0.031 + vec2(0.0, uTime * 0.012);
-  float ft = texture2D(uFoamTex, fuv).r * 0.65 + texture2D(uFoamTex, fw * 0.083 - vec2(uTime * 0.01, 0.0)).r * 0.35;
-  ft = clamp((ft - 0.58) / 0.36, 0.0, 1.0); // the texture is mostly bright: stretch its contrast
+  // foam: texture thresholded by the foam amount, solid where it is dense.
+  // Steep faces use a side projection; the two projections are blended by result, not by coordinate,
+  // which would compress the pattern into contour stripes where the slope changes.
+  float steepF = smoothstep(0.35, 0.75, 1.0 - abs(normalize(vNrm).y));
+  float lw = 1.0 - smoothstep(350.0, 1100.0, dist);
+  float ft = 0.0, ftB = 0.0, e = 0.0;
+  if (steepF < 0.99) e = foamField(vWorld.xz, vec2(1.0), lw, ft);
+  if (steepF > 0.01) {
+    float eB = foamField(vec2(vWorld.x + vWorld.z * 0.3, vWorld.y * 1.3 + vWorld.z), vec2(1.0, 0.3), lw, ftB);
+    e = mix(e, eB, steepF); ft = mix(ft, ftB, steepF);
+  }
   float blot = clamp((texture2D(uFoamTex, uv * 0.0071 + vec2(0.37, 0.11)).r - 0.55) / 0.4, 0.0, 1.0); // large-scale break-up
   float fa = vFoam * (0.7 + 0.6 * blot);
-  float cover = smoothstep(1.0 - fa, 1.0 - fa + 0.22, ft) + smoothstep(0.9, 1.05, fa);
-  cover = clamp(cover, 0.0, 1.0);
+  float thr = fa * mix(1.05, 0.85, vAge);           // old foam opens up into a thin net
+  float sparse = 1.0 - smoothstep(0.15, 0.6, fa);   // a little foam reads as faint scum, not sharp white cracks
+  float soft = mix(mix(0.07, 0.03, vAge), 0.12, sparse);
+  float cover = 1.0 - smoothstep(thr - soft, thr + soft, e) + smoothstep(0.92, 1.08, fa);
+  cover = clamp(cover, 0.0, 1.0) * (1.0 - 0.7 * sparse);
+  float dens = clamp((thr - e) / 0.25 + 0.4, 0.0, 1.0); // thin filaments show some of the water through
   vec3 foamCol = vec3(1.0) * (1.75 + 0.35 * NdL + 0.2 * back) * (0.92 + 0.08 * ft); // bright white (pre tone mapping)
+  foamCol = mix(mix(body, foamCol, 0.7), foamCol, dens);
   col = mix(col, foamCol, cover);
 
   float haze = 1.0 - exp(-dist * 0.00024);
@@ -514,6 +609,23 @@ void main() {
 
   float alpha = mix(0.55, 1.0, smoothstep(0.2, 2.5, vDepth));
   alpha = max(alpha, cover);
+
+  // damp sand left by the swash: a dark, transparent layer, mirror-like where the film is still draining
+  // (the layer and the dry-sand drop are judged per pixel from the interpolated depth, so the edge is smooth)
+  float sandL = (1.0 - smoothstep(0.3, 0.7, vDepth)) * vLand;
+  if (sandL > 0.0) {
+    float damp = min(vSand * 2.0, 1.0), glaze = clamp(vSand * 2.0 - 1.0, 0.0, 1.0);
+    vec3 Ns = normalize(vec3(0.0, 1.0, 0.0) + vec3(dn.x, 0.0, dn.y) * 0.03);
+    float Fs = 0.02 + 0.98 * pow(1.0 - max(dot(Ns, V), 0.0), 5.0);
+    vec3 Rs = reflect(-V, Ns);
+    vec3 skyS = mix(HORIZON, ZENITH, smoothstep(0.0, 0.35, Rs.y)) + vec3(1.0, 0.95, 0.85) * pow(max(dot(Rs, uSunDir), 0.0), 400.0) * 12.0;
+    float refl = glaze * Fs;
+    vec3 sandCol = mix(vec3(0.17, 0.13, 0.08), skyS, refl / max(refl + 0.4 * damp, 1e-3));
+    float sandA = clamp(0.4 * damp + refl, 0.0, 1.0) * (1.0 - cover);
+    sandCol = mix(sandCol, HORIZON, haze * 0.85);
+    col = mix(col, mix(sandCol, col, cover), sandL);
+    alpha = mix(alpha, max(sandA, cover), sandL);
+  }
   gl_FragColor = vec4(col * 1.55, alpha); // pre-exposure: the renderer uses ACES tone mapping
   #include <tonemapping_fragment>
   #include <colorspace_fragment>

@@ -65,7 +65,30 @@ Scale assumed from eye height 10 units = 1.7 m: ~5.9 units per metre.
 - Not done: seabed has no actual bar/trough shape (breaking positions are parameters); no HUD
   warning for the rogue; not hand-play-tested.
 
+## Round 3 realism (17 Oct 2026, Claude's own initiative after the owner said "feel free to pursue
+## what you think could add more realism to the waves and foam")
+- Foam lace: Voronoi cell-wall lace (two scales, drifting) blended with the foam texture and
+  thresholded by foam density, after Jeschke/Parberry-style foam patterns. Sources:
+  https://ianparberry.com/pubs/GAMEON-NA_GRAPH_04.pdf , https://ianparberry.com/techreports/LARC-2011-05.pdf ,
+  https://www.cg.tuwien.ac.at/research/publications/2010/bagar2010/ , https://planetside.co.uk/forums/index.php?msg=252771
+  Lace fades to plain texture beyond ~350-1100 units. Low density reads as faint scum (sparse softening).
+- Foam ages: residual foam lingers behind the bore and thins out with age (vAge); turbulent lumpy
+  bore surface (boreLumps, mirrored JS/GLSL).
+- Steep faces: foam is evaluated in both top and side projections and the results blended
+  (blending the coordinates gave contour stripes).
+- Wet sand: dark damp layer with sky glaze/glints left by the backwash (depth-based, gated by
+  the land mask vLand); the damp film drops under the sand only where it is invisible.
+- Smooth max between sea surface and swash film (hard max made a grid staircase).
+- Fixed a pre-existing height step where one crest's trough met the next (each crest's trough sat
+  at -0.2 H of its own height): the trough level now blends to a crest-independent level near
+  psi = +-0.5. Max step across crest boundaries 0.01 units (was ~1.4).
+- Verified: shots r3-*.jpg; step() tests: 1 wipeout / 30 s held at d~100, 2 at d~15; rogue lifts
+  the player to y 46.8 at z 400. Render (readPixels timing) 0.62 ms vs 0.36 ms in round 2.
+  Console: only pointer-lock errors. Not hand-play-tested.
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
 save renderer.toDataURL captures while the preview pane is hidden).
+
+Committed 4fc714e and pushed to origin/claude/shorebreak-waves on 17 Oct 2026 (owner request). No PR.
