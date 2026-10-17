@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "beach-claude",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "8771", "--directory", "E:/AI_Workspaces/BeachDefense/branches/claude"],
+      "port": 8771
+    }
+  ]
+}

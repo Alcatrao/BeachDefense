@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { Water } from 'Water';
+import { createSurf, shoreZ, SURF } from './surf.js';
 import { Sky } from 'Sky';
 import { PointerLockControls } from 'PointerLockControls';
 import { GLTFLoader } from 'https://unpkg.com/three@0.155.0/examples/jsm/loaders/GLTFLoader.js';
@@ -21,6 +21,7 @@ const minX = -BORDER_HALF_X;
 const maxX = BORDER_HALF_X;
 const minZ = -BORDER_LENGTH_Z;
 const maxZ = 0;
+const SEA_MAX_Z = 430; // the player may swim / skim out past the shorebreak
 
 const FLAT_SAND_WIDTH = 100;
 const DUNE_WIDTH = 100;
@@ -46,7 +47,10 @@ let isJumping = false, velocityY = 0;
 let ghostStates = {};
 let survivalTime = 0;
 const gravity = -0.02, jumpStrength = 0.5;
-const keys = { w: false, a: false, s: false, d: false, space: false };
+const keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
+let surf = null;
+// player-in-water state (velocities in units per frame, like the rest of the movement code)
+const sea = { vx: 0, vz: 0, tumble: 0, tumbleDur: 1.6, inWater: false, skimming: false, overlay: null, lastHit: -1 };
 const sparks = [];
 const SPARK_SPEED = 1000, SPARK_MAX_DIST = 1500;
 
@@ -381,6 +385,9 @@ function initScene() {
 
   renderer = new THREE.WebGLRenderer();
   renderer.setSize(window.innerWidth, window.innerHeight);
+  // filmic tone mapping keeps the Sky shader from washing out to white
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = 0.6;
   document.body.appendChild(renderer.domElement);
 
   controls = new PointerLockControls(character, renderer.domElement);
@@ -429,35 +436,12 @@ function initSkyAndLights() {
 }
 
 function createWater() {
-  const waterGeometry = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE / 2, 200, 100);
-  const water = new Water(waterGeometry, {
-    textureWidth: 512,
-    textureHeight: 512,
-    waterNormals: new THREE.TextureLoader().load('./textures/waternormals.jpg', function (texture) {
-      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    }),
-    sunDirection: new THREE.Vector3(),
-    sunColor: 0xfff8e7,
-    waterColor: 0x46bcec,
-    distortionScale: 4.5,
-  });
-  water.rotation.x = -Math.PI / 2;
-  water.position.set(0, 0, MAP_SIZE / 4 - 150);
-  scene.add(water);
-
-  const waterPosition = waterGeometry.attributes.position;
-  for (let i = 0; i < waterPosition.count; i++) {
-    const x = waterPosition.getX(i);
-    const y = waterPosition.getY(i);
-    if (y > 0) {
-      const waveHeight = (y / 5000) * Math.sin((x / 500) * Math.PI * 2);
-      waterPosition.setZ(i, waveHeight);
-    } else {
-      waterPosition.setZ(i, 0);
-    }
-  }
-  waterPosition.needsUpdate = true;
-  return water;
+  const sun = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - 15), 0);
+  const params = new URLSearchParams(location.search);
+  const quality = params.get('surf') || 'medium';
+  const rogueIn = params.has('rogue') ? Number(params.get('rogue')) || 0 : undefined; // ?rogue=N: first rogue wave after N s
+  surf = createSurf(scene, { sunDir: sun, quality, rogueIn });
+  return surf;
 }
 
 function createBeach() {
@@ -509,9 +493,9 @@ function createBeach() {
       sealineOffset += smoothT * bay;
     }
 
-    const zRaw = - (y + BEACH_HEIGHT / 2) - sealineOffset;
-    const z = Math.max(zRaw, -BEACH_HEIGHT);
-    const zClamped = Math.min(z, 0);
+    // the plane now extends ~900 units out under the sea (seabed)
+    const zClamped = - (y + BEACH_HEIGHT / 2) + 900;
+    const seaD = zClamped + sealineOffset; // distance seaward of the shoreline
 
     let height = SEA_LEVEL_OFFSET;
     if (zClamped >= -FLAT_SAND_WIDTH) {
@@ -528,11 +512,14 @@ function createBeach() {
     }
 
     height += SAND_HEIGHT_OFFSET;
+    if (seaD > 0) height = Math.max(height - SURF.slope * seaD, -70);
 
     positionAttribute.setY(i, height);
     positionAttribute.setZ(i, zClamped);
   }
   positionAttribute.needsUpdate = true;
+  beachGeometry.computeVertexNormals();
+  beachMaterial.displacementBias = -1;
 
   const beach = new THREE.Mesh(beachGeometry, beachMaterial);
   beach.position.set(0, 0, 0);
@@ -556,7 +543,7 @@ function createBorders() {
   const borderTop = new THREE.Mesh(new THREE.BoxGeometry(BORDER_LENGTH_X, borderHeight, borderThickness), edgeMaterial.clone());
   const borderBottom = new THREE.Mesh(new THREE.BoxGeometry(BORDER_LENGTH_X, borderHeight, borderThickness), edgeMaterial.clone());
 
-  borderTop.position.set(0, getGroundHeightAt(0, maxZ) + 1, maxZ);
+  borderTop.position.set(0, 1, SEA_MAX_Z);
   borderBottom.position.set(0, getGroundHeightAt(0, minZ) + 1, minZ);
 
   // Left and right borders (perpendicular to sea line, inclined)
@@ -596,54 +583,148 @@ function createBorders() {
 function setupInput() {
   document.addEventListener('keydown', (event) => {
     const key = event.key.toLowerCase();
+    if (event.key === "Shift") keys.shift = true;
     if (key === " " || key === "space") keys.space = true;
     else if (keys.hasOwnProperty(key)) keys[key] = true;
   });
   document.addEventListener('keyup', (event) => {
     const key = event.key.toLowerCase();
+    if (event.key === "Shift") keys.shift = false;
     if (key === " " || key === "space") keys.space = false;
     else if (keys.hasOwnProperty(key)) keys[key] = false;
   });
 }
 
+function seaOverlay() {
+  if (!sea.overlay) {
+    const el = document.createElement('div');
+    el.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:5;opacity:0;transition:opacity 0.12s;';
+    document.body.appendChild(el);
+    sea.overlay = el;
+  }
+  return sea.overlay;
+}
+
 function updateMovement() {
-  const moveDistance = 1.8;
+  const pos = character.position;
   const direction = new THREE.Vector3();
   const forward = new THREE.Vector3();
   camera.getWorldDirection(forward); forward.y = 0; forward.normalize();
   const left = new THREE.Vector3(); left.crossVectors(camera.up, forward).normalize();
 
-  if (keys.w) direction.add(forward);
-  if (keys.s) direction.sub(forward);
-  if (keys.a) direction.add(left);
-  if (keys.d) direction.sub(left);
+  const tumbling = sea.tumble > 0;
+  if (!tumbling) {
+    if (keys.w) direction.add(forward);
+    if (keys.s) direction.sub(forward);
+    if (keys.a) direction.add(left);
+    if (keys.d) direction.sub(left);
+  }
+
+  const ground = getSeabedHeightAt(pos.x, pos.z);
+  const w = surf ? surf.sample(pos.x, pos.z) : null;
+  const depth = w ? w.y - ground : 0;
+  const inWater = depth > 1.2;
+  sea.inWater = inWater;
+  sea.skimming = inWater && keys.shift && !tumbling;
+
+  // --- horizontal movement ---
+  let moveDistance = 1.8;
+  if (inWater) {
+    const deep = Math.min(depth / 8, 1);
+    moveDistance = sea.skimming ? 2.4 : 1.8 - 0.9 * deep; // wading/swimming is slower, skimming faster
+    // the water drags the player along with it (shoreward under a passing crest, seaward in the backwash)
+    const uz = w.u / 60;
+    const k = (sea.skimming ? 0.025 : 0.07) * deep + 0.02;
+    sea.vz += (uz - sea.vz) * k;
+    // skimming: slide down the wave face (towards lower water)
+    if (sea.skimming) sea.vz -= w.dydz * 0.09;
+    sea.vx *= 0.97;
+    sea.vz *= 0.99;
+    // broken wave / landing lip: wipeout
+    if (w.lipHit && !tumbling && w.lipHit.fn !== sea.lastHit && pos.y < w.lipHit.yTop + 10) {
+      const H = Math.min(w.lipHit.H, 40);
+      sea.lastHit = w.lipHit.fn;
+      sea.tumble = sea.tumbleDur = 1.2 + H * 0.04;
+      sea.vz = -(1.6 + H * 0.14);              // thrown towards the beach
+      sea.vx = (Math.random() - 0.5) * 1.2;
+      velocityY = w.lipHit.kind === 'lip' ? 0.35 + H * 0.03 : 0.2;
+      isJumping = true;
+    }
+  } else {
+    sea.vx *= 0.85; sea.vz *= 0.85; // sand friction
+  }
 
   if (direction.length() > 0) {
     direction.normalize().multiplyScalar(moveDistance);
-    character.position.add(direction);
+    pos.add(direction);
+  }
+  pos.x += sea.vx; pos.z += sea.vz;
+
+  // --- vertical: land, water surface, jump ---
+  const landEye = getSeabedHeightAt(pos.x, pos.z) + 10;
+  let restEye = landEye;
+  if (w) {
+    const w2 = (pos.x === w.x && pos.z === w.z) ? w : surf.sample(pos.x, pos.z);
+    const d2 = w2.y - (landEye - 10);
+    const float = sea.skimming ? 9.5 : 4.0;          // skim on top, or swim with the head above water
+    const t = Math.min(Math.max((d2 - 1.2) / 6, 0), 1);
+    restEye = Math.max(landEye, landEye + (w2.y + float - landEye) * t);
   }
 
-  // Jumping
-  if (keys.space && !isJumping) {
+  if (keys.space && !isJumping && !tumbling) {
     isJumping = true;
     velocityY = jumpStrength;
   }
   if (isJumping) {
-  velocityY += gravity;
-  character.position.y += velocityY;
-  const groundY = getGroundHeightAt(character.position.x, character.position.z) + 10;
-  if (character.position.y <= groundY) {
-    character.position.y = groundY;
-    isJumping = false;
-    velocityY = 0;
+    velocityY += gravity;
+    pos.y += velocityY;
+    if (pos.y <= restEye) {
+      if (inWater && velocityY < -0.05 && !tumbling) velocityY *= -0.15; // small splash bounce
+      pos.y = restEye;
+      if (Math.abs(velocityY) < 0.06 || !inWater || tumbling) { isJumping = false; velocityY = 0; }
+    }
+  } else if (inWater) {
+    // follow the surface: a rising wave lifts the player, and a fast lift launches them
+    const dy = restEye - pos.y;
+    const rise = dy * 0.3;
+    pos.y += rise;
+    if (rise > 0.6 && sea.skimming) { isJumping = true; velocityY = rise * 0.5; }
+  } else {
+    pos.y = restEye;
   }
-} else {
-  character.position.y = getGroundHeightAt(character.position.x, character.position.z) + 10;
-}
 
-  // Clamp to box
-  character.position.x = Math.max(minX, Math.min(maxX, character.position.x));
-  character.position.z = Math.max(minZ, Math.min(maxZ, character.position.z));
+  // --- wipeout tumble ---
+  if (sea.tumble > 0) {
+    sea.tumble -= 1 / 60;
+    const prog = 1 - Math.max(sea.tumble, 0) / sea.tumbleDur;
+    const ease = Math.sin(prog * Math.PI);
+    camera.rotation.x = -prog * Math.PI * 2 * 1.5;   // head over heels
+    camera.rotation.z = ease * 0.9;
+    pos.y = Math.min(pos.y, restEye + 4 * ease);
+    if (sea.tumble <= 0) { camera.rotation.x = 0; camera.rotation.z = 0; }
+  }
+
+  // underwater / whitewash overlay
+  if (w) {
+    const ov = seaOverlay();
+    const camY = pos.y;
+    const under = camY < w.y + 0.5;
+    if (sea.tumble > 0) {
+      const prog = 1 - sea.tumble / sea.tumbleDur;
+      ov.style.background = 'radial-gradient(circle, rgba(235,245,242,0.92), rgba(170,215,210,0.97))';
+      ov.style.opacity = String(Math.min(1, (1 - prog) * 2.5));
+    } else if (under) {
+      ov.style.background = 'linear-gradient(rgba(40,110,110,0.55), rgba(10,50,60,0.8))';
+      ov.style.opacity = '1';
+    } else {
+      ov.style.opacity = '0';
+    }
+  }
+
+  // Clamp to box (the sea side extends past the old waterline)
+  pos.x = Math.max(minX, Math.min(maxX, pos.x));
+  if (pos.z > SEA_MAX_Z) { pos.z = SEA_MAX_Z; sea.vz = Math.min(sea.vz, 0); }
+  if (pos.z < minZ) { pos.z = minZ; sea.vz = Math.max(sea.vz, 0); }
 }
 
 // === GROUND HEIGHT ===
@@ -662,6 +743,13 @@ function getGroundHeightAt(x, z) {
     height = SEA_LEVEL_OFFSET + 20 + DUNE_MAX_HEIGHT;
   }
   return height;
+}
+
+// Sand or seabed under (x, z): same as the ground on land, sloping down under the sea.
+function getSeabedHeightAt(x, z) {
+  const d = z - shoreZ(x);
+  const h = getGroundHeightAt(x, z);
+  return d > 0 ? Math.max(h - SURF.slope * d, -70) : h;
 }
 
 // === WAND & SPARKS ===
@@ -1038,7 +1126,8 @@ function startGame() {
   wandIsAnimating = false;
   wandAnimTimer = 0;
   wandWobbleTime = 0;
-  keys.w = keys.a = keys.s = keys.d = keys.space = false;
+  keys.w = keys.a = keys.s = keys.d = keys.space = keys.shift = false;
+  sea.vx = sea.vz = 0; sea.tumble = 0;
   ghostStates = {};
   survivalTime = 0;
 
@@ -1200,8 +1289,7 @@ function animate() {
     updateMovement();
 
     // Animate water
-    const water = scene.children.find(obj => obj instanceof Water);
-    if (water) water.material.uniforms['time'].value += delta;
+    if (surf) surf.update(delta, character.position.x);
 
     // Animate sparks
     for (let i = sparks.length - 1; i >= 0; i--) {
@@ -1310,7 +1398,7 @@ function animate() {
     const px = character.position.x, pz = character.position.z;
     const FADE_START = 300, FADE_END = 150;
     const dists = [
-      Math.abs(pz - maxZ), Math.abs(pz - minZ),
+      Math.abs(pz - SEA_MAX_Z), Math.abs(pz - minZ),
       Math.abs(px - minX), Math.abs(px - maxX),
     ];
     for (let i = 0; i < 4; i++) {
@@ -1325,7 +1413,7 @@ function animate() {
       borders[1].material.opacity = 1;
     }
     if (borders && borders.length === 4) {
-      borders[0].position.y = getGroundHeightAt(0, maxZ) + 1;
+      borders[0].position.y = 1;
       borders[1].position.y = getGroundHeightAt(0, minZ) + 1;
       borders[2].position.y = getGroundHeightAt(minX, (minZ + maxZ) / 2) + 1;
       borders[3].position.y = getGroundHeightAt(maxX, (minZ + maxZ) / 2) + 1;
@@ -1367,6 +1455,7 @@ function main() {
   ghostStates = {};
   npcs = [];
   sparks.length = 0;
+  if (surf) { surf.dispose(); surf = null; }
   // Now re-initialize everything
   initScene();
   initSkyAndLights();
@@ -1375,5 +1464,11 @@ function main() {
   createBorders();
   setupInput();
   setupWand();
+  if (new URLSearchParams(location.search).has('debug')) {
+    window.__beach = { get scene() { return scene; }, get camera() { return camera; }, get character() { return character; },
+      get renderer() { return renderer; }, get surf() { return surf; }, sea, keys,
+      // advance the player and the sea by n frames without rAF (for headless tests)
+      step(n = 1) { for (let i = 0; i < n; i++) { updateMovement(); surf.update(1 / 60, character.position.x); } } };
+  }
   animate();
 }
