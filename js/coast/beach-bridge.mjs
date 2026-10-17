@@ -1,0 +1,19 @@
+export const SCALE=6;
+export function shore(x){const n=(x+1245)/1290;let s=Math.sin(n*Math.PI)*60+Math.sin(n*Math.PI*2)*20+50;if(n>=.6&&n<=1){const t=(n-.6)/.4;s+=t*t*(3-2*t)*Math.sin(t*Math.PI)*100;}return -s;}
+export function bed(x,z){const d=(z-shore(x))/SCALE;if(d>=-7)return (d<0?-d*.18:-Math.min(3,Math.min(.6,d*.15)+Math.max(0,d-10)*.65))*SCALE;if(z>=-650)return .5+Math.max(0,-z-100)*20/550;if(z>=-950){const t=(-650-z)/300;return 20.5+t*t*(3-2*t)*50;}return 70.5;}
+export const world={fluid:{p:new Float32Array(300000),foam:new Float32Array(100000),n:0,time:0},ambient:{p:new Float32Array(300000),foam:new Float32Array(100000),n:0,time:0},person:null,originX:0,revision:0,ready:false,attached:false,latest:{}};
+let worker,seq=0,playing=false,inputKey='',mountPending=false;const pending=new Map();
+function ensure(){if(worker)return;worker=new Worker(new URL('./beach-worker.mjs',import.meta.url),{type:'module'});worker.onerror=e=>{world.error=e.message;for(const p of pending.values())p.reject(Error(e.message));pending.clear();};worker.onmessage=e=>{const m=e.data;if(m.type!=='state')return;const d=m.diagnostics;world.latest=d;world.originX=d.originX;const f=world.fluid,a=world.ambient;f.n=d.particles;a.n=d.ambientParticles;f.time=a.time=d.time;f.p.set(new Float32Array(m.p,0,f.n*3));f.foam.set(new Float32Array(m.foam,0,f.n));a.p.set(new Float32Array(m.ap,0,a.n*3));a.foam.set(new Float32Array(m.af,0,a.n));const r=d.rider;world.person=r?{...r,p:r.position,q:r.quaternion,x:world.originX+r.position[0],y:r.position[1],z:r.position[2],vx:r.velocity[0],vy:r.velocity[1],vz:r.velocity[2],skim:r.skimming,wiped:r.wiped}:null;world.attached=!!r?.skimming;world.revision++;world.ready=true;worker.postMessage({type:'recycle',p:m.p,foam:m.foam,ap:m.ap,af:m.af},[m.p,m.foam,m.ap,m.af]);for(const id of m.ids){pending.get(id)?.resolve(d);pending.delete(id);}};}
+export function command(type,args={}){ensure();if(type==='input'){worker.postMessage({type,...args});return Promise.resolve();}const id=++seq;return new Promise((resolve,reject)=>{pending.set(id,{resolve,reject});worker.postMessage({type,id,...args});});}
+export function setSurfPlaying(value){ensure();if(value===playing)return;playing=value;worker.postMessage({type:'playing',value});}
+export function createRider(x=0,z=-300){return {x,y:bed(x,z)+10,z,vx:0,vy:0,vz:0,mode:'walking',grounded:true};}
+function sync(r){const p=world.person;if(!p)return;r.x=p.x*SCALE;r.z=shore(r.x)+p.z*SCALE;r.y=(p.y+.7)*SCALE;r.vx=p.vx*SCALE;r.vy=p.vy*SCALE;r.vz=p.vz*SCALE;r.mode=p.skim?'skimming':p.wiped?'tumbling':'swimming';r.grounded=p.skim;}
+export async function resetSurf(r,ride=false){world.loading=true;try{await command('reset');if(ride){await command('mount',{z:6.5,y:.95,speed:-3});sync(r);}}finally{world.loading=false;}}
+export function stepRider(r,input,dt){ensure();const key=JSON.stringify(input);if(key!==inputKey){inputKey=key;worker.postMessage({type:'input',input});}const d=(r.z-shore(r.x))/SCALE;
+ if(world.person){sync(r);if(world.person.z<-.8&&!mountPending){mountPending=true;command('leave').finally(()=>mountPending=false);}return r;}
+ if(d>.4&&d<26&&!mountPending){mountPending=true;command('mount',{x:r.x/SCALE,z:d,y:r.y/SCALE-.7,speed:r.vz/SCALE}).finally(()=>mountPending=false);}
+ r.vx+=(input.x*36-r.vx)*Math.min(1,dt*10);r.vz+=(input.z*36-r.vz)*Math.min(1,dt*10);r.x=Math.max(-640,Math.min(640,r.x+r.vx*dt));r.z+=r.vz*dt;if(input.jump&&r.grounded){r.vy=25;r.grounded=false;}r.vy-=9.81*SCALE*dt;r.y+=r.vy*dt;const floor=bed(r.x,r.z)+10;if(r.y<floor){r.y=floor;r.vy=0;r.grounded=true;}r.mode='walking';return r;
+}
+export function shutdown(){worker?.terminate();worker=null;}
+addEventListener('beforeunload',shutdown);document.addEventListener('visibilitychange',()=>{if(document.hidden)setSurfPlaying(false);});
+window.beachFluid={world,command,setPlaying:setSurfPlaying,diagnostics:()=>({...world.latest,revision:world.revision,error:world.error})};

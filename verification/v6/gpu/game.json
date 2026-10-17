@@ -1,0 +1,83 @@
+{
+  "errors": [],
+  "game": {
+    "active": true,
+    "paused": false,
+    "renderFrames": 23,
+    "rider": {
+      "x": 0.00017559119101698018,
+      "y": 9.820558785216543,
+      "z": -41.16816729556891,
+      "vx": 0.004297243870397967,
+      "vy": -1.179311422778486,
+      "vz": -17.539563466018233,
+      "mode": "skimming",
+      "grounded": true
+    },
+    "ocean": {
+      "coast": {
+        "vertices": 37632,
+        "segments": 392,
+        "crestZ": 4.079999999999999,
+        "crestY": 0.2638292851710209,
+        "reconstructionMs": 4.400000035762787,
+        "widthMetres": 215
+      },
+      "local": {
+        "vertices": 4683,
+        "triangles": 7288,
+        "crestZ": 0.07483058422803879,
+        "reconstructionMs": 6.399999976158142,
+        "foamPoints": 890
+      },
+      "revision": 7
+    }
+  },
+  "fluid": {
+    "particles": 24192,
+    "time": 22.116666666666667,
+    "peakMetres": 0.5826387156441168,
+    "foamParticles": 2370,
+    "alongshoreKinetic": 36.65193740410054,
+    "pressureResidual": 0.13505604570424742,
+    "reservoirAdded": 0,
+    "reservoirRemoved": 0,
+    "initialCount": 24192,
+    "emitterPaused": false,
+    "originX": 0.000054949543574987775,
+    "rider": {
+      "position": [
+        0,
+        0.9235738022434233,
+        6.15604733300813
+      ],
+      "velocity": [
+        0.0010082782128925031,
+        -0.31053513397518656,
+        -2.9046611218544554
+      ],
+      "quaternion": [
+        -0.021770671583997696,
+        0.00013207479260527534,
+        -0.00021431553699739124,
+        0.9997629591477579
+      ],
+      "angularVelocity": [
+        -0.4392582201800138,
+        0.004364176925645235,
+        0.0004238529997587573
+      ],
+      "tiltDegrees": 2.4950532149893987,
+      "contacts": 8,
+      "totalImpulse": 125.62286376381665,
+      "skimming": true,
+      "wiped": false
+    },
+    "board": null,
+    "ambientParticles": 15056,
+    "localActive": true,
+    "physicsMs": 16,
+    "droppedTime": 0,
+    "revision": 8
+  }
+}

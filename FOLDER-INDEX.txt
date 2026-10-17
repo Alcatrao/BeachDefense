@@ -1,0 +1,21 @@
+Home E:\AI_Workspaces\BeachDefense (13 October 2026, Codex, owner wave implementation request).
+Repository cloned from https://github.com/Alcatrao/BeachDefense; originals retained in Git.
+README.md, CURRENT.md: entry point and handoff.
+js/: game sources, wave renderer, physics and tests.
+assets/, textures/, docs/: original repository resources.
+verification/: browser evidence and screenshots.
+tooling/: build/verification scripts.
+Outside home: C:\Users\joaoa\Documents\ChatGPT\Beach Defense — chat workspace and initial staging scripts; D:\99-Tools\savefiles\AoM Screen (7).jpg — owner reference, read only.
+Runtime dependencies use the existing Codex bundle and Resource_Governor; no new tool installations.
+
+2026-10-13 Codex — coupled fluid revision: js/surf-physics.mjs, surf-bodies.js, lab.js, stability-test.mjs and lab.html; verification/v2 holds final physics/browser evidence and screenshots; tooling/v2 holds sources/scripts snapshot; records/v1-preserved keeps the previous implementation. See updated README.md and CURRENT.md for physical-model limits.
+
+2026-10-13 Codex — volumetric 3D revision: js/fluid3d.mjs, surf-physics.mjs, ocean.js, lab.js, wave-model.mjs, surf-bodies.js, 90 Hz game integration; verification/v3 final-* artifacts and physics/cavity JSON; tooling/v3 final source/scripts/failed experiments. Previous 2D board version records/v2-preserved. Sustained nearshore tubes remain unfinished; see CURRENT.md.
+
+2026-10-17 Claude — branches/claude: git worktree, branch claude/shorebreak-waves (GPU analytic shorebreak js/surf.js + main.js physics). Notes/shots: branches/claude/notes-claude/. Preview port 8771 (session only).
+
+2026-10-17 Codex — v4 bounded reduced shorebreak: js/shore-fluid.mjs plus existing game/lab integration; tooling/v4 source/runners; verification/v4 measurements and screenshots; records/v3-preserved previous volumetric integration. See README/CURRENT for parameterized-breaking and performance limits.
+
+2026-10-17 Codex — v5 natural-fluid experiment: js/natural runtime; lab.html and natural-lab.html; tooling/v5 runners/research/variant sources; verification/v5 tests/screenshots/source hashes; records/v4-preserved former lab/docs/JS; records/v5-experiments selected early states. Main defense game remains v4. See CURRENT.md for measured scope and unfinished full-beach integration.
+
+2026-10-18 Codex — v6: js/coast runtime and bounded physical wave recording; full game integration in main.js/surf-bodies.js/index.html; beach.html standalone coast view. tooling/v6 maintained runners/research and locally preserved experiments; verification/v6 installed GPU/software screenshots, control/endurance/cache results and source hashes. records/v5-preserved prior root sources/docs. C: chat workspace/v6 staging remains within the already indexed outside-home location. Own branch codex/breaking-surf; user authorized commit/push. See CURRENT.md for explicit cached-background, tube-size and timing limitations.

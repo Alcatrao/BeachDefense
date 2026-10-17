@@ -1,0 +1,9 @@
+{
+  "particles": 15056,
+  "frames": 80,
+  "dt": 0.06292852905387594,
+  "period": 5.034282324310076,
+  "start": 22,
+  "bytes": 15658272,
+  "note": "A physical simulation recording for distant water; periodic visual loop has a wrap seam. Live local fluid carries rider impulses."
+}

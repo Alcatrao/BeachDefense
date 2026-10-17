@@ -1,5 +1,7 @@
 import * as THREE from 'three';
-import { Water } from 'Water';
+import { createOcean } from './coast/beach-ocean.mjs';
+import { createRider, stepRider, bed, shore, world, SCALE, resetSurf, setSurfPlaying } from './coast/beach-bridge.mjs';
+import { createSurfBodies } from './surf-bodies.js';
 import { Sky } from 'Sky';
 import { PointerLockControls } from 'PointerLockControls';
 import { GLTFLoader } from 'https://unpkg.com/three@0.155.0/examples/jsm/loaders/GLTFLoader.js';
@@ -20,7 +22,7 @@ const BORDER_HALF_Z = BORDER_LENGTH_Z / 2;
 const minX = -BORDER_HALF_X;
 const maxX = BORDER_HALF_X;
 const minZ = -BORDER_LENGTH_Z;
-const maxZ = 0;
+const maxZ = 1000;
 
 const FLAT_SAND_WIDTH = 100;
 const DUNE_WIDTH = 100;
@@ -46,7 +48,10 @@ let isJumping = false, velocityY = 0;
 let ghostStates = {};
 let survivalTime = 0;
 const gravity = -0.02, jumpStrength = 0.5;
-const keys = { w: false, a: false, s: false, d: false, space: false };
+let surfBodies, spectator = false, externalCamera, surfStart = false;
+let ocean, rider, oceanTime = 0, lastFrame = 0, accumulator = 0;
+let inputInstalled = false, shootingInstalled = false, loopStarted = false;
+const keys = { shift: false, w: false, a: false, s: false, d: false, space: false };
 const sparks = [];
 const SPARK_SPEED = 1000, SPARK_MAX_DIST = 1500;
 
@@ -380,6 +385,7 @@ function initScene() {
   character.add(camera);
 
   renderer = new THREE.WebGLRenderer();
+  renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = .7;
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
 
@@ -429,35 +435,9 @@ function initSkyAndLights() {
 }
 
 function createWater() {
-  const waterGeometry = new THREE.PlaneGeometry(MAP_SIZE, MAP_SIZE / 2, 200, 100);
-  const water = new Water(waterGeometry, {
-    textureWidth: 512,
-    textureHeight: 512,
-    waterNormals: new THREE.TextureLoader().load('./textures/waternormals.jpg', function (texture) {
-      texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-    }),
-    sunDirection: new THREE.Vector3(),
-    sunColor: 0xfff8e7,
-    waterColor: 0x46bcec,
-    distortionScale: 4.5,
-  });
-  water.rotation.x = -Math.PI / 2;
-  water.position.set(0, 0, MAP_SIZE / 4 - 150);
-  scene.add(water);
-
-  const waterPosition = waterGeometry.attributes.position;
-  for (let i = 0; i < waterPosition.count; i++) {
-    const x = waterPosition.getX(i);
-    const y = waterPosition.getY(i);
-    if (y > 0) {
-      const waveHeight = (y / 5000) * Math.sin((x / 500) * Math.PI * 2);
-      waterPosition.setZ(i, waveHeight);
-    } else {
-      waterPosition.setZ(i, 0);
-    }
-  }
-  waterPosition.needsUpdate = true;
-  return water;
+  ocean = createOcean(scene); ocean.update(oceanTime);
+  surfBodies = createSurfBodies(scene);
+  externalCamera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, .25, 20000);
 }
 
 function createBeach() {
@@ -478,7 +458,7 @@ function createBeach() {
     roughnessMap: sandRoughnessMap,
     aoMap: sandAoMap,
     displacementMap: sandHeightMap,
-    displacementScale: 2,
+    displacementScale: 0,
     roughness: .5,
     metalness: 0.0,
   });
@@ -509,30 +489,14 @@ function createBeach() {
       sealineOffset += smoothT * bay;
     }
 
-    const zRaw = - (y + BEACH_HEIGHT / 2) - sealineOffset;
-    const z = Math.max(zRaw, -BEACH_HEIGHT);
-    const zClamped = Math.min(z, 0);
-
-    let height = SEA_LEVEL_OFFSET;
-    if (zClamped >= -FLAT_SAND_WIDTH) {
-      height = SEA_LEVEL_OFFSET;
-    } else if (zClamped < -FLAT_SAND_WIDTH && zClamped >= DUNE_START) {
-      const t = (zClamped + FLAT_SAND_WIDTH) / (DUNE_START + FLAT_SAND_WIDTH);
-      height = t * 20 + SEA_LEVEL_OFFSET;
-    } else if (zClamped < DUNE_START && zClamped >= DUNE_END) {
-      const t = (DUNE_START - zClamped) / (DUNE_START - DUNE_END);
-      const smooth = t * t * (3 - 2 * t);
-      height = SEA_LEVEL_OFFSET + 20 + smooth * DUNE_MAX_HEIGHT;
-    } else if (zClamped < DUNE_END) {
-      height = SEA_LEVEL_OFFSET + 20 + DUNE_MAX_HEIGHT;
-    }
-
-    height += SAND_HEIGHT_OFFSET;
+    const zClamped = Math.max(-(y + BEACH_HEIGHT / 2) + shore(x), -BEACH_HEIGHT);
+    const height = getGroundHeightAt(x, zClamped);
 
     positionAttribute.setY(i, height);
     positionAttribute.setZ(i, zClamped);
   }
   positionAttribute.needsUpdate = true;
+  beachGeometry.computeVertexNormals();
 
   const beach = new THREE.Mesh(beachGeometry, beachMaterial);
   beach.position.set(0, 0, 0);
@@ -594,8 +558,13 @@ function createBorders() {
 
 // === MOVEMENT & INPUT ===
 function setupInput() {
+  if (inputInstalled) return;
+  inputInstalled = true;
+  window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
   document.addEventListener('keydown', (event) => {
     const key = event.key.toLowerCase();
+    if(!event.repeat && key === 'v') spectator = !spectator;
+    if(!event.repeat && key === 'b' && gameActive) resetSurf(rider,true);
     if (key === " " || key === "space") keys.space = true;
     else if (keys.hasOwnProperty(key)) keys[key] = true;
   });
@@ -606,69 +575,39 @@ function setupInput() {
   });
 }
 
-function updateMovement() {
-  const moveDistance = 1.8;
-  const direction = new THREE.Vector3();
+function updateMovement(dt) {
+  if(world.loading) return;
+  if (!rider) rider = createRider(character.position.x, character.position.z);
   const forward = new THREE.Vector3();
   camera.getWorldDirection(forward); forward.y = 0; forward.normalize();
-  const left = new THREE.Vector3(); left.crossVectors(camera.up, forward).normalize();
-
-  if (keys.w) direction.add(forward);
-  if (keys.s) direction.sub(forward);
-  if (keys.a) direction.add(left);
-  if (keys.d) direction.sub(left);
-
-  if (direction.length() > 0) {
-    direction.normalize().multiplyScalar(moveDistance);
-    character.position.add(direction);
-  }
-
-  // Jumping
-  if (keys.space && !isJumping) {
-    isJumping = true;
-    velocityY = jumpStrength;
-  }
-  if (isJumping) {
-  velocityY += gravity;
-  character.position.y += velocityY;
-  const groundY = getGroundHeightAt(character.position.x, character.position.z) + 10;
-  if (character.position.y <= groundY) {
-    character.position.y = groundY;
-    isJumping = false;
-    velocityY = 0;
-  }
-} else {
-  character.position.y = getGroundHeightAt(character.position.x, character.position.z) + 10;
+  const left = new THREE.Vector3().crossVectors(camera.up, forward).normalize();
+  const dir = new THREE.Vector3();
+  if (keys.w) dir.add(forward); if (keys.s) dir.sub(forward);
+  if (keys.a) dir.add(left); if (keys.d) dir.sub(left);
+  if (dir.lengthSq() > 0) dir.normalize();
+  stepRider(rider, {x:dir.x,z:dir.z,skim:keys.shift,jump:keys.space}, dt, oceanTime);
+  character.position.set(rider.x,rider.y,rider.z);
+  isJumping = !rider.grounded;
+  surfBodies.update(spectator);
+  camera.rotation.z = world.person && !world.attached ? Math.max(-.55,Math.min(.55,world.person.q[2]*2)) : 0;
+  if(spectator){externalCamera.position.set(rider.x-30,rider.y+15,rider.z-40);externalCamera.lookAt(rider.x,rider.y-4,rider.z+10);}
+  const hud = document.getElementById('surfStatus');
+  if (hud) hud.textContent = `${rider.mode} · ${(Math.hypot(rider.vx,rider.vz)/SCALE).toFixed(1)} m/s | Space: hop · V: view · B: reset surf · Esc: pause`;
 }
 
-  // Clamp to box
-  character.position.x = Math.max(minX, Math.min(maxX, character.position.x));
-  character.position.z = Math.max(minZ, Math.min(maxZ, character.position.z));
-}
-
-// === GROUND HEIGHT ===
 function getGroundHeightAt(x, z) {
-  let height = SEA_LEVEL_OFFSET;
-  if (z >= -FLAT_SAND_WIDTH) {
-    height = SEA_LEVEL_OFFSET;
-  } else if (z < -FLAT_SAND_WIDTH && z >= DUNE_START) {
-    const t = (z + FLAT_SAND_WIDTH) / (DUNE_START + FLAT_SAND_WIDTH);
-    height = t * 20 + SEA_LEVEL_OFFSET;
-  } else if (z < DUNE_START && z >= DUNE_END) {
-    const t = (DUNE_START - z) / (DUNE_START - DUNE_END);
-    const smooth = t * t * (3 - 2 * t);
-    height = SEA_LEVEL_OFFSET + 20 + smooth * DUNE_MAX_HEIGHT;
-  } else if (z < DUNE_END) {
-    height = SEA_LEVEL_OFFSET + 20 + DUNE_MAX_HEIGHT;
-  }
-  return height;
+  if (z > shore(x)) return bed(x,z);
+  if (z >= -100) return .5;
+  if (z >= DUNE_START) return .5 + (-z-100)*20/550;
+  if (z >= DUNE_END) { const t=(DUNE_START-z)/(DUNE_START-DUNE_END); return 20.5+t*t*(3-2*t)*DUNE_MAX_HEIGHT; }
+  return 70.5;
 }
 
 // === WAND & SPARKS ===
 function setupWand() {
   const gltfLoader = new GLTFLoader();
   gltfLoader.setPath('./assets/');
-  gltfLoader.load('/Yew_Wand.glb', (gltf) => {
+  gltfLoader.load('Yew_Wand.glb', (gltf) => {
     wand = gltf.scene;
     wand.scale.set(1.2, 1.2, 1.2);
     wand.position.copy(wandBasePosition);
@@ -678,6 +617,8 @@ function setupWand() {
     wandLight.position.set(0, 0, 0);
     wand.add(wandLight);
   });
+  if (shootingInstalled) return;
+  shootingInstalled = true;
   document.addEventListener('mousedown', (event) => {
     if (
       event.button === 0 &&
@@ -1029,6 +970,9 @@ function showMenu(id, show) {
 }
 
 function startGame() {
+  gamePaused = false;
+  rider = createRider(); resetSurf(rider,surfStart); oceanTime = 0; accumulator = 0;
+  keys.shift = false;
   gameActive = true;
   playerAlive = true;
   npcWave = 1;
@@ -1129,38 +1073,42 @@ function endGame(playerDied) {
 let ghostModelsLoaded = false;
 
 function boot() {
+  document.getElementById("surfStartButton").disabled = false; document.getElementById("startButton").disabled = true;
   loadAllGhostModels(() => {
-    ghostModelsLoaded = true;
-    showMenu('startMenu', true);
+    ghostModelsLoaded = true; document.getElementById("surfStartButton").disabled = false; document.getElementById("startButton").disabled = false;
+    if(!gameActive) showMenu('startMenu', true);
     document.getElementById('loadingMessage').style.display = 'none';
   });
 
-  document.getElementById('startButton').onclick = () => {
-    if (!ghostModelsLoaded) {
+  const beginGame = () => {
+    if (!ghostModelsLoaded && !surfStart) {
       document.getElementById('loadingMessage').style.display = 'block';
       return;
     }
     startGame();
     showMenu('startMenu', false);
-    main();
-    spawnNPCs();
+    if (!scene) main();
+    if(!surfStart) spawnNPCs();
     // Automatically lock pointer on start
     if (controls && !controls.isLocked) controls.lock();
   };
 
+  document.getElementById('startButton').onclick = () => { surfStart = false; spectator = false; beginGame(); };
+  document.getElementById('surfStartButton').onclick = () => { surfStart = true; spectator = true; beginGame(); };
   document.getElementById('restartButton').onclick = () => {
-    if (!ghostModelsLoaded) {
+    if (!ghostModelsLoaded && !surfStart) {
       document.getElementById('loadingMessage').style.display = 'block';
       return;
     }
     startGame();
     showMenu('endMenu', false);
-    spawnNPCs();
+    if(!surfStart) spawnNPCs();
     // Automatically lock pointer on restart
     if (controls && !controls.isLocked) controls.lock();
   };
 
   document.getElementById('exitButton').onclick = () => {
+    gameActive = false; gamePaused = true;
     showMenu('startMenu', true);
     showMenu('endMenu', false);
     document.getElementById('pauseMenu').style.display = 'none';
@@ -1184,24 +1132,27 @@ boot();
 function animate() {
   requestAnimationFrame(animate);
 
-  const delta = 1.0 / 60.0;
+  const now = performance.now()/1000;
+  const delta = lastFrame ? Math.min(.05, now-lastFrame) : 0;
+  lastFrame = now;
 
   if (!gamePaused && gameActive && playerAlive) {
     npcSpawnTimer += delta;
     survivalTime += delta;
     if (npcSpawnTimer >= npcSpawnInterval) {
-      spawnNPCs();
+      if(!surfStart) spawnNPCs();
     }
     updateNPCs(delta);
     checkSparkHits();
   }
 
+  setSurfPlaying(!gamePaused && gameActive && playerAlive && !document.hidden && !world.loading);
   if (!gamePaused) {
-    updateMovement();
-
-    // Animate water
-    const water = scene.children.find(obj => obj instanceof Water);
-    if (water) water.material.uniforms['time'].value += delta;
+    if (gameActive && playerAlive) {
+      accumulator = Math.min(accumulator + delta, 3/90);
+      while (accumulator >= 1/90) { oceanTime += 1/90; updateMovement(1/90); accumulator -= 1/90; }
+    }
+    ocean.update(oceanTime);
 
     // Animate sparks
     for (let i = sparks.length - 1; i >= 0; i--) {
@@ -1337,7 +1288,7 @@ function animate() {
     if (ghost.mixer) ghost.mixer.update(delta);
   }
 
-  renderer.render(scene, camera);
+  renderer.render(scene, spectator ? externalCamera : camera);
 }
 
 // === MAIN ===
@@ -1375,5 +1326,9 @@ function main() {
   createBorders();
   setupInput();
   setupWand();
-  animate();
+  if (!loopStarted) { loopStarted = true; animate(); }
 }
+window.addEventListener('resize', () => { if (!renderer) return; camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); if(externalCamera){externalCamera.aspect=innerWidth/innerHeight;externalCamera.updateProjectionMatrix();} renderer.setSize(innerWidth,innerHeight); });
+
+
+window.beachGame={diagnostics:()=>({active:gameActive,paused:gamePaused,renderFrames:renderer.info.render.frame,rider,ocean:ocean?.diagnostics()}),startSurf:()=>document.getElementById('surfStartButton').click()};

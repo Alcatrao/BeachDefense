@@ -1,0 +1,15 @@
+{
+  "js/coast/fluid.mjs": "ba95344e67d56862b7d788df1f6b882912bc892737fc01da8f9737a156b8ba53",
+  "js/coast/surf-physics.mjs": "e7a2483b9e9a9dac0df0de53d31443e9498a1808f35258a2f184018c09a9cc0a",
+  "js/coast/surface.mjs": "a44400dc1365e13276624f0241f85cbdf2142bc0bfb3731eec92c90db75707c2",
+  "js/coast/coast-surface.mjs": "0a0c01e1d3a7329ebdcdfc9ced6512650da546781330bcfac6c2810961bb12be",
+  "js/coast/beach-worker.mjs": "e0cfb533d2ed98180fec6a6b146701d035159d0eaba05d69ed567b4df946bfe6",
+  "js/coast/beach-bridge.mjs": "436baab992d919e2d15302579c13c8bef49e27448db8d1a6786173a394bc0f15",
+  "js/coast/beach-ocean.mjs": "7c34f18ddab4bb644a07927824d6fe1365aec6853a7138471e83b7b431421e39",
+  "js/coast/beach-demo.mjs": "e8d6e6521fbda33d54501ea5e672120e7be71e4e7c20b8aee188e474ac6c27e5",
+  "js/coast/wave-cycle.bin": "5a253850663c0f5369080252e6195219e78c5fd4a86e2b500e89fc5b3037a117",
+  "js/main.js": "01301520ed56074a8469513f437fd64baf31f38d5b777446b98b2211962f721d",
+  "js/surf-bodies.js": "302998043ca416127d841224dc7659508e6a95bce234940ebfadb1c90cb84d0b",
+  "index.html": "a4dc19a29b393c99c8169f53feec14bbf780d2c49569053dd5956b6e219a6b0b",
+  "beach.html": "9e5a8bfbb34f7034110ecc586944ae2bfd4ef3a2524b77e2496bf3395b46b452"
+}

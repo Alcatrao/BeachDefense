@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>certocena</title>
+  <meta charset="UTF-8"><link rel="icon" href="data:,">
+  <title>Beach Defense — Surf</title>
   <style>
     body { margin: 0; overflow: hidden; }
     canvas { display: block; }
@@ -12,11 +12,9 @@
   <script type="importmap">
     {
       "imports": {
-        "three": "https://threejs.org/build/three.module.js",
-        "PointerLockControls": "https://threejs.org/examples/jsm/controls/PointerLockControls.js",
-        "Water": "https://threejs.org/examples/jsm/objects/Water.js",
-        "Water2": "https://threejs.org/examples/jsm/objects/Water2.js",
-        "Sky": "https://threejs.org/examples/jsm/objects/Sky.js"
+        "three": "https://unpkg.com/three@0.155.0/build/three.module.js",
+        "PointerLockControls": "https://unpkg.com/three@0.155.0/examples/jsm/controls/PointerLockControls.js",
+        "Sky": "https://unpkg.com/three@0.155.0/examples/jsm/objects/Sky.js"
       }
     }
   </script>
@@ -27,7 +25,11 @@
     background: url('./assets/Start_Menu_Image/Praia de Mira - Paredão.jpg') center center / cover no-repeat, #000a;
     display:flex;align-items:center;justify-content:center;z-index:10;
   ">
+    <div style="display:flex;gap:16px;flex-direction:column;align-items:center">
     <button id="startButton" style="font-size:2em;">Start Game</button>
+    <button id="surfStartButton" style="font-size:1.3em">Try beach-wide physical surf</button>
+    <a href="./beach.html" style="color:white;background:#063b50cc;padding:10px">Open beach-wide surf view</a>
+    <a href="./lab.html" style="color:white;background:#063b50cc;padding:14px 20px;border-radius:8px;font:18px system-ui">Open natural-wave physics lab</a></div>
   </div>
   <div id="endMenu" style="position:fixed;top:0;left:0;width:100vw;height:100vh;background:#000a;display:none;align-items:center;justify-content:center;z-index:10;">
     <div style="color:white;font-size:2em;display:flex;flex-direction:column;align-items:center;">
@@ -47,6 +49,7 @@
   <div id="loadingMessage" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#222;color:#fff;padding:20px 40px;border-radius:10px;z-index:1000;font-size:1.3em;">
     Loading assets, please wait...
   </div>
+  <div id="surfStatus" style="position:fixed;bottom:18px;left:18px;color:white;background:#07364ccc;padding:12px 18px;border-radius:8px;font:14px system-ui;pointer-events:none;z-index:5">WASD · Space: hop · V: view · B: reset surf · Esc: pause</div>
   <script type="module" src="./js/main.js"></script>
 </body>
 </html>
