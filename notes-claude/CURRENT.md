@@ -162,6 +162,52 @@ back into a tube; impact foam covered only the landing tip. Changes in js/surf.j
   https://history.siggraph.org/wp-content/uploads/2022/09/2017-Talks-Byun_Moana-Crashing-Waves.pdf
 - Intermediate and debug shots were moved out of the repo (session scratchpad), not committed.
 
+## Round 6 (19 Oct 2026, lead Claude session's task: remove the small teeth and creases on the collapsing
+## roller and bore at close range late in the break, p > ~1.8, by making the mesh follow the crest)
+Cause: the straight x/z grid. The crests cross its rows obliquely (~1.5 rows per column at x 0; sampled crest
+slopes dz/dx from -0.28 to +0.57), so the triangles cut across each tight fold of the roller and bore and
+rendered it as teeth, facets and diagonal creases. Change in js/surf.js, buildGeometry only (surfPos/evalSurf,
+the shaders and the physics are unchanged; two comments updated):
+- Crest rows: row j is the line of constant wave phase sOf(z - shoreZ(x)) + kx x + wobble(x) through
+  (0, zs[j]), solved per vertex by Newton on sOf, so every crest lies along a row at all times. Same vertex
+  count and index buffer, built once (no per-frame cost). The rows fade back to straight lines over
+  |x| 1000 -> 2000 and z 600 -> 2000, so the far field and the mesh edges are as before; the near edge follows
+  row 0 at d <= -125, under the sand (the swash reaches about -90), so the wet-sand line is unchanged.
+- Chosen by measurement: a CPU metric on crest fn 49 (evalSurf with the curl, x 0 +-60, rest band
+  |d - dc| < 35); per triangle the distance from its centroid to the true surface, the angle between its face
+  normal and the true normal, and flips (faces pointing the wrong way). mean/p90/p99, straight grid -> rows:
+    p 1.13  err .369/.918/1.79 -> .101/.244/.446  angle 12.8/34.3/91.4 -> 2.5/5.3/17.8 deg  flips 21 -> 0
+    p 1.55  err .294/.892/1.42 -> .091/.248/.494  angle 10.9/32.7/103 -> 3.0/6.0/37.9       flips 26 -> 1
+    p 1.92  err .231/.718/1.81 -> .077/.259/.487  angle 9.0/25.5/112 -> 3.3/5.7/51.7        flips 38 -> 9
+    p 2.20  err .213/.712/2.09 -> .065/.242/.504  angle 9.3/22.0/132 -> 2.8/5.5/53.2        flips 67 -> 8
+    p 2.60  err .201/.682/2.20 -> .056/.187/.535  angle 8.5/16.0/140 -> 4.9/3.3/132         flips 69 -> 38
+  At x +-400 and +-645 the rows are as good as or better than the grid (one exception: x -645 at p 1.3,
+  angle p99 58 vs 26 deg, 5 vs 2 flips). Rejected: twice the z rows (2x vertices) stayed poor (p 1.92 err
+  .164/.545/1.35, 51 flips; 116 flips at p 2.6); rows parallel to the shoreline matched at x 0 but run against
+  the crests near x +-400 and +-645 (p 1.92: angle p99 143 and 141 deg, 26 flips each); a rotated grid can
+  match only one crest direction; a separate band mesh along each crest would add seams and a per-frame
+  update that the static rows do not need.
+- Verified (headless preview, 1280x720), A/B shots with the straight grid (9dd2038) on top and the crest rows
+  below: r10-ab-h3-close and r10-ab-h4-close (p 1.92 and 2.2, close range), r10-ab-h3-front (p 1.92) and
+  r10-ab-h5-beach (p 2.6). The teeth, facets and diagonal creases on the roller and bore are gone, and so is
+  the sawtooth on the next crest; the beach join, the wet-sand edge and the far field are unchanged. Geometry
+  at low/medium/high: same vertex counts (363568/531566/797568), rows never cross (smallest gap
+  2.25/1.68/1.25), near edge d <= -125.1, far field and sides identical to the straight grid.
+- Physics, Round 5 harness (T 20, x 0) on a fresh page against 9dd2038: identical wipeouts (2 at z 21, 2 at
+  z -64, 1 at z 100), maximum heights and water, rogue lift 32.8 at z 430; only the randomly drawn time of the
+  next rogue differed (167 vs 100). Physics never reads the mesh. Render (readPixels timing, settled, both
+  meshes on the same page): beach 0.52-0.56 ms vs 0.52-0.55, high 0.58-0.59 vs 0.57-0.59, close 0.73-0.75 vs
+  0.76-0.77 (0.28-0.31 without the surf); surf.update 0.13-0.14 ms (code unchanged). The mesh build takes
+  16-39 ms once at load (was 4-9 ms). Console: only pointer-lock errors.
+- Limits: one crest-parallel seam stays on the bore at p ~1.9-2.6 (lower halves of the close shots). The
+  surface itself folds there: at p 1.92, x 0 the curl path makes a micro swallowtail ~0.35 wide just behind the
+  crest (d - dc -5..0) and a cusp at the lip tip (+4), so no mesh layout removes it; smoothing that fold in the
+  curl branch of surfPos/evalSurf (render-only, mirrored) is the follow-up. A few vertical bands on the far
+  curling lip at p 1.13-1.31 (x ~400-645) are the same with every layout. The thin horizontal line across the
+  sea is a scene object, there with the surf hidden too. Beyond |x| 1000 the rows return to the straight grid.
+  Not hand-play-tested.
+- Intermediate and debug shots stay in the session scratchpad, not committed.
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
@@ -170,6 +216,7 @@ save renderer.toDataURL captures while the preview pane is hidden).
 Committed 4fc714e and pushed to origin/claude/shorebreak-waves on 17 Oct 2026 (owner request).
 Round 3 e55afdb pushed 18 Oct 2026 (owner request). Round 4 0400658 pushed 18 Oct 2026 (owner request). No PR.
 Round 5 9dd2038 pushed 18 Oct 2026 (owner request), with this notes commit; the push republishes /claude/ (see below).
+Round 6 (crest rows) committed 19 Oct 2026 in the commit that adds this line; not pushed (awaiting the owner).
 
 ## GitHub Pages (Codex-owned, 18 Oct 2026)
 Codex publishes all three versions: https://alcatrao.github.io/BeachDefense/ (main),

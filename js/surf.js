@@ -219,8 +219,9 @@ export function evalSurf(x, z, t, curl, out = {}) {
 
   // curl, shaped at the height Hc and squashed to H (see stageState); a roller of relative size sig is the
   // full-size curl displacement taken at u = s2 / sig and scaled by sig, so it shrinks without unrolling.
-  // Below 0.8 of full size its front and back are widened in u (kw), so it never spans fewer rest-grid rows than
-  // at 0.8: a narrower roller renders as spikes, because the crest runs obliquely across the grid rows.
+  // Below 0.8 of full size its front and back are widened in u (kw), so it never spans fewer mesh rows than at
+  // 0.8: a narrower roller spans too few rows and renders as spikes where the crest crosses the rows obliquely
+  // (the mesh rows follow the crests only inside |x| 1000, see buildGeometry).
   const Hc = w.Hc, Htc = Hc + (tgt - Hc) * tw, sig = w.sig;
   const pivY = 0.18 * Hc, topY = 0.8 * Hc, wc = Math.min(wf, 0.32 * Hc);
   const u = s2 / Math.max(sig, 1e-3);
@@ -468,7 +469,7 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
   float dA = dc + s2;
 
   // curl shaped at Hc, squashed to H; a roller of size sig = full-size curl displacement at u = s2 / sig, times sig.
-  // Below sig 0.8 its front and back widen in u (kw): a roller spanning fewer grid rows renders as spikes on the oblique crest
+  // Below sig 0.8 its front and back widen in u (kw): a roller spanning fewer mesh rows spikes where the crest crosses them obliquely
   float Htc = mix(Hc, tgt, tw);
   float pivY = 0.18 * Hc, topY = 0.8 * Hc, wc = min(wf, 0.32 * Hc);
   float u = s2 / max(sig, 1e-3);
@@ -880,15 +881,47 @@ function gridLines(min, max, fine0, fine1, base, grow) {
   return out;
 }
 
+// The mesh rows follow the wave crests. Row j is the line of constant wave phase sOf(d) + kx x + wobble(x)
+// through (0, zs[j]), so every crest lies along a row at all times: the roller, the bore front and the creases
+// of the breaking profile run along the rows instead of obliquely across them (~1.5 rows per column at x 0),
+// where the straight grid rendered them as teeth. The surface itself is unchanged (surfPos is sampled at the
+// moved rest positions). The rows fade back to straight lines outside the play area (|x| 1000 -> 2000, and
+// from z 600 to 2000 offshore), so the far field and the mesh edges stay as they were; the near edge follows
+// row 0, which stays under the sand (d < -125, the swash reaches about -90).
 function buildGeometry(quality) {
   const f = quality === 'high' ? 1.0 : quality === 'low' ? 1.8 : 1.35;
   const xs = gridLines(-4950, 4950, -800, 800, 3.5 * f, 0.0075);
   const zs = gridLines(-260, 4850, -260, 350, 1.3 * f, 0.0145);
   const nx = xs.length, nz = zs.length;
+  const sh = new Float64Array(nx), ph = new Float64Array(nx), wx = new Float64Array(nx), dRow = new Float64Array(nx);
+  for (let i = 0; i < nx; i++) {
+    sh[i] = shoreZ(xs[i]);
+    ph[i] = SURF.kx * xs[i] + wobble(xs[i]);
+    wx[i] = 1 - sstep(1000, 2000, Math.abs(xs[i]));
+    dRow[i] = zs[0] - sh[i];
+  }
+  const sh0 = shoreZ(0), ph0 = wobble(0);
   const pos = new Float32Array(nx * nz * 3);
   let k = 0;
-  for (let j = 0; j < nz; j++) for (let i = 0; i < nx; i++) {
-    pos[k++] = xs[i]; pos[k++] = 0; pos[k++] = zs[j];
+  for (let j = 0; j < nz; j++) {
+    const wz = 1 - sstep(600, 2000, zs[j]);
+    const sg = sOf(zs[j] - sh0) + ph0;
+    for (let i = 0; i < nx; i++) {
+      let z = zs[j];
+      const w = wx[i] * wz;
+      if (w > 0) {
+        // d on this row's phase line (Newton from the row below; sOf is increasing with slope kOf)
+        let d = dRow[i];
+        for (let it = 0; it < 20; it++) {
+          const e = sOf(d) - (sg - ph[i]);
+          d -= e / kOf(d);
+          if (Math.abs(e) < 1e-7) break;
+        }
+        dRow[i] = d;
+        z += w * (sh[i] + d - z);
+      }
+      pos[k++] = xs[i]; pos[k++] = 0; pos[k++] = z;
+    }
   }
   const idx = new Uint32Array((nx - 1) * (nz - 1) * 6);
   k = 0;
