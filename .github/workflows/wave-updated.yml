@@ -1,0 +1,13 @@
+# Keep this small notification workflow on main and both independent wave branches.
+# The publisher on main handles the build, tests and single combined deployment.
+name: Wave branch updated
+on:
+  push:
+    branches: [codex/breaking-surf, claude/shorebreak-waves]
+permissions: {}
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - run: echo "Wave branch update ready for the main Pages publisher."

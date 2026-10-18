@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_run:
+    workflows: [Wave branch updated]
+    types: [completed]
+    branches: [codex/breaking-surf, claude/shorebreak-waves]
 
 permissions:
   contents: read
@@ -14,10 +18,13 @@ concurrency:
 
 jobs:
   build:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
         with:
+          ref: main
           fetch-depth: 1
       - name: Fetch independent published versions
         run: git fetch --depth=1 origin codex/breaking-surf:refs/remotes/origin/codex/breaking-surf claude/shorebreak-waves:refs/remotes/origin/claude/shorebreak-waves
@@ -48,6 +55,7 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       pages: write
       id-token: write

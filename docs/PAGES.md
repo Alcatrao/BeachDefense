@@ -11,10 +11,13 @@ byte; the wave branches are never merged or rewritten. Assistant notes, reviews,
 screenshots, private worktrees and repository metadata are excluded. `versions.json`
 on the site records the source commits and SHA-256 of every exported file.
 
-Every main push rebuilds all versions. After pushing a wave branch, open Actions →
-**Publish three game versions** → **Run workflow** → branch **main** to refresh
-the site (or use `gh workflow run pages.yml --ref main`). A branch push alone does
-not refresh Pages because the publishing workflow lives only on main.
+Every main push rebuilds all versions. Each wave branch has a tiny `Wave branch
+updated` push workflow. Its successful completion automatically triggers the
+publisher on main through `workflow_run`; the publisher always checks out main
+and exports the latest independent branch snapshots. No access token or game-code
+merge is needed. Keep `.github/workflows/wave-updated.yml` on both wave branches.
+Manual refresh remains available: Actions → **Publish three game versions** →
+**Run workflow** → branch **main** (or `gh workflow run pages.yml --ref main`).
 Concurrent publications are serialized. One successful publication replaces all
 three folders together; do not deploy a wave branch directly to Pages.
 
@@ -39,3 +42,4 @@ to Deploy from a branch, main, root; the original main game remains unchanged.
 
 Implementation reference (18 October 2026):
 https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages
+https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run
