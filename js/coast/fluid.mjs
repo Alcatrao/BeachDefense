@@ -20,10 +20,10 @@ return class Fluid3D{
  swell(x,z){return (()=>{const q=(this.options.k??.30)*(z-21);return ((this.options.amplitude??1.6)*Math.cos(q)+(this.options.harmonic??.384)*Math.cos(2*q))*Math.exp(-q*q/5);})();}
  reset(){const p=[];for(let x=-WIDTH/2+SPACING*.5;x<WIDTH/2;x+=SPACING)for(let z=SPACING*.5;z<LENGTH;z+=SPACING)
   for(let y=-5.0+SPACING*.5;y<this.swell(x,z);y+=SPACING)if(y>this.bed(x,z)+SPACING*.4)p.push(x,y,z);
-  this.p=new Float64Array(300000);this.p.set(p);this.n=p.length/3;this.v=new Float64Array(300000);for(let i=0;i<this.n;i++){const a=i*3,z=this.p[a+2],eta=this.swell(this.p[a],z),k=this.options.k??.30,c=Math.sqrt(G/k*Math.tanh(3*k)),q=k*(z-21),env=Math.exp(-q*q/5),yy=Math.min(0,this.p[a+1]-eta);this.v[a+2]=-c*k*(this.options.amplitude??1.6)*Math.cos(q)*env*Math.cosh(k*(yy+3))/Math.sinh(3*k);this.v[a+1]=-c*k*(this.options.amplitude??1.6)*Math.sin(q)*env*Math.sinh(k*(yy+3))/Math.sinh(3*k);}this.foam=new Float64Array(100000);this.sourceRest=this.p.slice();this.initialCount=this.n;this.emissionBudget=0;this.reservoirAdded=0;this.reservoirRemoved=0;this.density=new Float64Array(N);
+  this.p=new Float64Array(p.length);this.p.set(p);this.n=p.length/3;this.v=new Float64Array(p.length);for(let i=0;i<this.n;i++){const a=i*3,z=this.p[a+2],eta=this.swell(this.p[a],z),k=this.options.k??.30,c=Math.sqrt(G/k*Math.tanh(3*k)),q=k*(z-21),env=Math.exp(-q*q/5),yy=Math.min(0,this.p[a+1]-eta);this.v[a+2]=-c*k*(this.options.amplitude??1.6)*Math.cos(q)*env*Math.cosh(k*(yy+3))/Math.sinh(3*k);this.v[a+1]=-c*k*(this.options.amplitude??1.6)*Math.sin(q)*env*Math.sinh(k*(yy+3))/Math.sinh(3*k);}this.foam=new Float64Array(this.n);this.sourceRest=this.p.slice();this.initialCount=this.n;this.emissionBudget=0;this.reservoirAdded=0;this.reservoirRemoved=0;this.density=new Float64Array(N);
   this.grid=[0,1,2].map(()=>new Float64Array(N));this.previous=[0,1,2].map(()=>new Float64Array(N));this.weights=[0,1,2].map(()=>new Float64Array(N));
   this.type=new Uint8Array(N);this.fluidCells=[];this.returnFlow=0;this.time=0;this.stepCount=0;this.mass=SPACING**3*1000;this.contacts=0;this.pressureResidual=0;
-  this.head=new Int32Array(N);this.next=new Int32Array(100000);this.restDensity=(CELL/SPACING)**3;this.transfer();this.rebuild();
+  this.head=new Int32Array(N);this.next=new Int32Array(this.n);this.restDensity=(CELL/SPACING)**3;this.transfer();this.rebuild();
  }
 
 
@@ -69,7 +69,7 @@ return class Fluid3D{
    const n=[-sx,1,-sz],len=Math.hypot(...n);for(let k=0;k<3;k++)n[k]/=len;const vn=v[a]*n[0]+v[a+1]*n[1]+v[a+2]*n[2];if(vn<0)for(let k=0;k<3;k++)v[a+k]-=vn*n[k];}
  }
  step(dt,body=null){this.time+=dt;this.stepCount++;const p=this.p,v=this.v;this.transfer();
-  const oldVertical=this.oldVertical||(this.oldVertical=new Float64Array(100000));for(let i=0;i<this.n;i++)oldVertical[i]=v[i*3+1];
+  const oldVertical=this.oldVertical||(this.oldVertical=new Float64Array(this.n));for(let i=0;i<this.n;i++)oldVertical[i]=v[i*3+1];
   for(let i=0;i<N;i++)this.grid[1][i]-=G*dt;this.walls();this.project(this.options.pressureIterations??40);this.particleVelocities();
   for(let i=0;i<this.n;i++){const a=i*3;this.foam[i]*=Math.exp(-dt/3.5);if(p[a+1]>-.2&&oldVertical[i]<-1&&v[a+1]-oldVertical[i]>.35)this.foam[i]=1;if(p[a+1]>.1&&v[a+1]<-1.5&&Math.hypot(v[a],v[a+2])>2)this.foam[i]=Math.max(this.foam[i],.9);
    if(p[a+1]>Y0+(NY-2)*CELL)v[a+1]-=G*dt;for(let k=0;k<3;k++)p[a+k]+=v[a+k]*dt;this.boundary(i);if(body&&Math.abs(p[a]-body.p[0])<1.5&&Math.abs(p[a+1]-body.p[1])<1.5&&Math.abs(p[a+2]-body.p[2])<1.5)body.contactParticle(this,i,dt);

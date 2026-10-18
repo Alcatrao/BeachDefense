@@ -29,3 +29,4 @@ for the next physics change, not installed by this pass. Existing narrow ambient
 section/extruded coast and independent character patch remain approximations.
 Wide clean 2m barrels and realistic full-width surf are not yet established.
 Local heavy tests remain subject to the shared Resource Governor and VM booking.
+Fixed-count particle position/velocity/foam/source-rest/neighbor arrays and transport buffers are now sized to actual counts; bridge storage is allocated on first state. This removes unused capacity without changing particle counts or solver precision.
