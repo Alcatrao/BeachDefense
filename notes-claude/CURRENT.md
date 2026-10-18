@@ -169,7 +169,7 @@ save renderer.toDataURL captures while the preview pane is hidden).
 
 Committed 4fc714e and pushed to origin/claude/shorebreak-waves on 17 Oct 2026 (owner request).
 Round 3 e55afdb pushed 18 Oct 2026 (owner request). Round 4 0400658 pushed 18 Oct 2026 (owner request). No PR.
-Round 5 committed 18 Oct 2026 on this branch, not pushed (push needs the owner's go-ahead).
+Round 5 9dd2038 pushed 18 Oct 2026 (owner request), with this notes commit; the push republishes /claude/ (see below).
 
 ## GitHub Pages (Codex-owned, 18 Oct 2026)
 Codex publishes all three versions: https://alcatrao.github.io/BeachDefense/ (main),
