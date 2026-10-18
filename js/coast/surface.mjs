@@ -1,6 +1,6 @@
 import * as T from 'three';
 import {WIDTH,LENGTH,H} from './fluid.mjs';
-export function createSurface(scene){
+export function createSurface(scene,{foamOnly=false}={}){
  const h=.30,x0=-WIDTH/2-.4,y0=-3.6,z0=-8.4,nx=Math.ceil((WIDTH+.8)/h)+1,ny=29,nz=Math.ceil((LENGTH+8.8)/h)+1,st=nx*ny,N=st*nz,iso=1.1;
  const density=new Float32Array(N),ff=new Float32Array(N),ids=new Int32Array(N),pos=new Float32Array(N*3),norm=new Float32Array(N*3),foam=new Float32Array(N),indices=new Uint32Array(N*18);
  const geo=new T.BufferGeometry();for(const [name,array,size] of [['position',pos,3],['normal',norm,3],['foam',foam,1]])geo.setAttribute(name,new T.BufferAttribute(array,size).setUsage(T.DynamicDrawUsage));geo.setIndex(new T.BufferAttribute(indices,1).setUsage(T.DynamicDrawUsage));
@@ -8,7 +8,7 @@ export function createSurface(scene){
  const fp=new Float32Array(4500*3),fg=new T.BufferGeometry();fg.setAttribute('position',new T.BufferAttribute(fp,3).setUsage(T.DynamicDrawUsage));const mist=new T.Points(fg,new T.ShaderMaterial({transparent:true,depthWrite:false,vertexShader:`void main(){vec4 q=modelViewMatrix*vec4(position,1.);gl_Position=projectionMatrix*q;gl_PointSize=clamp(50./-q.z,1.,14.);}`,fragmentShader:`void main(){float r=length(gl_PointCoord-.5);if(r>.5)discard;gl_FragColor=vec4(.98,1.,1.,smoothstep(.5,.24,r)*.8);}`}));mist.frustumCulled=false;scene.add(mist);
  const corners=[0,1,1+nx,nx,st,st+1,st+1+nx,st+nx],cx=[0,1,1,0,0,1,1,0],cy=[0,0,1,1,0,0,1,1],cz=[0,0,0,0,1,1,1,1],edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
  let vertices=0,triangles=0,ms=0,crestZ=21;
- function update(f){const start=performance.now();density.fill(0);ff.fill(0);ids.fill(-1);let m=0;
+ function update(f){const start=performance.now();if(foamOnly){let m=0;for(let i=0;i<f.n&&m<4500;i++){const a=i*3;if(f.foam[i]>.35&&f.p[a+1]>-.15){fp[m*3]=f.p[a];fp[m*3+1]=f.p[a+1]+.025;fp[m*3+2]=f.p[a+2];m++;}}fg.setDrawRange(0,m);fg.attributes.position.needsUpdate=true;ms=performance.now()-start;return;}density.fill(0);ff.fill(0);ids.fill(-1);let m=0;
   for(let i=0;i<f.n;i++){const a=i*3,x=f.p[a],y=f.p[a+1],z=f.p[a+2],ix=Math.floor((x-x0)/h),iy=Math.floor((y-y0)/h),iz=Math.floor((z-z0)/h);for(let k=Math.max(0,iz-2);k<=Math.min(nz-1,iz+2);k++)for(let j=Math.max(0,iy-2);j<=Math.min(ny-1,iy+2);j++)for(let n=Math.max(0,ix-2);n<=Math.min(nx-1,ix+2);n++){const q=1-((x0+n*h-x)**2+(y0+j*h-y)**2+(z0+k*h-z)**2)/(H*H);if(q<=0)continue;const w=q*q*q,index=n+nx*j+st*k;density[index]+=w;ff[index]+=w*f.foam[i];}if(m<4500&&f.foam[i]>.35&&y>-.15){fp[m*3]=x;fp[m*3+1]=y+.025;fp[m*3+2]=z;m++;}}
   vertices=0;let count=0,crestY=-100;
   for(let k=1;k<nz-2;k++)for(let j=1;j<ny-2;j++)for(let i=1;i<nx-2;i++){const a=i+nx*j+st*k;let mask=0;for(let c=0;c<8;c++)if(density[a+corners[c]]>=iso)mask|=1<<c;if(mask===0||mask===255)continue;let x=0,y=0,z=0,hits=0,foamSum=0;

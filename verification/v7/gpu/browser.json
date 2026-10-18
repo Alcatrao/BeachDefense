@@ -1,0 +1,226 @@
+{
+  "gpu": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+  "errors": [],
+  "topology": {
+    "interiorBoundaryEdges": 0,
+    "nonmanifoldEdges": 57
+  },
+  "snapshots": [
+    {
+      "particles": 24192,
+      "time": 27.99999999999969,
+      "peakMetres": -0.09999999999999815,
+      "foamParticles": 0,
+      "alongshoreKinetic": 0,
+      "pressureResidual": 0,
+      "reservoirAdded": 0,
+      "reservoirRemoved": 0,
+      "initialCount": 24192,
+      "emitterPaused": false,
+      "originX": 0,
+      "rider": null,
+      "board": null,
+      "ambientParticles": 15056,
+      "localActive": false,
+      "localTime": 0,
+      "physicsMs": 0,
+      "ambientMs": 8.600000023841858,
+      "ambientDropped": 0,
+      "backgroundMode": "live",
+      "maxParcelStepRms": 0.0431335189782511,
+      "phaseError": 0,
+      "droppedTime": 0,
+      "frames": 4,
+      "surface": {
+        "coast": {
+          "vertices": 5904,
+          "triangles": 11118,
+          "crestZ": 8.120000000000001,
+          "crestY": 1.8669831950985336,
+          "reconstructionMs": 7.899999976158142,
+          "widthMetres": 215,
+          "xColumns": 19,
+          "singleSurface": true
+        },
+        "local": {
+          "vertices": 0,
+          "triangles": 0,
+          "crestZ": 21,
+          "reconstructionMs": 0,
+          "foamPoints": null
+        },
+        "revision": 3
+      }
+    },
+    {
+      "particles": 24192,
+      "time": 34.499999999999325,
+      "peakMetres": -0.09999999999999815,
+      "foamParticles": 0,
+      "alongshoreKinetic": 0,
+      "pressureResidual": 0,
+      "reservoirAdded": 0,
+      "reservoirRemoved": 0,
+      "initialCount": 24192,
+      "emitterPaused": false,
+      "originX": 0,
+      "rider": null,
+      "board": null,
+      "ambientParticles": 15056,
+      "localActive": false,
+      "localTime": 0,
+      "physicsMs": 0,
+      "ambientMs": 9.299999952316284,
+      "ambientDropped": 0,
+      "backgroundMode": "live",
+      "maxParcelStepRms": 0.04728526368002406,
+      "phaseError": 0,
+      "droppedTime": 0,
+      "frames": 6,
+      "surface": {
+        "coast": {
+          "vertices": 5508,
+          "triangles": 10370,
+          "crestZ": 9.399999999999999,
+          "crestY": 2.0733890812764026,
+          "reconstructionMs": 54.90000003576279,
+          "widthMetres": 215,
+          "xColumns": 19,
+          "singleSurface": true
+        },
+        "local": {
+          "vertices": 0,
+          "triangles": 0,
+          "crestZ": 21,
+          "reconstructionMs": 0,
+          "foamPoints": null
+        },
+        "revision": 4
+      }
+    },
+    {
+      "particles": 24192,
+      "time": 40.74999999999897,
+      "peakMetres": -0.09999999999999815,
+      "foamParticles": 0,
+      "alongshoreKinetic": 0,
+      "pressureResidual": 0,
+      "reservoirAdded": 0,
+      "reservoirRemoved": 0,
+      "initialCount": 24192,
+      "emitterPaused": false,
+      "originX": 0,
+      "rider": null,
+      "board": null,
+      "ambientParticles": 15056,
+      "localActive": false,
+      "localTime": 0,
+      "physicsMs": 0,
+      "ambientMs": 9.100000023841858,
+      "ambientDropped": 0,
+      "backgroundMode": "live",
+      "maxParcelStepRms": 0.048218996297853346,
+      "phaseError": 0,
+      "droppedTime": 0,
+      "frames": 8,
+      "surface": {
+        "coast": {
+          "vertices": 5958,
+          "triangles": 11254,
+          "crestZ": 9.460316878375238,
+          "crestY": 2.324089678995413,
+          "reconstructionMs": 11.900000035762787,
+          "widthMetres": 215,
+          "xColumns": 19,
+          "singleSurface": true
+        },
+        "local": {
+          "vertices": 0,
+          "triangles": 0,
+          "crestZ": 21,
+          "reconstructionMs": 0,
+          "foamPoints": null
+        },
+        "revision": 5
+      }
+    }
+  ],
+  "contacts": 58,
+  "wallSeconds": 6.007,
+  "fps": 29.79856833694024,
+  "simulationRatio": 0.9932856112312848,
+  "localSimulationRatio": 0.9932856112312848,
+  "after": {
+    "particles": 24192,
+    "time": 47.71666666666524,
+    "peakMetres": 1.6267962866334744,
+    "foamParticles": 3614,
+    "alongshoreKinetic": 5720.944603516944,
+    "pressureResidual": 0.05780943799181726,
+    "reservoirAdded": 0,
+    "reservoirRemoved": 0,
+    "initialCount": 24192,
+    "emitterPaused": false,
+    "originX": 59.980198881401954,
+    "rider": {
+      "position": [
+        0,
+        -0.129729453602002,
+        3.2985277763688305
+      ],
+      "velocity": [
+        0.2842831601225253,
+        0.5117648741017627,
+        -1.180032419307861
+      ],
+      "quaternion": [
+        -0.5738107825765899,
+        -0.06685647959156328,
+        0.25153115866148007,
+        0.7765329826593831
+      ],
+      "angularVelocity": [
+        0.05318863518521206,
+        0.14277668974868016,
+        -0.16028218661394372
+      ],
+      "tiltDegrees": 77.5876099919678,
+      "contacts": 39,
+      "totalImpulse": 23620.750392875878,
+      "skimming": false,
+      "wiped": true
+    },
+    "board": null,
+    "ambientParticles": 15056,
+    "localActive": true,
+    "localTime": 47.71666666666524,
+    "physicsMs": 13.800000011920929,
+    "ambientMs": 10.400000035762787,
+    "ambientDropped": 0,
+    "backgroundMode": "live",
+    "maxParcelStepRms": 0.048218996297853346,
+    "phaseError": 0,
+    "droppedTime": 0,
+    "frames": 194,
+    "surface": {
+      "coast": {
+        "vertices": 14870,
+        "triangles": 29088,
+        "crestZ": 6.680000000000001,
+        "crestY": 1.0059388383159633,
+        "reconstructionMs": 25.799999952316284,
+        "widthMetres": 215,
+        "xColumns": 42,
+        "singleSurface": true
+      },
+      "local": {
+        "vertices": 0,
+        "triangles": 0,
+        "crestZ": 21,
+        "reconstructionMs": 0.20000004768371582,
+        "foamPoints": 1585
+      },
+      "revision": 189
+    }
+  }
+}

@@ -1,3 +1,15 @@
+18 October 2026 � Codex v7 continuous surf, supersedes the v6 runtime summary below.
+
+Installed: live ambient-worker.mjs and one-time initial-state.bin; beach-worker synchronized stepping; single blended nonuniform surface-nets coast mesh; smoothed foam and bounded skin fairing; visual offshore field/plane stitch. SourceK .20/A1.55 gives taller connected cavity candidates (1.44m best height vs1.08m), but width is still limited. Actual finite-body fluid contacts retained; matched wave/calm regression passed. Background is live now; wave-cycle.bin is preserved but unused.
+
+Final GPU53.307FPS/.988395 simulation ratio in integrated game; standalone29.799/.993286. Software29.831/.789968 game; standalone25.458/.843039. Both solver clocks match (phase error0). Zero page errors; surf/defense/pause/resume pass. Mesh interior open edges0, remaining nonmanifold edges57 GPU/48 software. Periodic-distance parcel step RMS maximum.048219m. All tests governor-admitted; no lasting browser/server. See verification/v7 and tooling/v7/NOTES.md for exact methods, failures, limits and research.
+
+Not finished: long clean2m barrels, true full-width coupled ocean, unambiguous manifold skin, perfectly natural foam, every distant boundary artifact, sustained human playtest. New source has finite markers through t80; numerical corrections, atmospheric air and constrained section remain approximations. Character local water exchanges momentum with the character, not the background; visual density blending is not a new physical coupling. Keep60Hz/40sweeps and the calm control. Next: mesh junctions and physical boundary exchange; improve tube width without fake curls.
+
+Tooling/v7 maintained browser/contact/validation scripts; local experiments preserved separately. Old summaries below are historical, including Claude's appended push receipt. Codex commits/pushes only codex/breaking-surf under owner's standing authorization; no Claude branch access, PR, merge or deployment. Staging C: chat workspace/v7 remains within the already indexed outside-home workspace.
+
+--- Historical v6 handoff (preserved) ---
+
 18 October 2026 — Codex v6 full-beach continuation
 
 Installed in the existing game: js/coast/{fluid,surf-physics,surface,coast-surface,beach-worker,beach-bridge,beach-ocean,beach-demo}.mjs plus wave-cycle.bin, main.js, surf-bodies.js, index.html and beach.html. Prior v5 root docs/menu/main are preserved locally in records/v5-preserved; js/natural and its labs remain available. Owner explicitly authorized committing/pushing our own GitHub branch. Own branch is codex/breaking-surf; origin Alcatrao/BeachDefense. No Claude-worktree access.
@@ -21,3 +33,4 @@ Next useful work: eliminate the distant loop seam using a longer/spatially perio
 Tooling/v6/NOTES.md records research and provenance; experiments/ is a local preserved staging snapshot, not maintained entry points. verification/v6/source-and-software and staging-gpu are earlier staged runs, not current installed proof. The current installed proof is gpu/, software/, contact-60.json and installed-manifest.json. All useful scratch retained under project home; C: staging is already indexed in FOLDER-INDEX and AI-WORK-INDEX. No scheduled follow-up was requested or created.
 
 Commit identity: local agent identity Codex <codex@localhost>, supplied per command because this checkout has no configured author. Global Git configuration remains unchanged. Legacy v1–v4 modules remain locally preserved, outside the maintained v6 commit; v5 natural lab runtime is included. Whitespace-only EOF cleanup followed browser tests; physics semantics unchanged.
+- 2026-10-18 (Claude): pushed e55afdb to origin/claude/shorebreak-waves (owner request). No PR.

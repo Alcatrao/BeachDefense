@@ -1,0 +1,91 @@
+{
+  "errors": [],
+  "game": {
+    "active": true,
+    "paused": false,
+    "renderFrames": 22,
+    "rider": {
+      "x": 0.004064764990998871,
+      "y": 9.602869398819388,
+      "z": -45.865160482538194,
+      "vx": 0.018520903471202534,
+      "vy": -2.376155995559033,
+      "vz": -16.174737186290663,
+      "mode": "skimming",
+      "grounded": true
+    },
+    "ocean": {
+      "coast": {
+        "vertices": 13890,
+        "triangles": 27062,
+        "crestZ": 7.8,
+        "crestY": 1.612624858141697,
+        "reconstructionMs": 33.80000001192093,
+        "widthMetres": 215,
+        "xColumns": 41,
+        "singleSurface": true
+      },
+      "local": {
+        "vertices": 0,
+        "triangles": 0,
+        "crestZ": 21,
+        "reconstructionMs": 0.09999996423721313,
+        "foamPoints": 365
+      },
+      "revision": 16
+    }
+  },
+  "fluid": {
+    "particles": 24192,
+    "time": 27.899999999999697,
+    "peakMetres": 1.5055953399935327,
+    "foamParticles": 1764,
+    "alongshoreKinetic": 277.5926903979338,
+    "pressureResidual": 0.07777351169898529,
+    "reservoirAdded": 0,
+    "reservoirRemoved": 0,
+    "initialCount": 24192,
+    "emitterPaused": false,
+    "originX": 0.0007820873326472753,
+    "rider": {
+      "position": [
+        0,
+        0.8816603400036117,
+        5.380447471352077
+      ],
+      "velocity": [
+        0.0032899188829614884,
+        -0.4111171369675647,
+        -2.673062212581709
+      ],
+      "quaternion": [
+        -0.006501112330203849,
+        -0.0014527455660149932,
+        -0.000008437312479895428,
+        0.999977812252653
+      ],
+      "angularVelocity": [
+        0.47697537448163535,
+        -0.013395956782199986,
+        0.0033896104963075132
+      ],
+      "tiltDegrees": 0.7449784724774284,
+      "contacts": 0,
+      "totalImpulse": 353.8136020439374,
+      "skimming": true,
+      "wiped": false
+    },
+    "board": null,
+    "ambientParticles": 15056,
+    "localActive": true,
+    "localTime": 27.899999999999697,
+    "physicsMs": 16.899999976158142,
+    "ambientMs": 13,
+    "ambientDropped": 0,
+    "backgroundMode": "live",
+    "maxParcelStepRms": 0.0431335189782511,
+    "phaseError": 0,
+    "droppedTime": 0,
+    "revision": 17
+  }
+}

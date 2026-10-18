@@ -1,0 +1,8 @@
+{
+  "topology": {
+    "interiorBoundaryEdges": 0,
+    "nonmanifoldEdges": 57
+  },
+  "maxParcelStepRms": 0.048218996297853346,
+  "phaseError": 0
+}

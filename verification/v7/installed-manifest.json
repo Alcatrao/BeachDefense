@@ -1,0 +1,58 @@
+{
+  "js/coast/ambient-worker.mjs": {
+    "sha256": "733534b501b2b8379dd284988f5c434cf11d1850ac2bbe9c7c14b2d19b228258",
+    "bytes": 2400
+  },
+  "js/coast/beach-bridge.mjs": {
+    "sha256": "436baab992d919e2d15302579c13c8bef49e27448db8d1a6786173a394bc0f15",
+    "bytes": 3959
+  },
+  "js/coast/beach-demo.mjs": {
+    "sha256": "28f7bc0f57b4f4236854b3733cd9f3c788d2f4f20ca7c4e815691ac7618b150d",
+    "bytes": 4053
+  },
+  "js/coast/beach-ocean.mjs": {
+    "sha256": "f36d61123869aa8566bd5d2078fe8f5c819b9a344f2a4a9096756bd3de45f0a6",
+    "bytes": 1588
+  },
+  "js/coast/beach-worker.mjs": {
+    "sha256": "68c5c99153262bd3cfb813b702c51450166ab696a86749b58fa2ad9772f979c1",
+    "bytes": 5092
+  },
+  "js/coast/coast-surface.mjs": {
+    "sha256": "82112428292f77166f693380890cb33bbaa02b8a58d4d2329d808adfb8da7ad3",
+    "bytes": 8603
+  },
+  "js/coast/fluid.mjs": {
+    "sha256": "4f05f5b7204f01540008609f28e05bd171c81df0bc95a8a4a29c37d506fd9e6b",
+    "bytes": 20670
+  },
+  "js/coast/surf-physics.mjs": {
+    "sha256": "e7a2483b9e9a9dac0df0de53d31443e9498a1808f35258a2f184018c09a9cc0a",
+    "bytes": 6691
+  },
+  "js/coast/surface.mjs": {
+    "sha256": "9f3521ff1d421fe7090affd9155ea1b1d710888713222531fbcd31b9ebac9c34",
+    "bytes": 5092
+  },
+  "js/coast/initial-state.bin": {
+    "sha256": "671eb26d69773f10f365f2c0013e6fd93cd605491af5e59e339317d82788d20e",
+    "bytes": 843152
+  },
+  "beach.html": {
+    "sha256": "f9017806eb4ab0c0c0efb63f7f36d5d8bad6b0f792e72c81851b57869392af21",
+    "bytes": 1591
+  },
+  "tooling/v7/browser.cjs": {
+    "sha256": "0b3244af79e28707b0bcb7417b4acca3a2cb32bf7293e53e5285438a070807a7",
+    "bytes": 6749
+  },
+  "tooling/v7/contact.mjs": {
+    "sha256": "261661068f6f53b78bcdb763ee83f791b4caa8ef58599285a132e16e72228213",
+    "bytes": 2985
+  },
+  "tooling/v7/validate.mjs": {
+    "sha256": "730f6b9577c01a2719b4e6f980db5ea431cf982ef569b307153fbd81d1de2cb2",
+    "bytes": 3430
+  }
+}

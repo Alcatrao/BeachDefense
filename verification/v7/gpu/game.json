@@ -1,0 +1,91 @@
+{
+  "errors": [],
+  "game": {
+    "active": true,
+    "paused": false,
+    "renderFrames": 24,
+    "rider": {
+      "x": 0.0010159642015247989,
+      "y": 9.890322685903678,
+      "z": -42.580745697764414,
+      "vx": 0.013425978545838348,
+      "vy": 2.0890916857515394,
+      "vz": -16.627316705991426,
+      "mode": "skimming",
+      "grounded": true
+    },
+    "ocean": {
+      "coast": {
+        "vertices": 13182,
+        "triangles": 25766,
+        "crestZ": 8.919999999999998,
+        "crestY": 1.1073595098377402,
+        "reconstructionMs": 26.899999976158142,
+        "widthMetres": 215,
+        "xColumns": 41,
+        "singleSurface": true
+      },
+      "local": {
+        "vertices": 0,
+        "triangles": 0,
+        "crestZ": 21,
+        "reconstructionMs": 0.10000002384185791,
+        "foamPoints": 310
+      },
+      "revision": 12
+    }
+  },
+  "fluid": {
+    "particles": 24192,
+    "time": 27.666666666666377,
+    "peakMetres": 1.035563129934179,
+    "foamParticles": 1756,
+    "alongshoreKinetic": 140.06815628147152,
+    "pressureResidual": 0.07703552533417246,
+    "reservoirAdded": 0,
+    "reservoirRemoved": 0,
+    "initialCount": 24192,
+    "emitterPaused": false,
+    "originX": 0.00016932736692079983,
+    "rider": {
+      "position": [
+        0,
+        0.9483871143172797,
+        6.017836629187724
+      ],
+      "velocity": [
+        0.002237663090973058,
+        0.34818194762525656,
+        -2.7712194509985713
+      ],
+      "quaternion": [
+        0.0005830069831374458,
+        -0.000318438883846755,
+        -0.00008890920994965311,
+        0.9999997753973184
+      ],
+      "angularVelocity": [
+        -0.20896988590977447,
+        -0.008699851825628113,
+        -0.002038320541922607
+      ],
+      "tiltDegrees": 0.06758007734954415,
+      "contacts": 0,
+      "totalImpulse": 215.61434286217755,
+      "skimming": true,
+      "wiped": false
+    },
+    "board": null,
+    "ambientParticles": 15056,
+    "localActive": true,
+    "localTime": 27.666666666666377,
+    "physicsMs": 12.5,
+    "ambientMs": 13.199999988079071,
+    "ambientDropped": 0,
+    "backgroundMode": "live",
+    "maxParcelStepRms": 0.0431335189782511,
+    "phaseError": 0,
+    "droppedTime": 0,
+    "revision": 12
+  }
+}
