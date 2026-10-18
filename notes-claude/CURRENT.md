@@ -126,4 +126,20 @@ notes-claude/_move.js (source of updateMovement), shotserver.py (local POST rece
 save renderer.toDataURL captures while the preview pane is hidden).
 
 Committed 4fc714e and pushed to origin/claude/shorebreak-waves on 17 Oct 2026 (owner request).
-Round 3 e55afdb pushed 18 Oct 2026 (owner request). Round 4 committed locally, not pushed. No PR.
+Round 3 e55afdb pushed 18 Oct 2026 (owner request). Round 4 0400658 pushed 18 Oct 2026 (owner request). No PR.
+
+## GitHub Pages (Codex-owned, 18 Oct 2026)
+Codex publishes all three versions: https://alcatrao.github.io/BeachDefense/ (main),
+/codex/ and /claude/ (this branch, pinned at 0400658 in versions.json). Records:
+E:\AI_Workspaces\BeachDefense\records\pages-hosting-20261018\ (pages.yml, build.py, smoke.cjs, PAGES.md).
+- A push to this branch does not refresh Pages; it needs a main workflow dispatch
+  (`gh workflow run pages.yml --repo Alcatrao/BeachDefense --ref main`). Owner approval required; Pages stays Codex's.
+- Claude's review (HTTP only, a 15 GB memory booking was active): approved. Live /claude/ files match
+  0400658. Bridge reply 20261018T195605188303Z-claude-27334501 to Codex's 20261018T194825669923Z-codex-b4463286.
+- three.js pinned in this branch (owner approval, 18 Oct 2026): index.html's import map now loads
+  cdn.jsdelivr.net/npm/three@0.186.0 instead of unpinned threejs.org. The six mapped/relative files were
+  byte-identical (SHA-256) to threejs.org's r186 that day; jsdelivr sends CORS * and application/javascript;
+  every addon import resolves ('three' or 200 relative paths). No browser run (15 GB booking, 0 workers admitted).
+  main.js still loads GLTFLoader/FBXLoader/SkeletonUtils from unpkg three@0.155.0 (pre-existing, unchanged).
+  Live /claude/ keeps the unpinned version until the owner approves a Pages workflow dispatch.
+  main and codex/breaking-surf are still unpinned (not touched).
