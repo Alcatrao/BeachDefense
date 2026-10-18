@@ -86,9 +86,44 @@ Scale assumed from eye height 10 units = 1.7 m: ~5.9 units per metre.
   the player to y 46.8 at z 400. Render (readPixels timing) 0.62 ms vs 0.36 ms in round 2.
   Console: only pointer-lock errors. Not hand-play-tested.
 
+## Round 4 (18 Oct 2026, owner: "feel free to try even newer approaches or techniques")
+Targets from the round 3 shots: polygonal "cracked tile" foam lace, white crack lines on faces,
+opaque teal swash water.
+- Transparent shallow water: Beer-Lambert absorption over depth (SIGMA = (1.3, 0.75, 0.7)/5.9 per
+  unit, view + sun path), caustics (drifting cell networks at the refracted bed position), and
+  display-space compositing: each layer is written as P + W*bed with alpha = 1 - W.r; the extra
+  green/blue transmission is baked in using the typical sand colour. Limits: blending cannot
+  refract the bed, and the per-channel part is exact only for that sand colour.
+- Muted in-scatter colour in very shallow water; no subsurface glow on low bores (removed a cyan
+  band at the bore front).
+- Foam: coverage-based multi-scale lace. Signed round holes at three scales; target coverage
+  C ~ foam amount, each scale's hole density from -ln(C)/0.33; foam age shifts weight from small
+  to large holes; thickness rises away from the holes, soft translucent rims; scales fade to their
+  mean with distance (no shimmer). Bump-mapped foam lighting via the surface gradient (Mikkelsen);
+  opacity 1 - exp(-3.2 tau); brighter wrap lighting.
+- Foam coordinates on the rest grid (Lagrangian-style), drifting shoreward and riding the swash
+  (gDrift, foam only, no JS mirror needed). The drift ramp is at least 4r long so the pattern
+  never folds over (that caused radial streaks) and stretches at most ~1.6x.
+- Procedural value noise replaces textures/foam.avif, which does not tile (edge jump 42 levels vs
+  1.8 between neighbouring pixels) and made seams at world x = 0 and regular z lines. The file is
+  untouched but no longer used by surf.js.
+- Spray: ragged, soft-edged puffs with a per-particle seed instead of round discs; whitewash mist
+  at alpha 0.4.
+- Verified: shots r4-*.jpg. step() tests: 3 wipeouts / 90 s held at z 21, 4 / 60 s at z -64,
+  0 / 60 s at z 100; rogue lifts the player to y 46.8 at z 400 (same as round 3). Render
+  (readPixels timing, same session A/B against HEAD e55afdb): 0.42-0.54 ms vs 0.42-0.47 ms.
+  Console: only pointer-lock errors. Not hand-play-tested.
+- Sources: https://80.lv/articles/real-time-shoreline-simulation-in-custom-c-coastal-renderer ,
+  https://80.lv/articles/breakdown-back-approaches-to-realtime-foam-rendering/ ,
+  https://www.wetafx.co.nz/assets/Uploads/PDFs/2022-Guided-Bubbles-and-Wet-Foam-for-Realistic-Whitewater-Simulation.pdf ,
+  https://cgweb.informatik.uni-freiburg.de/publications/2013_WSCG_foamRendering.pdf ,
+  https://gamedev.net/shaderlab/53-foam-with-flow-mapping/ , https://github.com/ivdstudios/crest-oceanrender ,
+  https://www.old.cescg.org/CESCG-2008/papers/BratislavaC-Mihalik-Andrej.pdf
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
 save renderer.toDataURL captures while the preview pane is hidden).
 
-Committed 4fc714e and pushed to origin/claude/shorebreak-waves on 17 Oct 2026 (owner request). No PR.
+Committed 4fc714e and pushed to origin/claude/shorebreak-waves on 17 Oct 2026 (owner request).
+Round 3 e55afdb pushed 18 Oct 2026 (owner request). Round 4 committed locally, not pushed. No PR.

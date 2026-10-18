@@ -265,6 +265,7 @@ function lipTip(w, dc) {
 // ---------- GLSL ----------
 const GLSL_COMMON = /* glsl */`
 #define TAU 6.28318530718
+float gDrift; // set by surfPos: how far the swash has carried its foam up the beach (for foam texturing only)
 const float K0 = ${K0.toFixed(9)};
 const float OMEGA = ${OMEGA.toFixed(9)};
 const float SA = ${SURF.shoalA.toFixed(5)};
@@ -352,6 +353,8 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
   float x = xz.x, z = xz.y;
   float zs = shoreZ(x);
   float d = z - zs;
+  gDrift = 0.0;
+  float swAge = 0.0;
   float phi = phaseAt(x, d);
   float fn = floor(phi / TAU + 0.5);
   float psi = phi / TAU - fn;
@@ -444,6 +447,9 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
     // foam on the swash, densest at the uprush tip
     float tip = sstep(-r - 3.0, -r + 4.0, d) * (1.0 - sstep(-r + 4.0, -r + 20.0, d));
     wet = clamp(max(wet * 0.3 * sstep(10.0, -5.0, d), 0.85 * tip), 0.0, 1.0) * sstep(1.0, 0.9, tt);
+    // swash foam rides up and back with the water, and opens into a lace once the backwash starts
+    gDrift = r * sstep(30.0, 30.0 - max(4.0 * r, 40.0), d); // ramp >= 4r long: the foam never folds over and stretches at most ~1.6x
+    swAge = sstep(0.25, 0.85, tt);
   }
 
   // foam
@@ -459,7 +465,8 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
   float fRes = zoneIn * broke * (0.12 + 0.5 * exp(-3.0 * ageB));
   foam = clamp(max(max(max(fLip, fFace), max(fBore, fZone)), max(fCap, fRes)) * filmP, 0.0, 1.0);
   foam = max(foam, wet);
-  age = clamp(mix(ageB, 0.0, max(max(fLip, fBore * (1.0 - sstep(0.0, 0.3 * L, s2))), max(fFace, wet))), 0.0, 1.0);
+  age = clamp(mix(ageB, 0.0, max(max(fLip, fBore * (1.0 - sstep(0.0, 0.3 * L, s2))), fFace)), 0.0, 1.0);
+  age = mix(age, swAge, min(wet * 1.5, 1.0));
   thin = hw * bw * sh;
   wetOut = wet;
   return vec3(x, y, zs + dA);
@@ -476,10 +483,12 @@ varying float vDepth;
 varying float vSand;
 varying float vAge;
 varying float vLand;
+varying vec2 vRest;
 void main() {
   float f, th, wt, sw, ag, f1, t1, w1, s1, a1;
   vec2 xz = position.xz;
   vec3 P = surfPos(xz, f, th, wt, sw, ag);
+  float drift = gDrift;
   vec3 P1 = surfPos(xz + vec2(0.7, 0.0), f1, t1, w1, s1, a1);
   vec3 P2 = surfPos(xz + vec2(0.0, 0.7), f1, t1, w1, s1, a1);
   vSand = sw;
@@ -493,15 +502,20 @@ void main() {
   float bed = max(0.5 + landH(xz.y) - SLOPE * max(xz.y - zs, 0.0), -70.0);
   vDepth = P.y - bed;
   vLand = 1.0 - smoothstep(-3.0, 3.0, xz.y - zs);
+  // foam texture coordinates on the undisplaced grid: the foam rocks and stretches with the water
+  // (streaks down steep faces, wraps the curl), drifts slowly shoreward and rides the swash
+  vRest = vec2(xz.x, xz.y + drift + 2.0 * uTime);
   gl_Position = projectionMatrix * viewMatrix * vec4(P, 1.0);
 }
 `;
+
+// typical colour of the sand under the water as drawn (linear, matched to the beach material's render)
+const BED_LIN = [0.5606, 0.4291, 0.2832]; // sRGB ~(199, 184, 160) on screen, measured with the surf hidden
 
 const FRAG = /* glsl */`
 uniform float uTime;
 uniform vec3 uSunDir;
 uniform sampler2D uNormTex;
-uniform sampler2D uFoamTex;
 varying vec3 vWorld;
 varying vec3 vNrm;
 varying float vFoam;
@@ -510,6 +524,7 @@ varying float vDepth;
 varying float vSand;
 varying float vAge;
 varying float vLand;
+varying vec2 vRest;
 
 vec2 hash2(vec2 p) {
   p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
@@ -528,19 +543,56 @@ float cellWall(vec2 p, float t) {
   }
   return d2 - d1;
 }
+// smooth value noise (quintic fade), 0..1; seamless, unlike the old foam photo, which did not tile
+float vnoise(vec2 p) {
+  vec2 i = floor(p), f = fract(p);
+  vec2 u = f * f * f * (f * (f * 6.0 - 15.0) + 10.0);
+  vec2 k = vec2(127.1, 311.7);
+  float a = fract(sin(dot(i, k)) * 43758.5453), b = fract(sin(dot(i + vec2(1.0, 0.0), k)) * 43758.5453);
+  float c = fract(sin(dot(i + vec2(0.0, 1.0), k)) * 43758.5453), d = fract(sin(dot(i + 1.0, k)) * 43758.5453);
+  return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
+}
+const mat2 ROT = mat2(0.8, -0.6, 0.6, 0.8); // rotates each octave so the noise grid does not show
+// round holes of random size scattered over a jittered grid: 1 at a hole's centre, 0 on its rim, negative
+// outside (-0.5 at 1.5 radii); grow scales every hole, so foam opens up from pin holes into a lace
+float holes(vec2 p, float t, float grow) {
+  vec2 i = floor(p), f = fract(p);
+  float h = -4.0;
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+    vec2 g = vec2(float(x), float(y));
+    vec2 o = hash2(i + g);
+    vec2 c = g + 0.5 + 0.36 * sin(t * (0.6 + 0.5 * o.yx) + 6.2831 * o) - f;
+    float r = (0.18 + 0.5 * o.x * o.y) * grow;
+    h = max(h, 1.0 - length(c) / r);
+  }
+  return h;
+}
+// foam left between the holes of one scale: 0 inside a hole, a soft translucent rim, thickest far from holes
+float laceScale(float h) { return smoothstep(0.12, -0.45, h); }
 
-// foam pattern for one projection: lacy foam, where bubble rafts gather on the walls of a churning cell
-// pattern drifting with the water (stretched into streaks on steep faces), over the foam texture.
-// Returns the "emptiness" e (0 on the lace, 1 in the holes); ft = contrast-stretched texture.
-float foamField(vec2 fw, vec2 st, float lw, out float ft) {
-  ft = texture2D(uFoamTex, fw * 0.031 + vec2(0.0, uTime * 0.012)).r * 0.65 + texture2D(uFoamTex, fw * 0.083 - vec2(uTime * 0.01, 0.0)).r * 0.35;
-  ft = clamp((ft - 0.58) / 0.36, 0.0, 1.0); // the texture is mostly bright: stretch its contrast
-  if (lw <= 0.0) return 1.0 - ft;
-  vec2 lp = fw + vec2(0.0, -uTime * 1.6);
-  float w1 = cellWall(lp * 0.11 * st, uTime * 0.35);
-  float w2 = cellWall(lp * 0.31 * st + 7.3, uTime * 0.6);
-  float e = 0.62 * min(w1 / 0.55, 1.0) + 0.23 * min(w2 / 0.55, 1.0) + 0.15 * (1.0 - ft);
-  return mix(1.0 - ft, e, lw);
+// Foam thickness (0 = none; about 1 = opaque) at foam coordinates p.
+// Foam is a sheet of bubbles with round holes at three scales (domain-warped so they are not perfect circles).
+// The holes are sized so the foam covers about fa of the surface (one hole per cell of mean area
+// pi E[r^2] = 0.33 g^2, so a scale leaves exp(-0.33 g^2) uncovered); young foam has mostly small holes,
+// old foam opens into a coarse lace around large ones. Thickness grows away from the holes.
+// ft = lumpiness (0..1) from a few octaves of noise.
+float foamThick(vec2 p, float fa, float age, float dist, out float ft) {
+  float n1 = vnoise(p * 0.16), n2 = vnoise(ROT * p * 0.41 + 7.3), n3 = vnoise(ROT * ROT * p * 1.07 + 3.1);
+  float t1 = 0.6 * n1 + 0.4 * n2 + 0.1, t2 = 0.6 * n2 + 0.4 * n3 + 0.1; // ~0.6 on average, like the old texture
+  ft = clamp((t1 * 0.65 + t2 * 0.35 - 0.45) / 0.3, 0.0, 1.0);
+  float C = clamp(fa * (0.75 + 0.5 * ft), 0.04, 0.97);           // target coverage, lumpier with the texture
+  float G = -log(C) / 0.33 + 0.12;                              // total g^2 over the three scales
+  vec3 w = mix(vec3(0.15, 0.30, 0.55), vec3(0.55, 0.30, 0.15), age);
+  vec3 g = min(sqrt(G * w), vec3(1.5));                         // the 3x3 search reaches about 1.5
+  vec2 q = p + 3.2 * vec2(t1 - 0.6, t2 - 0.6);
+  float k1 = 1.0 - smoothstep(700.0, 1600.0, dist);
+  float k2 = 1.0 - smoothstep(250.0, 800.0, dist), k3 = 1.0 - smoothstep(70.0, 260.0, dist);
+  vec3 mean = exp(-0.33 * g * g) * 0.85;                         // a faded scale is replaced by its mean cover
+  float f1 = k1 > 0.0 ? mix(mean.x, laceScale(holes(q * 0.12, uTime * 0.25, g.x)), k1) : mean.x;
+  float f2 = k2 > 0.0 ? mix(mean.y, laceScale(holes(q * 0.35 + 5.1, uTime * 0.45, g.y)), k2) : mean.y;
+  float f3 = k3 > 0.0 ? mix(mean.z, laceScale(holes(q * 1.05 + 2.7, uTime * 0.8, g.z)), k3) : mean.z;
+  float lace = f1 * f2 * f3;
+  return lace * (0.2 + 0.7 * clamp(fa, 0.0, 1.6)) * (0.6 + 0.6 * ft) * smoothstep(0.0, 0.3, fa); // sparse foam is a thin film
 }
 
 const vec3 HORIZON = vec3(0.80, 0.82, 0.82);
@@ -548,6 +600,8 @@ const vec3 ZENITH  = vec3(0.18, 0.45, 0.85);
 const vec3 DEEP    = vec3(0.01, 0.17, 0.42);
 const vec3 SHALLOW = vec3(0.03, 0.50, 0.62);
 const vec3 SSS     = vec3(0.06, 0.70, 0.72);
+const vec3 BED     = vec3(${BED_LIN.map((v) => v.toFixed(4)).join(', ')}); // the dry sand as rendered (linear, before the x1.55)
+const vec3 SIGMA   = vec3(1.3, 0.75, 0.7) / 5.9; // extinction per unit (per metre / 5.9): turbid surf-zone water
 
 void main() {
   vec3 N = normalize(vNrm);
@@ -574,41 +628,62 @@ void main() {
 
   float shallow = 1.0 - smoothstep(0.5, 14.0, vDepth);
   float NdL = max(dot(N, uSunDir), 0.0);
-  vec3 body = mix(DEEP, SHALLOW, shallow) * (0.65 + 0.5 * NdL);
+  // in-scatter colour: turquoise in the waves, a muted sea-green in the last few decimetres over the sand
+  // (there the sand seen through the water supplies the colour)
+  vec3 inS = mix(vec3(0.05, 0.26, 0.24), SHALLOW, smoothstep(2.0, 10.0, vDepth));
+  vec3 body = mix(DEEP, inS, shallow) * (0.65 + 0.5 * NdL);
   float back = pow(max(dot(-V, uSunDir), 0.0), 3.0);
-  body += SSS * vThin * (0.5 + 1.6 * back);
-
+  body += SSS * vThin * (0.5 + 1.6 * back) * smoothstep(4.0, 14.0, vDepth); // no glow through a low bore front
   F *= 1.0 - 0.6 * vThin; // a steep, thin breaking face shows its body colour more than the sky
-  vec3 col = mix(body, sky, F) + spec * (1.0 - vFoam);
 
-  // foam: texture thresholded by the foam amount, solid where it is dense.
-  // Steep faces use a side projection; the two projections are blended by result, not by coordinate,
-  // which would compress the pattern into contour stripes where the slope changes.
-  float steepF = smoothstep(0.35, 0.75, 1.0 - abs(normalize(vNrm).y));
-  float lw = 1.0 - smoothstep(350.0, 1100.0, dist);
-  float ft = 0.0, ftB = 0.0, e = 0.0;
-  if (steepF < 0.99) e = foamField(vWorld.xz, vec2(1.0), lw, ft);
-  if (steepF > 0.01) {
-    float eB = foamField(vec2(vWorld.x + vWorld.z * 0.3, vWorld.y * 1.3 + vWorld.z), vec2(1.0, 0.3), lw, ftB);
-    e = mix(e, eB, steepF); ft = mix(ft, ftB, steepF);
+  // Shallow water: the sand under it is seen through the water with per-channel (Beer-Lambert) extinction
+  // along the refracted view ray and the sunlight's path down, plus caustics. Everything is written as
+  // P + W * bed, where bed is the sand drawn behind the water and W its per-channel weight (see the end).
+  vec3 T = vec3(0.0), caus = vec3(0.0);
+  if (gl_FrontFacing && vDepth < 30.0) {
+    vec3 Rt = refract(-V, N, 0.75);
+    float cosT = max(-Rt.y, 0.3);
+    float cosS = sqrt(1.0 - (1.0 - uSunDir.y * uSunDir.y) * 0.5625);
+    float dz = max(vDepth, 0.0);
+    T = exp(-SIGMA * dz * (1.0 / cosT + 1.0 / cosS));
+    // caustics: two drifting cell networks, focused at a few decimetres of depth, blurred out further down
+    vec2 bp = vWorld.xz + Rt.xz * (dz / cosT);
+    float c1 = cellWall(bp * 0.21 + vec2(0.0, uTime * 0.12), uTime * 0.8);
+    float c2 = cellWall(bp * 0.29 + vec2(uTime * 0.09, 3.7), -uTime * 0.65 + 1.3);
+    float cl = exp(-c1 * 9.0) + exp(-c2 * 9.0);
+    caus = vec3(1.0, 0.98, 0.9) * (cl * 1.3 * smoothstep(0.6, 3.5, dz) * exp(-dz / 16.0) * (0.4 + 0.6 * NdL));
   }
-  float blot = clamp((texture2D(uFoamTex, uv * 0.0071 + vec2(0.37, 0.11)).r - 0.55) / 0.4, 0.0, 1.0); // large-scale break-up
+  const float WETDARK = 0.6; // wet sand is darker than dry
+  vec3 Tw = T * WETDARK;
+  vec3 P = (1.0 - F) * (body * (1.0 - T) + Tw * caus * BED) + F * sky + spec * (1.0 - 0.6 * vFoam);
+  vec3 W = (1.0 - F) * Tw;
+
+  // foam: a sheet of bubbles whose thickness sets how opaque and how white it is; thin foam is a translucent
+  // film tinted by the water, thick foam scatters to bright white, with blue-grey crevices between the lumps
+  float blot = clamp((0.65 * vnoise(uv * 0.028 + 0.37) + 0.35 * vnoise(ROT * uv * 0.071) - 0.38) / 0.3, 0.0, 1.0); // large-scale break-up
   float fa = vFoam * (0.7 + 0.6 * blot);
-  float thr = fa * mix(1.05, 0.85, vAge);           // old foam opens up into a thin net
-  float sparse = 1.0 - smoothstep(0.15, 0.6, fa);   // a little foam reads as faint scum, not sharp white cracks
-  float soft = mix(mix(0.07, 0.03, vAge), 0.12, sparse);
-  float cover = 1.0 - smoothstep(thr - soft, thr + soft, e) + smoothstep(0.92, 1.08, fa);
-  cover = clamp(cover, 0.0, 1.0) * (1.0 - 0.7 * sparse);
-  float dens = clamp((thr - e) / 0.25 + 0.4, 0.0, 1.0); // thin filaments show some of the water through
-  vec3 foamCol = vec3(1.0) * (1.75 + 0.35 * NdL + 0.2 * back) * (0.92 + 0.08 * ft); // bright white (pre tone mapping)
-  foamCol = mix(mix(body, foamCol, 0.7), foamCol, dens);
-  col = mix(col, foamCol, cover);
+  float ft = 0.0, tau = 0.0;
+  if (fa > 0.01) tau = foamThick(vRest, fa, vAge, dist, ft);
+  // relief from the thickness (surface-gradient bump mapping), faded out with distance
+  float bumpK = 1.5 * (1.0 - smoothstep(60.0, 450.0, dist));
+  vec3 dpx = dFdx(vWorld), dpy = dFdy(vWorld);
+  float hgt = min(tau, 1.6) * bumpK;
+  float hx = dFdx(hgt), hy = dFdy(hgt);
+  vec3 r1 = cross(dpy, N), r2 = cross(N, dpx);
+  float det = dot(dpx, r1);
+  vec3 nb = abs(det) * N - sign(det) * (hx * r1 + hy * r2);
+  vec3 Nf = dot(nb, nb) > 1e-14 ? normalize(nb) : N;
+  float af = 1.0 - exp(-3.2 * tau);
+  float wrap = clamp(dot(Nf, uSunDir) * 0.6 + 0.4, 0.0, 1.0);
+  float thickL = smoothstep(0.05, 1.1, tau);
+  vec3 foamCol = mix(vec3(0.70, 0.80, 0.88), vec3(1.0), thickL) * (0.78 + 1.0 * wrap + 0.3 * back + 0.15 * Nf.y) * (0.94 + 0.06 * ft);
+  foamCol = mix(mix(body * 2.0, foamCol, 0.6), foamCol, thickL); // thin films keep some water colour
+  P = mix(P, foamCol, af);
+  W *= 1.0 - af;
 
   float haze = 1.0 - exp(-dist * 0.00024);
-  col = mix(col, HORIZON, haze * 0.85);
-
-  float alpha = mix(0.55, 1.0, smoothstep(0.2, 2.5, vDepth));
-  alpha = max(alpha, cover);
+  P = mix(P, HORIZON, haze * 0.85);
+  W *= 1.0 - haze * 0.85;
 
   // damp sand left by the swash: a dark, transparent layer, mirror-like where the film is still draining
   // (the layer and the dry-sand drop are judged per pixel from the interpolated depth, so the edge is smooth)
@@ -620,15 +695,24 @@ void main() {
     vec3 Rs = reflect(-V, Ns);
     vec3 skyS = mix(HORIZON, ZENITH, smoothstep(0.0, 0.35, Rs.y)) + vec3(1.0, 0.95, 0.85) * pow(max(dot(Rs, uSunDir), 0.0), 400.0) * 12.0;
     float refl = glaze * Fs;
+    float sandA = clamp(0.4 * damp + refl, 0.0, 1.0);
     vec3 sandCol = mix(vec3(0.17, 0.13, 0.08), skyS, refl / max(refl + 0.4 * damp, 1e-3));
-    float sandA = clamp(0.4 * damp + refl, 0.0, 1.0) * (1.0 - cover);
-    sandCol = mix(sandCol, HORIZON, haze * 0.85);
-    col = mix(col, mix(sandCol, col, cover), sandL);
-    alpha = mix(alpha, max(sandA, cover), sandL);
+    vec3 Ps = mix(sandCol * sandA, foamCol, af);
+    vec3 Ws = vec3((1.0 - sandA) * (1.0 - af));
+    Ps = mix(Ps, HORIZON, haze * 0.85);
+    Ws *= 1.0 - haze * 0.85;
+    P = mix(P, Ps, sandL);
+    W = mix(W, Ws, sandL);
   }
-  gl_FragColor = vec4(col * 1.55, alpha); // pre-exposure: the renderer uses ACES tone mapping
-  #include <tonemapping_fragment>
-  #include <colorspace_fragment>
+
+  // Output. Blending can only weight the sand behind by one alpha, so alpha takes the red weight (the
+  // smallest: red is absorbed most) and the rest of the green/blue transmission is added here using the
+  // typical sand colour BED. The sum is done in display space (after tone mapping), where blending happens.
+  float alpha = clamp(1.0 - W.r, 0.0, 1.0);
+  vec3 tgt = linearToOutputTexel(vec4(toneMapping((P + W * BED) * 1.55), 1.0)).rgb;
+  vec3 bedD = linearToOutputTexel(vec4(toneMapping(BED * 1.55), 1.0)).rgb;
+  vec3 c = clamp((tgt - bedD * (1.0 - alpha)) / max(alpha, 1e-3), 0.0, 1.0);
+  gl_FragColor = vec4(c, alpha);
 }
 `;
 
@@ -680,21 +764,32 @@ function buildGeometry(quality) {
 const SPRAY_VERT = /* glsl */`
 attribute float aSize;
 attribute float aAlpha;
+attribute float aSeed;
 varying float vAlpha;
+varying float vSeed;
 void main() {
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   gl_PointSize = aSize * (700.0 / max(-mv.z, 1.0));
   vAlpha = aAlpha;
+  vSeed = aSeed;
   gl_Position = projectionMatrix * mv;
 }`;
 const SPRAY_FRAG = /* glsl */`
 varying float vAlpha;
+varying float vSeed;
+float h1(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float vn(vec2 p) {
+  vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(h1(i), h1(i + vec2(1.0, 0.0)), u.x), mix(h1(i + vec2(0.0, 1.0)), h1(i + 1.0), u.x), u.y);
+}
+// a ragged, soft-edged puff (each particle its own shape) rather than a round disc
 void main() {
   vec2 c = gl_PointCoord - 0.5;
-  float r = dot(c, c) * 4.0;
-  float a = (1.0 - r) * vAlpha;
-  if (a <= 0.0) discard;
-  gl_FragColor = vec4(1.0, 1.0, 1.0, a);
+  vec2 q = c * 4.0 + vSeed * 17.0;
+  float n = 0.6 * vn(q) + 0.4 * vn(q * 2.3 + 3.1);
+  float a = smoothstep(1.0, 0.15, length(c) * 2.0 + 0.55 * (n - 0.5)) * vAlpha;
+  if (a < 0.01) discard;
+  gl_FragColor = vec4(0.97, 0.99, 1.0, a * (0.75 + 0.25 * n));
 }`;
 
 class Spray {
@@ -707,6 +802,8 @@ class Spray {
     this.size = new Float32Array(count);
     this.alpha = new Float32Array(count);
     this.drag = new Float32Array(count);
+    this.alphaMul = new Float32Array(count);
+    this.seed = new Float32Array(count).map(() => Math.random());
     this.next = 0;
     const g = new THREE.BufferGeometry();
     this.posAttr = new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage);
@@ -715,6 +812,7 @@ class Spray {
     g.setAttribute('position', this.posAttr);
     g.setAttribute('aSize', this.sizeAttr);
     g.setAttribute('aAlpha', this.alphaAttr);
+    g.setAttribute('aSeed', new THREE.BufferAttribute(this.seed, 1));
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
     this.points = new THREE.Points(g, new THREE.ShaderMaterial({
       vertexShader: SPRAY_VERT, fragmentShader: SPRAY_FRAG,
@@ -724,11 +822,11 @@ class Spray {
     this.points.renderOrder = 2;
     scene.add(this.points);
   }
-  emit(x, y, z, vx, vy, vz, life, size, drag) {
+  emit(x, y, z, vx, vy, vz, life, size, drag, alpha = 0.9) {
     const i = this.next; this.next = (this.next + 1) % this.count;
     this.pos[i * 3] = x; this.pos[i * 3 + 1] = y; this.pos[i * 3 + 2] = z;
     this.vel[i * 3] = vx; this.vel[i * 3 + 1] = vy; this.vel[i * 3 + 2] = vz;
-    this.life[i] = life; this.maxLife[i] = life; this.size[i] = size; this.drag[i] = drag;
+    this.life[i] = life; this.maxLife[i] = life; this.size[i] = size; this.drag[i] = drag; this.alphaMul[i] = alpha;
   }
   update(dt) {
     for (let i = 0; i < this.count; i++) {
@@ -741,7 +839,7 @@ class Spray {
       this.pos[i * 3 + 1] += this.vel[i * 3 + 1] * dt;
       this.pos[i * 3 + 2] += this.vel[i * 3 + 2] * dt;
       const a = this.life[i] / this.maxLife[i];
-      this.alpha[i] = Math.min(1, a * 1.6) * 0.9;
+      this.alpha[i] = Math.min(1, a * 1.6) * this.alphaMul[i];
       this.size[i] *= 1 + 0.6 * dt;
     }
     this.posAttr.needsUpdate = this.sizeAttr.needsUpdate = this.alphaAttr.needsUpdate = true;
@@ -752,8 +850,7 @@ class Spray {
 export function createSurf(scene, { sunDir, quality = 'medium', rogueIn } = {}) {
   const loader = new THREE.TextureLoader();
   const normTex = loader.load('./textures/waternormals.jpg');
-  const foamTex = loader.load('./textures/foam.avif');
-  for (const t of [normTex, foamTex]) { t.wrapS = t.wrapT = THREE.RepeatWrapping; }
+  normTex.wrapS = normTex.wrapT = THREE.RepeatWrapping;
 
   const { geometry, vertices } = buildGeometry(quality);
   const material = new THREE.ShaderMaterial({
@@ -763,7 +860,6 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn } = {}) 
       uTime: { value: 0 },
       uSunDir: { value: (sunDir || new THREE.Vector3(0, 0.26, 0.97)).clone().normalize() },
       uNormTex: { value: normTex },
-      uFoamTex: { value: foamTex },
       uRogue: { value: new THREE.Vector3(-1e9, 0, 0) },
     },
     side: THREE.DoubleSide,
@@ -841,7 +937,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn } = {}) 
           for (let i = 0; i < n; i++) {
             spray.emit(ex + (Math.random() - 0.5) * 40, 0.5 * st.H + Math.random() * 2, zs + dc - 4 + Math.random() * 8,
               (Math.random() - 0.5) * 4, 3 + Math.random() * 6, -st.H * 0.8 - Math.random() * 6,
-              1.0 + Math.random() * 1.2, 3 + Math.random() * 4, 1.5);
+              1.0 + Math.random() * 1.2, 3 + Math.random() * 4, 1.5, 0.4); // thin mist
           }
         }
       }
