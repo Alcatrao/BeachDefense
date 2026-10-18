@@ -10,7 +10,7 @@ export function createRider(x=0,z=-300){return {x,y:bed(x,z)+10,z,vx:0,vy:0,vz:0
 function sync(r){const p=world.person;if(!p)return;r.x=p.x*SCALE;r.z=shore(r.x)+p.z*SCALE;r.y=(p.y+.7)*SCALE;r.vx=p.vx*SCALE;r.vy=p.vy*SCALE;r.vz=p.vz*SCALE;r.mode=p.skim?'skimming':p.wiped?'tumbling':'swimming';r.grounded=p.skim;}
 export async function resetSurf(r,ride=false){world.loading=true;try{await command('reset');if(ride){await command('mount',{z:6.5,y:.95,speed:-3});sync(r);}}finally{world.loading=false;}}
 export function stepRider(r,input,dt){ensure();const key=JSON.stringify(input);if(key!==inputKey){inputKey=key;worker.postMessage({type:'input',input});}const d=(r.z-shore(r.x))/SCALE;
- if(world.person){sync(r);if(world.person.z<-.8&&!mountPending){mountPending=true;command('leave').finally(()=>mountPending=false);}return r;}
+ if(world.person){sync(r);if(world.latest.dryBeach&&!mountPending){mountPending=true;command('leave').finally(()=>mountPending=false);}return r;}
  if(d>.4&&d<26&&!mountPending){mountPending=true;command('mount',{x:r.x/SCALE,z:d,y:r.y/SCALE-.7,speed:r.vz/SCALE}).finally(()=>mountPending=false);}
  r.vx+=(input.x*36-r.vx)*Math.min(1,dt*10);r.vz+=(input.z*36-r.vz)*Math.min(1,dt*10);r.x=Math.max(-640,Math.min(640,r.x+r.vx*dt));r.z+=r.vz*dt;if(input.jump&&r.grounded){r.vy=25;r.grounded=false;}r.vy-=9.81*SCALE*dt;r.y+=r.vy*dt;const floor=bed(r.x,r.z)+10;if(r.y<floor){r.y=floor;r.vy=0;r.grounded=true;}r.mode='walking';return r;
 }

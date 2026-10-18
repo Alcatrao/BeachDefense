@@ -54,5 +54,5 @@ export class SurfWorld{
  step(dt,input={}){if(this.person)this.person.advance(dt,input);if(this.person){const dx=this.person.p[0];this.originX=Math.max(-107,Math.min(107,this.originX+dx));this.person.p[0]=0;const f=this.fluid;for(let i=0;i<f.n;i++)f.p[i*3]=((f.p[i*3]-dx+WIDTH/2)%WIDTH+WIDTH)%WIDTH-WIDTH/2;}this.fluid.step(dt,this.person);if(this.person)this.person.ground(this.fluid);}
  reset(){this.fluid.reset();this.person=null;this.originX=0;}
  get attached(){return this.person?.skim||false;}get breakReason(){return this.person?.wiped?'Lost skimming stance':null;}
- diagnostics(){return {...this.fluid.diagnostics(),originX:this.originX,rider:this.person?.diagnostics()||null,board:null};}
+ diagnostics(){const p=this.person,feet=p?.point([0,-.85,0]);const dryBeach=!!p&&p.z<-.8&&p.contacts===0&&feet[1]<=this.fluid.bed(feet[0],feet[2])+.15&&Math.abs(p.vy)<.5&&this.fluid.field(...feet).fill<.07;return {...this.fluid.diagnostics(),originX:this.originX,rider:p?.diagnostics()||null,dryBeach,board:null};}
 }
