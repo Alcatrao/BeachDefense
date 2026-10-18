@@ -1,7 +1,7 @@
 # BeachDefense — Claude shorebreak waves (17 October 2026, Claude Opus 5.5)
 
 Worktree: E:\AI_Workspaces\BeachDefense\branches\claude, git branch `claude/shorebreak-waves`
-(base c2e9869). Not committed, not pushed. Codex's separate work (branch `codex/breaking-surf`
+(base c2e9869). Commits and pushes: see Tooling. Codex's separate work (branch `codex/breaking-surf`
 in E:\AI_Workspaces\BeachDefense, port 8767) was not touched.
 
 Owner request: realistic 3D shorebreak (tubes, lots of foam), light on resources, player
@@ -120,6 +120,48 @@ opaque teal swash water.
   https://gamedev.net/shaderlab/53-foam-with-flow-mapping/ , https://github.com/ivdstudios/crest-oceanrender ,
   https://www.old.cescg.org/CESCG-2008/papers/BratislavaC-Mihalik-Andrej.pdf
 
+## Round 5 (18 Oct 2026, owner: a crashing wave makes only a little foam "and then they roll back into
+## the tube, instead of kinda disappearing in foam and coming water")
+Cause: the curl angle followed the wave height, so when the height fell after the break the lip rotated
+back into a tube; impact foam covered only the landing tip. Changes in js/surf.js (JS mirror = GLSL):
+- The lip never unrolls: thetaMax only grows with the break stage p (2.7 by p 1.15, +0.35 by p 1.9).
+- Collapse: the curl keeps the shape of the wave that threw it (Hc) and is squashed to the falling height H;
+  the roller shrinks (size sig 1 -> 0.4 over p 1.0-1.9) to a low roller riding the bore front and fades before
+  the sand. The outer-bar roller shrinks away over the trough before the inner bar curls. The bore reaches its
+  height by p ~2 (was 2.6).
+- The tube closes: over p 1.05-1.5 the inner wall (from where the face reaches the pivot height up to the lip
+  tip) is pulled onto the straight chord between those points, so the air pocket fills into one solid mass.
+  Then lumps push out from the roller axis (rollerLumps, wavelengths >= ~8 grid cells).
+- Whitewater: impact foam (p 0.9 -> 5) spreads from the landing tip over the whole curtain by p ~1.2; fresh
+  whitewater is solid (holes only as it ages), milky aerated turquoise between patches, with churning billows
+  mapped in the crest's frame so they travel and tumble with the breaker. Bore face white down to its toe.
+- Particles: splash-up burst from the plunge point and mist off the bore; emission is scaled to the pool so
+  closeouts thin out evenly. Normals use offsets near the grid spacing (1.8, 1.0).
+- Spike fix: below roller size 0.8 the roller's front and back are widened (kw), so it never spans fewer grid
+  rows than at 0.8. The crest runs obliquely across the grid (~1.5 rows per column), and a narrower roller
+  rendered as triangular spikes.
+- Verified (headless preview, 1280x720): shaders compile, no GL errors; JS mirror matches the GLSL to 3e-15.
+  Crash of one crest (fn 49), shots r9-h0..h3-{beach,front}: p 1.13 -> 1.92, H 18 -> 3.5, bore 0.08 -> 0.98;
+  the peeling barrel becomes a white roller, then a white bore rushing in. Before (round 4 code):
+  r5-front-0..7, a teal curtain that rolls back into a tube. Spikes before the fix: r9-g0..g3-front.
+- Physics, same harness and start time (T 20) against HEAD 1d4415f in the same session: wipeouts 2 at z 21
+  (2700 steps), 2 at z -64 and 1 at z 100 (1800 steps each) in both; rogue lift y 32.8 at the clamped z 430 in
+  both. Max water at z -64 10.7 vs 11.9 (faster bore decay). One step is 1/60 s, so 2700/1800 steps are
+  45/30 s; earlier rounds labelled the same step counts 90/60 s, which was wrong (their 46.8 rogue lift was at
+  z 400). Render (readPixels timing, settled): 0.46-0.51 ms vs 0.44-0.50 ms at HEAD (0.28-0.34 without the
+  surf); surf.update 0.14-0.19 ms vs 0.11-0.15 ms. Console: only pointer-lock errors.
+- Limits: small teeth on the crest silhouette and folded-sheet creases at close range on the roller and bore
+  once p > ~1.8 (the grid undersamples the tight roller on the oblique crest); a crest-aligned mesh would fix
+  it. Still a kinematic shape, not a fluid simulation. Not hand-play-tested.
+- Sources: https://par.nsf.gov/biblio/10362192-field-observations-evolution-plungingwave-shapes ,
+  https://www.cambridge.org/core/services/aop-cambridge-core/content/view/9DA630A5718361A3579618BB022B8F35/S0022112023003798a_hi.pdf/plunging-breakers-part-1-analysis-of-an-ensemble-of-wave-profiles.pdf ,
+  https://icce-ojs-tamu.tdl.org/icce/article/download/4073/3755/17180 , https://ar5iv.labs.arxiv.org/html/0910.2580 ,
+  https://advances.realtimerendering.com/s2022/SIGGRAPH2022-Advances-Water-Malan.pdf ,
+  https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/7561993 ,
+  https://image-ppubs.uspto.gov/dirsearch-public/print/downloadPdf/8204725 , https://dspace5.zcu.cz/handle/11025/1025 ,
+  https://history.siggraph.org/wp-content/uploads/2022/09/2017-Talks-Byun_Moana-Crashing-Waves.pdf
+- Intermediate and debug shots were moved out of the repo (session scratchpad), not committed.
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
@@ -127,13 +169,17 @@ save renderer.toDataURL captures while the preview pane is hidden).
 
 Committed 4fc714e and pushed to origin/claude/shorebreak-waves on 17 Oct 2026 (owner request).
 Round 3 e55afdb pushed 18 Oct 2026 (owner request). Round 4 0400658 pushed 18 Oct 2026 (owner request). No PR.
+Round 5 committed 18 Oct 2026 on this branch, not pushed (push needs the owner's go-ahead).
 
 ## GitHub Pages (Codex-owned, 18 Oct 2026)
 Codex publishes all three versions: https://alcatrao.github.io/BeachDefense/ (main),
-/codex/ and /claude/ (this branch, pinned at 0400658 in versions.json). Records:
+/codex/ and /claude/ (this branch). Records:
 E:\AI_Workspaces\BeachDefense\records\pages-hosting-20261018\ (pages.yml, build.py, smoke.cjs, PAGES.md).
-- A push to this branch does not refresh Pages; it needs a main workflow dispatch
-  (`gh workflow run pages.yml --repo Alcatrao/BeachDefense --ref main`). Owner approval required; Pages stays Codex's.
+- Since Codex's e84c564 (owner request, 18 Oct 2026), a push to this branch republishes /claude/ automatically:
+  .github/workflows/wave-updated.yml only echoes, and main's publisher picks it up via workflow_run, builds and
+  deploys. So every push here is a public deploy; ask the owner before each push. Never dispatch pages.yml by hand;
+  Pages stays Codex's. Checked 18 Oct 2026 by HTTP: live versions.json pins claude e84c564 (52 files),
+  codex 2770e39, main 116c998; live /claude/index.html loads three@0.186.0.
 - Claude's review (HTTP only, a 15 GB memory booking was active): approved. Live /claude/ files match
   0400658. Bridge reply 20261018T195605188303Z-claude-27334501 to Codex's 20261018T194825669923Z-codex-b4463286.
 - three.js pinned in this branch (owner approval, 18 Oct 2026): index.html's import map now loads
@@ -141,5 +187,5 @@ E:\AI_Workspaces\BeachDefense\records\pages-hosting-20261018\ (pages.yml, build.
   byte-identical (SHA-256) to threejs.org's r186 that day; jsdelivr sends CORS * and application/javascript;
   every addon import resolves ('three' or 200 relative paths). No browser run (15 GB booking, 0 workers admitted).
   main.js still loads GLTFLoader/FBXLoader/SkeletonUtils from unpkg three@0.155.0 (pre-existing, unchanged).
-  Live /claude/ keeps the unpinned version until the owner approves a Pages workflow dispatch.
+  Live /claude/ got the pin when Codex's e84c564 push triggered the auto-publish.
   main and codex/breaking-surf are still unpinned (not touched).

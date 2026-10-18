@@ -131,10 +131,14 @@ function stageState(Hn, db, db0, boreK, dc, o) {
   const depthC = Math.max(SURF.slope * dc - 0.5, 0.3);
   const Hbore = Math.min(Hn, boreK * depthC + 0.8);
   o.p = p;
-  o.bore = sstep(1.0, 2.6, p);
+  o.bore = sstep(0.95, 2.0, p); // the crash spends the wave's height quickly: bore height by p ~ 2
   o.H = Hpre + (Hbore - Hpre) * o.bore;
+  // the landed lip keeps the shape of the wave that threw it (Hc) and is squashed down to the bore height H,
+  // so it collapses into a low roller; the shape relaxes to the bore's own over p 2.6..5
+  o.Hc = o.H + (Hpre - o.H) * (1 - sstep(2.6, 5.0, p));
   o.steep = sstep(-1.6, 0.9, p);
-  o.thetaMax = 2.7 * sstep(0, 1.15, p) - 1.3 * sstep(1.8, 3.0, p);
+  // the lip only ever rolls further: after landing it turns over into the roller and never unrolls into a tube again
+  o.thetaMax = 2.7 * sstep(0, 1.15, p) + 0.35 * sstep(1.1, 1.9, p);
   o.pc = Math.min(Math.max(p, 0), 1);
   return o;
 }
@@ -149,9 +153,27 @@ function crestState(fn, x, dc, o) {
   const m = (a, b) => a + (b - a) * wB;
   o.wB = wB;
   o.p = wB < 0.5 ? A.p : B.p;          // the stage in charge (for lip / spray events)
-  o.H = m(A.H, B.H); o.bore = m(A.bore, B.bore); o.steep = m(A.steep, B.steep);
-  o.thetaMax = m(A.thetaMax, B.thetaMax) * sstep(15, 45, dc); o.pc = m(A.pc, B.pc); // no lip thrown onto dry sand
+  o.H = m(A.H, B.H); o.Hc = Math.max(m(A.Hc, B.Hc), 1e-3); o.bore = m(A.bore, B.bore); o.steep = m(A.steep, B.steep);
+  o.pc = m(A.pc, B.pc);
+  // the outer whitewater roller keeps rolling and shrinks away over the trough (sig = roller size, crest d 226 -> 199)
+  // before the inner bar's own curl can start (that needs dc < innerMax + 12 = 197)
+  const sA = A.p > 0 ? sstep(SURF.reform1 - 1, SURF.reform0 - 2, dc) : 0;
+  const cur = sA > 0 ? A : B; // the stage whose curl is in charge
+  o.thetaMax = cur.thetaMax;
+  // once the lip has landed the tube collapses: the roller shrinks to a small one riding the bore front
+  // (p 1.0 -> 1.9), and shrinks away before reaching the sand
+  o.sig = (sA > 0 ? sA : 1) * sstep(15, 45, dc) * (1 - 0.6 * sstep(1.0, 1.9, cur.p));
+  o.imp = m(impOf(A.p), impOf(B.p));
+  // and the tube's air pocket closes (p 1.05 -> 1.5): the roller becomes one solid tumbling mass (see evalSurf)
+  o.fill = sstep(1.05, 1.5, cur.p);
   return o;
+}
+// impact whitewater of one stage: from the moment the lip lands (p ~ 0.9) until the bore has taken over
+function impOf(p) { return sstep(0.9, 1.2, p) * (1 - sstep(3, 5, p)); }
+// lumps of the tumbling whitewater mass, about -1..1 (mirrored in GLSL)
+function rollerLumps(x, u, fn, t) {
+  return 0.5 * Math.sin(x * 0.043 + u * 0.12 + 2.2 * t + fn * 1.7) + 0.35 * Math.sin(-x * 0.079 + u * 0.19 + 3.1 * t + fn * 0.9)
+    + 0.25 * Math.sin(x * 0.131 - u * 0.09 + 4.3 * t) + 0.2 * Math.sin(x * 0.17 + u * 0.21 + 5.2 * t + fn);
 }
 // lumpy whitewater displacement (per unit wave height), mirrored in GLSL
 function boreLumps(x, z, t) {
@@ -190,21 +212,49 @@ export function evalSurf(x, z, t, curl, out = {}) {
   // trough level: towards a crest-independent level near psi = +-0.5, so the trough behind one wave
   // meets the trough ahead of the next without a step (each crest's own -0.2 H differs)
   const tw = sstep(0.25, 0.5, Math.abs(psi));
-  const Ht = H + (0.45 * SURF.Hbase * sstep(20, 120, d) - H) * tw;
+  const tgt = 0.45 * SURF.Hbase * sstep(20, 120, d);
+  const Ht = H + (tgt - H) * tw;
   let y = H * bump - 0.2 * Ht;
   let dA = dc + s2;
 
-  const pivY = 0.18 * H, topY = 0.8 * H;
-  const hw = Math.min(Math.max((y - pivY) / (topY - pivY), 0), 1);
-  const bw = 1 - sstep(0, 0.45 * H + wf, s2);
+  // curl, shaped at the height Hc and squashed to H (see stageState); a roller of relative size sig is the
+  // full-size curl displacement taken at u = s2 / sig and scaled by sig, so it shrinks without unrolling.
+  // Below 0.8 of full size its front and back are widened in u (kw), so it never spans fewer rest-grid rows than
+  // at 0.8: a narrower roller renders as spikes, because the crest runs obliquely across the grid rows.
+  const Hc = w.Hc, Htc = Hc + (tgt - Hc) * tw, sig = w.sig;
+  const pivY = 0.18 * Hc, topY = 0.8 * Hc, wc = Math.min(wf, 0.32 * Hc);
+  const u = s2 / Math.max(sig, 1e-3);
+  const kw = Math.max(1, 0.8 / Math.max(sig, 0.05)), wfk = wf * kw;
+  const yv = Hc * (u < 0 ? nGauss(u, wfk, L) : nGauss(u, wb, L)) - 0.2 * Htc;
+  const hw = Math.min(Math.max((yv - pivY) / (topY - pivY), 0), 1);
+  const bw = 1 - sstep(0, (0.45 * Hc + wc) * kw, u);
   if (curl) {
     const th = w.thetaMax * Math.pow(hw, 1.1) * bw;
     if (th > 0) {
-      const dp = dc - (0.5 * wf + 0.12 * H * w.pc);
-      const X = -(dA - dp), Y = y - pivY;
+      const dp = dc - (0.5 * wc + 0.12 * Hc * w.pc);
+      const X = -(dc + u - dp), Y = yv - pivY;
       const c = Math.cos(th), sn = Math.sin(th);
-      dA = dp - (X * c + Y * sn);
-      y = pivY + (-X * sn + Y * c);
+      let rx = -(X * c + Y * sn), ry = -X * sn + Y * c; // the rotated point, relative to the pivot
+      if (u < 0 && w.fill > 0) {
+        // the tube closes: the inner wall (u from uT, where the face reaches the pivot height, up to the lip tip
+        // at u = 0) is pulled onto the straight chord between those two points
+        const e = Math.exp(-((0.5 * L / wfk) ** 2)), g = (pivY + 0.2 * Htc) / Hc;
+        const uT = -wfk * Math.sqrt(-Math.log(Math.min(Math.max(g + (1 - g) * e, 1e-4), 0.9999)));
+        const yv0 = Hc - 0.2 * Htc, th0 = w.thetaMax * Math.pow(Math.min(Math.max((yv0 - pivY) / (topY - pivY), 0), 1), 1.1);
+        const X0 = dp - dc, Y0 = yv0 - pivY, c0 = Math.cos(th0), s0 = Math.sin(th0);
+        const tx = -(X0 * c0 + Y0 * s0), ty = -X0 * s0 + Y0 * c0; // the lip tip
+        const q = Math.min(Math.max(u / uT, 0), 1);
+        rx += (tx + (dc + uT - dp - tx) * q - rx) * w.fill;
+        ry += (ty * (1 - q) - ry) * w.fill;
+      }
+      const rag = w.imp * Math.sqrt(hw) * bw; // the landed roller breaks up into a ragged, tumbling mass
+      if (rag > 0) {
+        const a = 0.16 * Hc * rag * rollerLumps(x, u, fn, t) / Math.max(Math.hypot(rx, ry), 0.35 * Hc);
+        rx += a * rx; ry += a * ry;
+      }
+      const yc = Hc * bump - 0.2 * Htc + sig * (pivY + ry - yv);
+      dA += sig * (dp + rx - (dc + u));
+      y = -0.2 * Ht + (yc + 0.2 * Htc) * (H / Hc);
     }
   }
 
@@ -255,17 +305,20 @@ function lipTip(w, dc) {
   const L = TAU / kOf(dc);
   const sh = Math.max(w.steep, w.bore);
   const wf = L * (0.13 + (0.035 - 0.13) * sh);
-  const H = w.H, pivY = 0.18 * H;
-  const dp = dc - (0.5 * wf + 0.12 * H * w.pc);
-  const X = -(dc - dp), Y = 0.8 * H - pivY, th = w.thetaMax;
+  const H = w.H, Hc = w.Hc, pivY = 0.18 * Hc, topY = 0.8 * Hc, wc = Math.min(wf, 0.32 * Hc);
+  const dp = dc - (0.5 * wc + 0.12 * Hc * w.pc);
+  const X = -(dc - dp), Y = topY - pivY, th = w.thetaMax;
   const c = Math.cos(th), sn = Math.sin(th);
-  return { d: dp - (X * c + Y * sn), y: pivY + (-X * sn + Y * c), wf };
+  // the crest point carried by a roller of size sig, squashed from Hc to H like the surface
+  const y = topY + w.sig * (pivY + (-X * sn + Y * c) - topY);
+  return { d: dc + w.sig * (dp - (X * c + Y * sn) - dc), y: -0.2 * H + (y + 0.2 * Hc) * (H / Hc), wf };
 }
 
 // ---------- GLSL ----------
 const GLSL_COMMON = /* glsl */`
 #define TAU 6.28318530718
 float gDrift; // set by surfPos: how far the swash has carried its foam up the beach (for foam texturing only)
+vec2 gCrest;  // set by surfPos: position across the crest (s2) and a mask that is 1 near the crest (foam texturing only)
 const float K0 = ${K0.toFixed(9)};
 const float OMEGA = ${OMEGA.toFixed(9)};
 const float SA = ${SURF.shoalA.toFixed(5)};
@@ -327,7 +380,7 @@ float waveBaseHn(float fn) {
 }
 float rogueG(float fn, float x) { return abs(fn - uRogue.x) < 0.5 ? exp(-pow((x - uRogue.z) / 900.0, 2.0)) : 0.0; }
 float waveHn(float fn, float x) { float b = waveBaseHn(fn) * INGAIN; return b + (ROGUEH / 3.0 - b) * rogueG(fn, x); }
-struct WS { float H; float p; float bore; float steep; float th; float pc; float l1; float l2; float cap; float chop; };
+struct WS { float H; float Hc; float p; float bore; float steep; float th; float pc; float l1; float l2; float cap; float chop; };
 WS stageS(float Hn, float db, float db0, float boreK, float dc) {
   WS w;
   float p = (db - dc) / BSPAN;
@@ -336,10 +389,11 @@ WS stageS(float Hn, float db, float db0, float boreK, float dc) {
   float depthC = max(SLOPE * dc - 0.5, 0.3);
   float Hbore = min(Hn, boreK * depthC + 0.8);
   w.p = p;
-  w.bore = sstep(1.0, 2.6, p);
+  w.bore = sstep(0.95, 2.0, p);
   w.H = mix(Hpre, Hbore, w.bore);
+  w.Hc = mix(w.H, Hpre, 1.0 - sstep(2.6, 5.0, p)); // shape height of the collapsing curl (see stageState)
   w.steep = sstep(-1.6, 0.9, p);
-  w.th = 2.7 * sstep(0.0, 1.15, p) - 1.3 * sstep(1.8, 3.0, p);
+  w.th = 2.7 * sstep(0.0, 1.15, p) + 0.35 * sstep(1.1, 1.9, p); // never unrolls
   w.pc = clamp(p, 0.0, 1.0);
   w.l1 = sstep(0.25, 0.9, p); w.l2 = sstep(0.9, 1.6, p); w.cap = sstep(-3.0, -1.0, p); w.chop = sstep(-0.5, 0.5, p);
   return w;
@@ -347,6 +401,15 @@ WS stageS(float Hn, float db, float db0, float boreK, float dc) {
 float nGauss(float x, float w, float L) {
   float e = exp(-pow(0.5 * L / w, 2.0));
   return (exp(-pow(x / w, 2.0)) - e) / (1.0 - e);
+}
+// impact whitewater of one stage: from the moment the lip lands (p ~ 0.9) until the bore has taken over
+float impOf(float p) { return sstep(0.9, 1.2, p) * (1.0 - sstep(3.0, 5.0, p)); }
+// lumps of the tumbling whitewater mass, about -1..1 (mirrored in JS): they roll forward over the roller and boil;
+// wavelengths of at least ~8 grid cells so the mesh can follow them
+float rollerLumps(float x, float u, float fn) {
+  float t = uTime;
+  return 0.5 * sin(x * 0.043 + u * 0.12 + 2.2 * t + fn * 1.7) + 0.35 * sin(-x * 0.079 + u * 0.19 + 3.1 * t + fn * 0.9)
+    + 0.25 * sin(x * 0.131 - u * 0.09 + 4.3 * t) + 0.2 * sin(x * 0.17 + u * 0.21 + 5.2 * t + fn);
 }
 // returns displaced position; foam/thin/wet via out params
 vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out float sandW, out float age) {
@@ -379,9 +442,15 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
   float wB = sstep(REF0, REF1, dc);
   float p = wB < 0.5 ? A.p : B.p;
   float H = mix(A.H, B.H, wB);
+  float Hc = max(mix(A.Hc, B.Hc, wB), 1e-3);
   float bore = mix(A.bore, B.bore, wB);
   float steep = mix(A.steep, B.steep, wB);
-  float thetaMax = mix(A.th, B.th, wB) * sstep(15.0, 45.0, dc);
+  // the outer roller shrinks away over the trough without unrolling, then the inner bar's curl takes over
+  float sA = A.p > 0.0 ? sstep(REF1 - 1.0, REF0 - 2.0, dc) : 0.0;
+  float thetaMax = sA > 0.0 ? A.th : B.th;
+  float pC = sA > 0.0 ? A.p : B.p; // the stage of the curl in charge
+  float sig = (sA > 0.0 ? sA : 1.0) * sstep(15.0, 45.0, dc) * (1.0 - 0.6 * sstep(1.0, 1.9, pC)); // collapsing tube
+  float fillT = sstep(1.05, 1.5, pC); // ... whose air pocket closes into a solid roller
   float pc = mix(A.pc, B.pc, wB);
   float lip1 = mix(A.l1, B.l1, wB), lip2 = mix(A.l2, B.l2, wB), capP = mix(A.cap, B.cap, wB), chopP = mix(A.chop, B.chop, wB);
   float dbz = outer ? mix(dbA, db0, wB) : db0;
@@ -389,23 +458,51 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
 
   float ah = min(QQ * (0.6 + 0.4 * sh) * L / TAU, 1.5 * H);
   float s2 = s - ah * sin(TAU * psi);
+  gCrest = vec2(s2, 1.0 - sstep(0.3, 0.42, abs(psi))); // 0 where the crest index changes (no seam)
   float wf = L * mix(0.13, 0.035, sh);
   float wb = L * mix(0.2, 0.32, bore);
   float bump = s2 < 0.0 ? nGauss(s2, wf, L) : nGauss(s2, wb, L);
-  float Ht = mix(H, 0.45 * HBASE * sstep(20.0, 120.0, d), sstep(0.25, 0.5, abs(psi)));
+  float tgt = 0.45 * HBASE * sstep(20.0, 120.0, d), tw = sstep(0.25, 0.5, abs(psi));
+  float Ht = mix(H, tgt, tw);
   float y = H * bump - 0.2 * Ht;
   float dA = dc + s2;
 
-  float pivY = 0.18 * H, topY = 0.8 * H;
-  float hw = clamp((y - pivY) / (topY - pivY), 0.0, 1.0);
-  float bw = 1.0 - sstep(0.0, 0.45 * H + wf, s2);
+  // curl shaped at Hc, squashed to H; a roller of size sig = full-size curl displacement at u = s2 / sig, times sig.
+  // Below sig 0.8 its front and back widen in u (kw): a roller spanning fewer grid rows renders as spikes on the oblique crest
+  float Htc = mix(Hc, tgt, tw);
+  float pivY = 0.18 * Hc, topY = 0.8 * Hc, wc = min(wf, 0.32 * Hc);
+  float u = s2 / max(sig, 1e-3);
+  float kw = max(1.0, 0.8 / max(sig, 0.05)), wfk = wf * kw;
+  float yv = Hc * (u < 0.0 ? nGauss(u, wfk, L) : nGauss(u, wb, L)) - 0.2 * Htc;
+  float hw = clamp((yv - pivY) / (topY - pivY), 0.0, 1.0);
+  float bw = 1.0 - sstep(0.0, (0.45 * Hc + wc) * kw, u);
   float th = thetaMax * pow(hw, 1.1) * bw;
+  float imp = mix(impOf(A.p), impOf(B.p), wB);
   if (th > 0.0) {
-    float dp = dc - (0.5 * wf + 0.12 * H * pc);
-    float X = -(dA - dp), Y = y - pivY;
+    float dp = dc - (0.5 * wc + 0.12 * Hc * pc);
+    float X = -(dc + u - dp), Y = yv - pivY;
     float c = cos(th), sn = sin(th);
-    dA = dp - (X * c + Y * sn);
-    y = pivY + (-X * sn + Y * c);
+    float rx = -(X * c + Y * sn), ry = -X * sn + Y * c; // the rotated point, relative to the pivot
+    // the tube closes: the inner wall (u from uT, where the face reaches the pivot height, to the lip tip at u = 0)
+    // is pulled onto the straight chord between those two points
+    if (u < 0.0 && fillT > 0.0) {
+      float e = exp(-pow(0.5 * L / wfk, 2.0)), g = (pivY + 0.2 * Htc) / Hc;
+      float uT = -wfk * sqrt(-log(clamp(g + (1.0 - g) * e, 1e-4, 0.9999)));
+      float yv0 = Hc - 0.2 * Htc, th0 = thetaMax * pow(clamp((yv0 - pivY) / (topY - pivY), 0.0, 1.0), 1.1);
+      float X0 = dp - dc, Y0 = yv0 - pivY, c0 = cos(th0), s0 = sin(th0);
+      vec2 tip = vec2(-(X0 * c0 + Y0 * s0), -X0 * s0 + Y0 * c0);
+      vec2 ch = mix(tip, vec2(dc + uT - dp, 0.0), clamp(u / uT, 0.0, 1.0));
+      rx = mix(rx, ch.x, fillT); ry = mix(ry, ch.y, fillT);
+    }
+    // once the lip has landed the roller breaks up into a ragged, tumbling mass: lumps pushed out from its axis
+    float rag = imp * sqrt(hw) * bw;
+    if (rag > 0.0) {
+      float a = 0.16 * Hc * rag * rollerLumps(x, u, fn) / max(length(vec2(rx, ry)), 0.35 * Hc); // never through the axis
+      rx += a * rx; ry += a * ry;
+    }
+    float yc = Hc * bump - 0.2 * Htc + sig * (pivY + ry - yv);
+    dA += sig * (dp + rx - (dc + u));
+    y = -0.2 * Ht + (yc + 0.2 * Htc) * (H / Hc);
   }
 
   // small wind chop, kept off the lip and the swash
@@ -455,20 +552,33 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
   // foam
   float fLip = pow(hw, 6.0) * bw * lip1 * (1.0 - 0.3 * bore) + 0.6 * bw * hw * lip2;
   float fFace = 0.18 * sh * bump * (s2 < 0.0 ? 1.0 : 0.3);
-  float fBore = bore * (0.18 + 0.32 * (1.0 - sstep(0.0, 0.9 * L, s2)) + 0.5 * sstep(-wf * 1.2, 0.0, s2) * (1.0 - sstep(0.0, 0.2 * L, s2)));
+  // the bore: a solid white tumbling front down to the toe of its face, thick foam for a while behind it, then lace
+  float fBore = bore * (0.18 + 0.32 * (1.0 - sstep(0.0, 0.9 * L, s2))
+    + 0.85 * sstep(-2.4 * wf, -1.0 * wf, s2) * (1.0 - sstep(0.05 * L, 0.35 * L, s2)));
+  // impact: once the lip lands, the roller, the face it plunged into and the splash-up over the back turn white
+  // (above 1 the foam is thicker and fully opaque; the roller zone shrinks with the roller, sig, while the face
+  // stays white down to its toe).
+  // The whitewater spreads from the landing tip up over the whole curtain by p ~ 1.2, so no clear water is left
+  // on the collapsing roller.
+  float spread =mix(sstep(0.88, 1.22, A.p), sstep(0.88, 1.22, B.p), wB);
+  float roll = sstep(0.75 * (1.0 - spread), 0.75 * (1.0 - spread) + 0.25, sqrt(hw) * bw);
+  float fImp = imp * max(1.5 * max(roll, s2 < 0.0 ? sstep(-2.4 * wf, -1.0 * wf, s2) : 0.0),
+    s2 > 0.0 ? 0.9 * (1.0 - sstep(0.0, 0.4 * L, s2)) : 0.0);
   float fZone = 0.22 * sstep(dbz + 30.0, dbz - 60.0, d) * (0.5 + 0.5 * sin(x * 0.013 + z * 0.021 + fn));
   float fCap = 0.25 * sstep(0.85, 1.0, bump) * capP;
   // residual foam left behind by broken waves: thins out as it ages (behind this crest, or the previous one)
   float ageB = s2 > 0.0 ? s2 / L : 1.0 + s2 / L;  // ~time since a crest passed, in wave periods
   float zoneIn = max(sstep(dbz + 10.0, dbz - 50.0, d), 0.7 * sstep(BAROUT + 10.0, BAROUT - 50.0, d) * sstep(REF1 - 40.0, REF0, d));
   float broke = s2 > 0.0 ? max(bore, lip2) : 1.0;
-  float fRes = zoneIn * broke * (0.12 + 0.5 * exp(-3.0 * ageB));
-  foam = clamp(max(max(max(fLip, fFace), max(fBore, fZone)), max(fCap, fRes)) * filmP, 0.0, 1.0);
+  float fRes = zoneIn * broke * (0.14 + 0.6 * exp(-3.0 * ageB));
+  foam = clamp(max(max(max(fLip, fFace), max(fBore, fZone)), max(max(fCap, fRes), fImp)) * filmP, 0.0, 1.6);
   foam = max(foam, wet);
-  age = clamp(mix(ageB, 0.0, max(max(fLip, fBore * (1.0 - sstep(0.0, 0.3 * L, s2))), fFace)), 0.0, 1.0);
+  float young = max(max(max(fLip, fBore * (1.0 - sstep(0.0, 0.3 * L, s2))), fFace), fImp);
+  age = clamp(mix(ageB, 0.0, min(young, 1.0)), 0.0, 1.0);
   age = mix(age, swAge, min(wet * 1.5, 1.0));
   thin = hw * bw * sh;
   wetOut = wet;
+  gCrest.x = dA - dc; // displaced position relative to the crest: the whitewater pattern travels and tumbles with it
   return vec3(x, y, zs + dA);
 }
 `;
@@ -484,13 +594,16 @@ varying float vSand;
 varying float vAge;
 varying float vLand;
 varying vec2 vRest;
+varying vec2 vCrest;
 void main() {
   float f, th, wt, sw, ag, f1, t1, w1, s1, a1;
   vec2 xz = position.xz;
   vec3 P = surfPos(xz, f, th, wt, sw, ag);
   float drift = gDrift;
-  vec3 P1 = surfPos(xz + vec2(0.7, 0.0), f1, t1, w1, s1, a1);
-  vec3 P2 = surfPos(xz + vec2(0.0, 0.7), f1, t1, w1, s1, a1);
+  vCrest = gCrest;
+  // normal from offsets near the grid spacing (x 4.7, z 1.75): no shading detail the mesh cannot follow
+  vec3 P1 = surfPos(xz + vec2(1.8, 0.0), f1, t1, w1, s1, a1);
+  vec3 P2 = surfPos(xz + vec2(0.0, 1.0), f1, t1, w1, s1, a1);
   vSand = sw;
   vAge = ag;
   vec3 n = cross(P2 - P, P1 - P);
@@ -525,6 +638,7 @@ varying float vSand;
 varying float vAge;
 varying float vLand;
 varying vec2 vRest;
+varying vec2 vCrest;
 
 vec2 hash2(vec2 p) {
   p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
@@ -580,7 +694,7 @@ float foamThick(vec2 p, float fa, float age, float dist, out float ft) {
   float n1 = vnoise(p * 0.16), n2 = vnoise(ROT * p * 0.41 + 7.3), n3 = vnoise(ROT * ROT * p * 1.07 + 3.1);
   float t1 = 0.6 * n1 + 0.4 * n2 + 0.1, t2 = 0.6 * n2 + 0.4 * n3 + 0.1; // ~0.6 on average, like the old texture
   ft = clamp((t1 * 0.65 + t2 * 0.35 - 0.45) / 0.3, 0.0, 1.0);
-  float C = clamp(fa * (0.75 + 0.5 * ft), 0.04, 0.97);           // target coverage, lumpier with the texture
+  float C = clamp(fa * (0.75 + 0.5 * ft), 0.04, 0.97 + 0.025 * smoothstep(1.0, 1.5, fa)); // target coverage, lumpier with the texture; thick foam closes up
   float G = -log(C) / 0.33 + 0.12;                              // total g^2 over the three scales
   vec3 w = mix(vec3(0.15, 0.30, 0.55), vec3(0.55, 0.30, 0.15), age);
   vec3 g = min(sqrt(G * w), vec3(1.5));                         // the 3x3 search reaches about 1.5
@@ -594,6 +708,15 @@ float foamThick(vec2 p, float fa, float age, float dist, out float ft) {
   float lace = f1 * f2 * f3;
   return lace * (0.2 + 0.7 * clamp(fa, 0.0, 1.6)) * (0.6 + 0.6 * ft) * smoothstep(0.0, 0.3, fa); // sparse foam is a thin film
 }
+// billowing lumps (sum of |noise| octaves, with a soft fold so the creases are not black hairlines),
+// boiling as the octaves drift apart; k3 fades the finest octave to its mean
+float sabs(float v) { return sqrt(v * v + 0.02); }
+float billow(vec2 q, float t, float k3) {
+  float b1 = sabs(2.0 * vnoise(q + vec2(0.0, 0.17 * t)) - 1.0);
+  float b2 = sabs(2.0 * vnoise(ROT * q * 2.1 + vec2(3.7 + 0.31 * t, 1.3)) - 1.0);
+  float b3 = sabs(2.0 * vnoise(ROT * ROT * q * 4.4 + vec2(5.1, 2.6 - 0.5 * t)) - 1.0);
+  return 0.5 * b1 + 0.32 * b2 + 0.18 * mix(0.33, b3, k3);
+}
 
 const vec3 HORIZON = vec3(0.80, 0.82, 0.82);
 const vec3 ZENITH  = vec3(0.18, 0.45, 0.85);
@@ -606,6 +729,7 @@ const vec3 SIGMA   = vec3(1.3, 0.75, 0.7) / 5.9; // extinction per unit (per met
 void main() {
   vec3 N = normalize(vNrm);
   if (!gl_FrontFacing) N = -N;
+  vec3 Ng = N; // geometric normal, before the detail normal map
   vec3 toCam = cameraPosition - vWorld;
   float dist = length(toCam);
   vec3 V = toCam / dist;
@@ -634,6 +758,9 @@ void main() {
   vec3 body = mix(DEEP, inS, shallow) * (0.65 + 0.5 * NdL);
   float back = pow(max(dot(-V, uSunDir), 0.0), 3.0);
   body += SSS * vThin * (0.5 + 1.6 * back) * smoothstep(4.0, 14.0, vDepth); // no glow through a low bore front
+  // freshly broken water is full of bubbles: milky pale turquoise and nearly opaque, even between the foam patches
+  float aer = smoothstep(0.7, 1.3, vFoam) * (1.0 - vAge);
+  body = mix(body, vec3(0.36, 0.60, 0.64) * (0.7 + 0.45 * NdL), 0.8 * aer);
   F *= 1.0 - 0.6 * vThin; // a steep, thin breaking face shows its body colour more than the sky
 
   // Shallow water: the sand under it is seen through the water with per-channel (Beer-Lambert) extinction
@@ -645,7 +772,7 @@ void main() {
     float cosT = max(-Rt.y, 0.3);
     float cosS = sqrt(1.0 - (1.0 - uSunDir.y * uSunDir.y) * 0.5625);
     float dz = max(vDepth, 0.0);
-    T = exp(-SIGMA * dz * (1.0 / cosT + 1.0 / cosS));
+    T = exp(-SIGMA * dz * (1.0 / cosT + 1.0 / cosS)) * (1.0 - 0.85 * aer);
     // caustics: two drifting cell networks, focused at a few decimetres of depth, blurred out further down
     vec2 bp = vWorld.xz + Rt.xz * (dz / cosT);
     float c1 = cellWall(bp * 0.21 + vec2(0.0, uTime * 0.12), uTime * 0.8);
@@ -655,19 +782,33 @@ void main() {
   }
   const float WETDARK = 0.6; // wet sand is darker than dry
   vec3 Tw = T * WETDARK;
-  vec3 P = (1.0 - F) * (body * (1.0 - T) + Tw * caus * BED) + F * sky + spec * (1.0 - 0.6 * vFoam);
+  vec3 P = (1.0 - F) * (body * (1.0 - T) + Tw * caus * BED) + F * sky + spec * (1.0 - 0.6 * min(vFoam, 1.0));
   vec3 W = (1.0 - F) * Tw;
 
   // foam: a sheet of bubbles whose thickness sets how opaque and how white it is; thin foam is a translucent
   // film tinted by the water, thick foam scatters to bright white, with blue-grey crevices between the lumps
   float blot = clamp((0.65 * vnoise(uv * 0.028 + 0.37) + 0.35 * vnoise(ROT * uv * 0.071) - 0.38) / 0.3, 0.0, 1.0); // large-scale break-up
-  float fa = vFoam * (0.7 + 0.6 * blot);
+  float fa = vFoam * mix(0.7 + 0.6 * blot, 1.2, aer); // the large-scale break-up is for older foam, not fresh whitewater
   float ft = 0.0, tau = 0.0;
   if (fa > 0.01) tau = foamThick(vRest, fa, vAge, dist, ft);
-  // relief from the thickness (surface-gradient bump mapping), faded out with distance
+  tau = mix(tau, max(tau, 1.1 + 0.4 * ft), aer); // fresh whitewater is a solid mass: no holes until it ages
+  // fresh whitewater churns: billowing lumps, mapped in the crest's own frame (x, height, distance from the crest)
+  // and projected along the geometric normal, so the lumps travel with the breaker without stretching on the
+  // hanging curtain; they tumble like the roller (down its front, shoreward over its top, up its back) and boil
+  float churnA = aer * vCrest.y, churn = 0.33; // (the mean, used far away)
+  if (churnA > 0.01 && dist < 900.0) {
+    float kf = 1.0 - smoothstep(300.0, 900.0, dist), k3 = 1.0 - smoothstep(120.0, 400.0, dist); // fine detail would shimmer far away
+    vec3 cp = vec3(vWorld.x, vWorld.y, vCrest.x) * 0.2;
+    float tum = 0.5 * uTime;
+    float wz = Ng.z * Ng.z, wy = Ng.y * Ng.y, ws = wz + wy + 1e-3;
+    float cF = billow(vec2(cp.x, cp.y - sign(Ng.z) * tum), uTime, k3);
+    float cT = billow(vec2(cp.x, cp.z + sign(Ng.y) * tum) + 11.3, uTime, k3);
+    churn = mix(0.33, (wz * cF + wy * cT) / ws, kf);
+  }
+  // relief from the thickness and the churn (surface-gradient bump mapping), faded out with distance
   float bumpK = 1.5 * (1.0 - smoothstep(60.0, 450.0, dist));
   vec3 dpx = dFdx(vWorld), dpy = dFdy(vWorld);
-  float hgt = min(tau, 1.6) * bumpK;
+  float hgt = (min(tau, 1.6) + 1.3 * churnA * churn) * bumpK;
   float hx = dFdx(hgt), hy = dFdy(hgt);
   vec3 r1 = cross(dpy, N), r2 = cross(N, dpx);
   float det = dot(dpx, r1);
@@ -676,8 +817,11 @@ void main() {
   float af = 1.0 - exp(-3.2 * tau);
   float wrap = clamp(dot(Nf, uSunDir) * 0.6 + 0.4, 0.0, 1.0);
   float thickL = smoothstep(0.05, 1.1, tau);
-  vec3 foamCol = mix(vec3(0.70, 0.80, 0.88), vec3(1.0), thickL) * (0.78 + 1.0 * wrap + 0.3 * back + 0.15 * Nf.y) * (0.94 + 0.06 * ft);
+  vec3 foamCol = mix(vec3(0.70, 0.80, 0.88), vec3(1.0), thickL) * (0.74 + 0.95 * wrap + 0.3 * back + 0.32 * Nf.y) * (0.94 + 0.06 * ft);
   foamCol = mix(mix(body * 2.0, foamCol, 0.6), foamCol, thickL); // thin films keep some water colour
+  // churn shading: lump tops catch the light, the hollows between the lumps are in soft blue-grey shadow
+  float ao = 0.62 + 0.5 * smoothstep(0.02, 0.62, churn);
+  foamCol *= mix(vec3(1.0), ao * mix(vec3(0.62, 0.73, 0.85), vec3(1.0), smoothstep(0.05, 0.5, churn)), churnA);
   P = mix(P, foamCol, af);
   W *= 1.0 - af;
 
@@ -870,7 +1014,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn } = {}) 
   mesh.name = 'surf';
   scene.add(mesh);
 
-  const spray = new Spray(scene, 3000);
+  const spray = new Spray(scene, 6000);
   const st = {};
   let time = 0, emitAcc = 0;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -910,35 +1054,58 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn } = {}) 
     return r;
   }
 
+  // spray sources found in one emission tick: kind, x, z, y, H, wanted count (flat, reused)
+  const jobs = [];
+  const LIFE = [0.95, 1.35, 1.6]; // mean particle life of each kind (lip spray, splash-up, mist), s
   function emitSpray(dt, cx) {
     emitAcc += dt;
     if (emitAcc < 1 / 30) return;
     const step = emitAcc; emitAcc = 0;
+    jobs.length = 0;
+    let want = 0;
     for (let x = Math.round(cx / 40) * 40 - 1600; x <= cx + 1600; x += 40) {
       const ex = x + (Math.random() - 0.5) * 40;
       const zs = shoreZ(ex);
+      const k = step * 30 / (1 + Math.abs(ex - cx) / 700); // distant columns are small on screen: emit fewer
       const nLo = Math.ceil(phaseAt(ex, 15, time) / TAU), nHi = Math.floor(phaseAt(ex, 440, time) / TAU);
       for (let fn = nLo; fn <= nHi; fn++) {
         const dc = crestD(fn, ex, time);
         crestState(fn, ex, dc, st);
-        if (st.p > 0.35 && st.p < 1.35) {
-          // lip spray, thrown forward off the tip
-          const tip = lipTip(st, dc);
-          const n = Math.min(30, Math.floor(st.H * 0.9 * step * 30 * (0.5 + Math.random())));
-          for (let i = 0; i < n; i++) {
-            spray.emit(ex + (Math.random() - 0.5) * 40, tip.y + Math.random() * 2, zs + tip.d + (Math.random() - 0.5) * 3,
-              (Math.random() - 0.5) * 6, 8 + Math.random() * 14, -14 - Math.random() * 18,
-              0.6 + Math.random() * 0.7, 1.2 + Math.random() * 1.6, 0.8);
-          }
-        }
+        const lip = st.p > 0.35 && st.p < 1.35, splash = st.p > 0.95 && st.p < 1.7 && st.H > 3 && st.sig > 0.3;
+        const tip = lip || splash ? lipTip(st, dc) : null;
+        // lip spray, thrown forward off the tip
+        if (lip) { const n = Math.min(30, st.H * 0.9 * (0.5 + Math.random())) * k; jobs.push(0, ex, zs + tip.d, tip.y, st.H, n); want += n * LIFE[0]; }
+        // splash-up: the landed lip throws a burst of white water up and forward from the plunge point
+        if (splash) { const n = Math.min(18, st.H * 0.8 * (0.5 + Math.random())) * k; jobs.push(1, ex, zs + tip.d, 0, st.H, n); want += n * LIFE[1]; }
+        // whitewash mist rising off the bore / landing lip
         if (st.p > 0.9 && st.p < 3.2 && st.H > 2) {
-          // whitewash mist rising off the bore / landing lip
-          const n = Math.min(20, Math.floor(st.H * 0.45 * step * 30 * Math.random() + 0.3));
-          for (let i = 0; i < n; i++) {
-            spray.emit(ex + (Math.random() - 0.5) * 40, 0.5 * st.H + Math.random() * 2, zs + dc - 4 + Math.random() * 8,
-              (Math.random() - 0.5) * 4, 3 + Math.random() * 6, -st.H * 0.8 - Math.random() * 6,
-              1.0 + Math.random() * 1.2, 3 + Math.random() * 4, 1.5, 0.4); // thin mist
-          }
+          const n = Math.min(20, st.H * 0.4 * Math.random() + 0.1) * k; jobs.push(2, ex, zs + dc, 0, st.H, n); want += n * LIFE[2];
+        }
+      }
+    }
+    // the particles alive at once (rate x life) must fit in the pool: busy moments such as closeouts
+    // thin out evenly instead of recycling particles before they have faded
+    const scale = Math.min(1, 0.85 * spray.count * step / Math.max(want, 1e-3));
+    for (let j = 0; j < jobs.length; j += 6) {
+      const kind = jobs[j], ex = jobs[j + 1], ez = jobs[j + 2], ey = jobs[j + 3], H = jobs[j + 4];
+      const n = Math.floor(jobs[j + 5] * scale + Math.random());
+      for (let i = 0; i < n; i++) {
+        const px = ex + (Math.random() - 0.5) * 40;
+        if (kind === 0) {
+          spray.emit(px, ey + Math.random() * 2, ez + (Math.random() - 0.5) * 3,
+            (Math.random() - 0.5) * 6, 8 + Math.random() * 14, -14 - Math.random() * 18,
+            0.6 + Math.random() * 0.7, 1.2 + Math.random() * 1.6, 0.8);
+        } else if (kind === 1) {
+          const Hs = Math.min(H, 40);
+          const vy = Math.sqrt(60 * Hs * (0.3 + 0.8 * Math.random())); // rises ~0.2-0.7 H (gravity 30, drag 1)
+          const vz = Math.random() < 0.25 ? Math.random() * 7 : -6 - Math.random() * 18; // mostly shoreward
+          spray.emit(px, Hs * (0.05 + 0.25 * Math.random()), ez + (Math.random() - 0.3) * 8,
+            (Math.random() - 0.5) * 8, vy, vz,
+            0.9 + Math.random() * 0.9, (2 + 3 * Math.random()) * (0.6 + 0.4 * Hs / 14), 1.0, 0.85);
+        } else {
+          spray.emit(px, 0.5 * H + Math.random() * 2, ez - 4 + Math.random() * 8,
+            (Math.random() - 0.5) * 4, 3 + Math.random() * 6, -H * 0.8 - Math.random() * 6,
+            1.0 + Math.random() * 1.2, 3 + Math.random() * 4, 1.5, 0.4); // thin mist
         }
       }
     }
