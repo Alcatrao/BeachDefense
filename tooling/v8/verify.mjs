@@ -13,7 +13,8 @@ function create(factory,extra={}){
  f.p.set(new Float64Array(data,16,n*3));f.v.set(new Float64Array(data,16+n*24,n*3));
  f.foam.set(new Float64Array(data,16+n*48,n));f.time=header[1];f.rebuild();return f;
 }
-const old=create(baselineFactory),current=create(makeFluidSolver);
+const legacy={sponge:true,bedRoughness:0};
+const old=create(baselineFactory,legacy),current=create(makeFluidSolver,legacy);
 const timing={baseline:[],optimized:[]};
 for(let frame=0;frame<60;frame++){
  for(const [name,f] of frame%2?[['optimized',current],['baseline',old]]:[['baseline',old],['optimized',current]]){
@@ -34,18 +35,22 @@ result.avoidedScratchAllocationBytesPerSecond=result.separationScratchBytes*60;
 // Inspect swash using the existing source and an offline no-sponge candidate.
 // Candidate results do not change the installed runtime or authorize acceptance.
 result.swash={};
-for(const [name,extra] of [['installed',{}],['noShoreSponge',{sponge:false}]]){
+for(const [name,extra] of [['installed',{}],['legacyShoreSponge',legacy]]){
  const f=create(makeFluidSolver,extra),samples=[];
  for(let frame=0;frame<720;frame++){
   f.step(1/60);
   if(frame%30!==29)continue;
-  let front=Infinity,foam=0,shoreward=0,seaward=0,nearshore=0;
+  let front=Infinity,foam=0,shoreward=0,seaward=0,nearshore=0,speedMax=0;
   for(let i=0;i<f.n;i++){
-   const a=i*3,z=f.p[a+2];assert(Number.isFinite(z));front=Math.min(front,z);
+   const a=i*3,z=f.p[a+2];assert(Number.isFinite(z));for(let k=0;k<3;k++)assert(Number.isFinite(f.v[a+k])&&Number.isFinite(f.p[a+k]));speedMax=Math.max(speedMax,Math.hypot(...f.v.subarray(a,a+3)));front=Math.min(front,z);
    if(z<2){nearshore++;if(f.v[a+2]<-.1)shoreward++;if(f.v[a+2]>.1)seaward++;if(f.foam[i]>.35)foam++;}
   }
-  samples.push({time:f.time,front,nearshore,shoreward,seaward,foam});
+  samples.push({time:f.time,front,nearshore,shoreward,seaward,foam,speedMax});
  }
+ assert(samples.some(x=>x.shoreward>400),'no swash surge');
+ assert(samples.some(x=>x.seaward>400),'no backwash');
+ assert(samples.every(x=>x.speedMax<30),'unstable velocity');
+ if(name==='installed')assert(Math.min(...samples.map(x=>x.front))>-7.9,'swash reached tank wall');
  result.swash[name]=samples;
 }
 const out=new URL('../../verification/v8/',import.meta.url);fs.mkdirSync(out,{recursive:true});
