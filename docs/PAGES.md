@@ -43,3 +43,9 @@ to Deploy from a branch, main, root; the original main game remains unchanged.
 Implementation reference (18 October 2026):
 https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages
 https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#workflow_run
+
+When present on the exported Codex revision, the publisher also runs legacy
+physics equivalence, two-wave swash/backwash checks, and six-second wave/calm
+character-contact regressions. Repeatable shorebreak screenshots include tube
+cutaways and whole-beach run-up/return phases. These are coarse-model regression
+checks, not proof of real-world calibration or a local GPU frame-rate benchmark.

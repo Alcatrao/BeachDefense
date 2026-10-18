@@ -68,12 +68,12 @@ const results = [];
         await page.goto(base+'codex/beach.html',{waitUntil:'networkidle'});
         await page.waitForFunction(() => window.coastDemo?.world.ready,null,{timeout:120000});
         result.shorebreak=[];
-        for(const seconds of [28,34.5,40]) {
+        for(const seconds of [28,31.5,33,34.5,37.5,39,40]) {
           await page.evaluate(async seconds => {
             await coastDemo.command('advance',{count:Math.max(0,Math.round((seconds-coastDemo.world.ambient.time)*60))});
-            coastDemo.setView('tube');
+            coastDemo.setView([28,34.5,40].includes(seconds)?'tube':'wide');
           },seconds);
-          await page.screenshot({path:path.join(out,`codex-tube-${seconds}.png`)});
+          await page.screenshot({path:path.join(out,`codex-shorebreak-${seconds}.png`)});
           result.shorebreak.push(await page.evaluate(()=>coastDemo.diagnostics()));
         }
         await page.evaluate(()=>coastDemo.setView('wide'));
@@ -88,3 +88,4 @@ const results = [];
   assert(results.every(x=>x.pass),'Some versions failed browser verification; see pages-evidence/smoke.json');
   console.log(JSON.stringify(results.map(({name,pass,physics,surf})=>({name,pass,physics,surf}))));
 })().catch(e=>{console.error(e);process.exitCode=1;}).finally(async()=>{if(browser)await browser.close();if(server)server.close();});
+
