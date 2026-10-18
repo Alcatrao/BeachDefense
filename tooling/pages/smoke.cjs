@@ -30,6 +30,7 @@ const results = [];
     args:process.env.GPU ? ['--enable-webgl'] : ['--enable-webgl','--use-gl=angle','--use-angle=swiftshader']});
   for (const [name,folder] of [['original',''],['codex','codex/'],['claude','claude/']]) {
     const page = await browser.newPage({viewport:{width:1280,height:800}});
+    page.setDefaultTimeout(90000);
     const errors=[], failed=[], workers=[], responses=[];
     page.on('pageerror',e => errors.push(e.message));
     page.on('console',m => {if(m.type()==='error' && /THREE|shader|WebGLProgram|VALIDATE_STATUS/i.test(m.text())) errors.push(m.text());});
@@ -64,6 +65,20 @@ const results = [];
           assert(responses.some(x=>x.url.includes('/codex/js/coast/'+script)&&x.status===200),script);
         assert(responses.some(x=>x.url.includes('/codex/js/coast/initial-state.bin')&&x.status===200),'initial state fetch');
         assert(workers.some(x=>x.endsWith('/codex/js/coast/beach-worker.mjs')),'module worker created');
+        await page.goto(base+'codex/beach.html',{waitUntil:'networkidle'});
+        await page.waitForFunction(() => window.coastDemo?.world.ready,null,{timeout:120000});
+        result.shorebreak=[];
+        for(const seconds of [28,34.5,40]) {
+          await page.evaluate(async seconds => {
+            await coastDemo.command('advance',{count:Math.max(0,Math.round((seconds-coastDemo.world.ambient.time)*60))});
+            coastDemo.setView('tube');
+          },seconds);
+          await page.screenshot({path:path.join(out,`codex-tube-${seconds}.png`)});
+          result.shorebreak.push(await page.evaluate(()=>coastDemo.diagnostics()));
+        }
+        await page.evaluate(()=>coastDemo.setView('wide'));
+        await page.screenshot({path:path.join(out,'codex-whole-beach.png')});
+        assert.equal(errors.length,0,JSON.stringify(errors));
       }
       result.pass=true;
     } catch(e) {result.pass=false;result.failure=e.stack;console.error(name,e.message);}
