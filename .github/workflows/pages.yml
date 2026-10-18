@@ -1,0 +1,60 @@
+name: Publish three game versions
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+      - name: Fetch independent published versions
+        run: git fetch --depth=1 origin codex/breaking-surf:refs/remotes/origin/codex/breaking-surf claude/shorebreak-waves:refs/remotes/origin/claude/shorebreak-waves
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '22'
+      - name: Assemble runtime files only
+        run: python tooling/pages/build.py
+      - name: Install browser test runtime
+        run: |
+          npm install --no-save --package-lock=false playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Test original and both subfolder versions before publishing
+        run: node tooling/pages/smoke.cjs
+      - name: Preserve browser verification
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pages-browser-evidence
+          path: pages-evidence/
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Publish the tested artifact
+        id: deployment
+        uses: actions/deploy-pages@v4
