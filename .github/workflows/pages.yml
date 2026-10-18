@@ -35,10 +35,13 @@ jobs:
         with:
           node-version: '22'
       - name: Assemble runtime files only
-        run: python tooling/pages/build.py
+        id: versions
+        run: |
+          python tooling/pages/build.py
+          python -c 'import json; print("codex=" + json.load(open("_site/versions.json"))["codex"]["commit"])' >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v6
         with:
-          ref: codex/breaking-surf
+          ref: ${{ steps.versions.outputs.codex }}
           path: _checks/codex
       - name: Verify Codex physics and measure shoreline flow when available
         run: |

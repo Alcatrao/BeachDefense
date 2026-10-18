@@ -32,6 +32,7 @@ const results = [];
     const page = await browser.newPage({viewport:{width:1280,height:800}});
     const errors=[], failed=[], workers=[], responses=[];
     page.on('pageerror',e => errors.push(e.message));
+    page.on('console',m => {if(m.type()==='error' && /THREE|shader|WebGLProgram|VALIDATE_STATUS/i.test(m.text())) errors.push(m.text());});
     page.on('requestfailed',r => failed.push({url:r.url(),error:r.failure()?.errorText}));
     page.on('response',r => { if(r.status()>=400) failed.push({url:r.url(),status:r.status()});
       if(r.url().startsWith(base)) responses.push({url:r.url(),status:r.status()}); });
@@ -49,6 +50,7 @@ const results = [];
         const t = await page.evaluate(() => beachFluid.world.fluid.time);
         await page.waitForFunction(t => beachFluid.world.fluid.time>t+.1,t,{timeout:60000});
         result.physics=await page.evaluate(() => ({time:beachFluid.world.fluid.time,localTime:beachFluid.world.latest.localTime}));
+        result.surface=await page.evaluate(() => beachGame.diagnostics().ocean);
       } else if(name==='claude') {
         await page.waitForFunction(() => window.__beach?.surf,null,{timeout:60000});
         result.surf = await page.evaluate(() => Boolean(__beach.surf));
