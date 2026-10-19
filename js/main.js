@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { createSurf, shoreZ, SURF } from './surf.js';
+import { createSurf, shoreZ, SURF, LOOKS } from './surf.js';
 import { Sky } from 'Sky';
 import { PointerLockControls } from 'PointerLockControls';
 import { GLTFLoader } from 'https://unpkg.com/three@0.155.0/examples/jsm/loaders/GLTFLoader.js';
@@ -414,19 +414,20 @@ function initScene() {
   });
 }
 
+// ?look=classic: the earlier natural water and hazy sky; the default is the AoM-like look (see LOOKS in surf.js)
+const LOOK = new URLSearchParams(location.search).get('look') === 'classic' ? 'classic' : 'aom';
+function sunDirection() {
+  const [elev, azim] = LOOKS[LOOK].sun;
+  return new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - elev), THREE.MathUtils.degToRad(azim));
+}
+
 function initSkyAndLights() {
   const sky = new Sky();
   sky.scale.setScalar(10000);
   scene.add(sky);
   const skyUniforms = sky.material.uniforms;
-  skyUniforms['turbidity'].value = 8;
-  skyUniforms['rayleigh'].value = 3;
-  skyUniforms['mieCoefficient'].value = 0.005;
-  skyUniforms['mieDirectionalG'].value = 0.7;
-  const sun = new THREE.Vector3();
-  const phi = THREE.MathUtils.degToRad(90 - 15);
-  const theta = THREE.MathUtils.degToRad(0);
-  sun.setFromSphericalCoords(1, phi, theta);
+  for (const [k, v] of Object.entries(LOOKS[LOOK].sky)) skyUniforms[k].value = v;
+  const sun = sunDirection();
   sky.material.uniforms['sunPosition'].value.copy(sun);
 
   scene.add(new THREE.AmbientLight(0xffffff, 2.9));
@@ -436,11 +437,10 @@ function initSkyAndLights() {
 }
 
 function createWater() {
-  const sun = new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - 15), 0);
   const params = new URLSearchParams(location.search);
   const quality = params.get('surf') || 'medium';
   const rogueIn = params.has('rogue') ? Number(params.get('rogue')) || 0 : undefined; // ?rogue=N: first rogue wave after N s
-  surf = createSurf(scene, { sunDir: sun, quality, rogueIn });
+  surf = createSurf(scene, { sunDir: sunDirection(), quality, rogueIn, look: LOOK });
   return surf;
 }
 
@@ -607,6 +607,7 @@ function seaOverlay() {
 
 function updateMovement() {
   const pos = character.position;
+  const x0 = pos.x, z0 = pos.z;
   const direction = new THREE.Vector3();
   const forward = new THREE.Vector3();
   camera.getWorldDirection(forward); forward.y = 0; forward.normalize();
@@ -679,7 +680,11 @@ function updateMovement() {
     velocityY += gravity;
     pos.y += velocityY;
     if (pos.y <= restEye) {
-      if (inWater && velocityY < -0.05 && !tumbling) velocityY *= -0.15; // small splash bounce
+      if (inWater && velocityY < -0.05 && !tumbling) {
+        // landing in the water: foam spreads round the player (no crown of drops: it would fill the view)
+        if (velocityY < -0.25 && surf) surf.splash(pos.x, pos.z, Math.min(-velocityY * 2, 1.5), false);
+        velocityY *= -0.15; // small splash bounce
+      }
       pos.y = restEye;
       if (Math.abs(velocityY) < 0.06 || !inWater || tumbling) { isJumping = false; velocityY = 0; }
     }
@@ -725,6 +730,9 @@ function updateMovement() {
   pos.x = Math.max(minX, Math.min(maxX, pos.x));
   if (pos.z > SEA_MAX_Z) { pos.z = SEA_MAX_Z; sea.vz = Math.min(sea.vz, 0); }
   if (pos.z < minZ) { pos.z = minZ; sea.vz = Math.max(sea.vz, 0); }
+
+  // foam rings and a wake round the player in the water (eye 10 above the feet; moves once per frame)
+  if (surf) surf.wake(sea.foam ||= {}, pos.x, pos.y - 10, pos.z, (pos.x - x0) * 60, (pos.z - z0) * 60, 2.5, 1 / 60);
 }
 
 // === GROUND HEIGHT ===
@@ -1037,6 +1045,11 @@ if (len > 1 && canMove) {
     pos.y = getGroundHeightAt(pos.x, pos.z);
   }
 }
+    // foam round ground ghosts crossing the sea: rings and a trailing wake
+    if (surf && !ghost.isAirGhost) {
+      const v = len > 1 && canMove ? speed * 60 / len : 0;
+      surf.wake(ghost.foamState ||= {}, pos.x, pos.y, pos.z, tx * v, tz * v, ghost.size * 0.55, delta); // the cloak's footprint
+    }
 
     // Fading and blinking
     ghost.updateFadeAndBlink(delta, character.position);
@@ -1297,6 +1310,15 @@ function animate() {
       const move = spark.direction.clone().multiplyScalar(SPARK_SPEED * delta);
       spark.mesh.position.add(move);
       spark.distance += move.length();
+      // a spark diving into the sea splashes where it went in (and is removed below)
+      if (surf && spark.direction.y < 0 && spark.mesh.position.y < 40) {
+        const p = spark.mesh.position, wy = surf.waterY(p.x, p.z);
+        if (wy != null && p.y < wy) {
+          const back = Math.min((wy - p.y) / -spark.direction.y, move.length());
+          surf.splash(p.x - spark.direction.x * back, p.z - spark.direction.z * back, 1);
+          spark.distance = SPARK_MAX_DIST + 1;
+        }
+      }
 
       if (spark.enableTrail) {
         if (!spark.lastTrailPos || spark.mesh.position.distanceTo(spark.lastTrailPos) > 4) {
@@ -1466,7 +1488,8 @@ function main() {
   setupWand();
   if (new URLSearchParams(location.search).has('debug')) {
     window.__beach = { get scene() { return scene; }, get camera() { return camera; }, get character() { return character; },
-      get renderer() { return renderer; }, get surf() { return surf; }, sea, keys,
+      get renderer() { return renderer; }, get surf() { return surf; }, get npcs() { return npcs; }, sea, keys, shootSpark,
+      get paused() { return gamePaused; }, set paused(v) { gamePaused = v; }, // the preview has no pointer lock
       // advance the player and the sea by n frames without rAF (for headless tests)
       step(n = 1) { for (let i = 0; i < n; i++) { updateMovement(); surf.update(1 / 60, character.position.x); } } };
   }

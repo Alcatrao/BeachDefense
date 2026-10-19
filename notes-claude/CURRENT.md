@@ -22,7 +22,7 @@ Analytic GPU wave field instead of a fluid simulation (Codex's FLIP route is sep
   ACES (exposure 0.6); new `updateMovement` with swim/wade/skim, current drag, lift, wipeout
   tumble (head-over-heels camera, white overlay), underwater tint; sea limit z = 430.
   `?debug` exposes `window.__beach` (scene, camera, character, renderer, surf, sea, keys,
-  `step(n)` to advance physics without rAF).
+  `step(n)` to advance physics without rAF; Round 8 added npcs, shootSpark and paused).
 
 Controls: Shift = skim while in water; W/A/S/D, Space as before.
 
@@ -251,17 +251,97 @@ never enters the new code; the crest rows, the far field, the beach join and the
   A/B sheets, crest finder) are outside the repo: C:\Users\joaoa\AppData\Roaming\Claude\side-session-notes\
   local_f261344c-dddd-4e11-9b93-ef3f8fb5ec9e\round7-claude-harness.js.
 
+## Round 8 (19 Oct 2026, owner: keep the Praia de Mira beach but make the game look like the owner's Age of
+## Mythology screenshots: shiny cyan water with reflection, and AoM's light foam, splash and particle effects)
+References: the owner's 20 screenshots (a water mod under the MenuArctic lighting mod) in
+reference/aom-2026-10-19/ with a README on how AoM draws its water (read from the owner's AoM install). That
+folder is git-ignored: never commit or publish it. AoM was used for technique and numbers only; no textures,
+shaders or other files were copied. MenuArctic sets sunspecular 255 255 255 (the big white glare; the stock
+default.lgt has a dim cyan 10 40 50), suninclination 38, sunrotation 243, ambientcolor 115. Measured targets
+(sRGB): open water (102, 229, 239) and (96, 222, 233); near shore (174, 253, 250); sandbar (150, 208, 193).
+- Looks: `LOOKS` in js/surf.js holds every colour and stylised term, applied as uniforms (the old HORIZON,
+  ZENITH, DEEP, SHALLOW, SSS and SIGMA constants are gone). 'aom' is the default; `?look=classic` (main.js) or
+  `surf.setLook('classic')` restores the Round 7 water and hazy sky exactly (all stylised terms off). aom: sun
+  at elevation 35, azimuth -45; thin deep-blue sky (turbidity 2.5, rayleigh 0.5); cyan reflection and depth
+  ramp; extinction (0.55, 0.22, 0.20) per metre so the shallows are clear over the tan sand (kept on purpose);
+  Fresnel x0.65 capped at 0.55; haze 0.2 tinted pale cyan; wet sand x0.85.
+- Wavelets: two normal-map samples stretched 0.27x across and rotated +-20 degrees (RIPA, RIPB), faded out
+  from 150 to 1100 units; anisotropy 8 on the normal map. Embossed: in the water's lighting, the difference
+  between the rippled and the underlying normal's N.L brightens one side and darkens the other; the same
+  term is applied again after the tone mapping (gated off foam, haze, sand and see-through water).
+- Glare: white, pow(sunR, 6) * 0.25 + pow(sunR, 24) * 0.8, broad like AoM's DOT3 specular.
+- Drop-off band: the seabed seen through the water is tinted (0.35, 0.55, 0.55), fully at depths 8-16 units,
+  fading out by 3 and 34.
+- Vivid grade after the tone mapping, because ACES pulls cyan towards grey-blue: saturation +15 %, green
+  lifted towards blue, +4 % brightness, weighted by the water's opacity.
+- Foam decals (class Decals): one instanced 12x12 quad per decal, a pool of 1024, laid on the water by the
+  vertex shader (surfPos with gFlat: no crest bunching or curl, the same surface as evalSurf(curl = false)),
+  so they ride and tilt with the waves. The CPU writes each decal once; its life runs on the GPU from its
+  birth time. Kinds: 0 ring (spreads, thins, leaves milky water), 1 puff (ragged, streaked trail), 2 churned
+  patch (breaks into lumps), 3 collar (AoM's crisp ring at a wading unit's feet over a faint dark blob on the
+  side away from the sun). They fade out where the water is shallower than 1.2 units. Transparent, no depth write,
+  polygon offset, render order 2 (after the water and ghosts, before the spray).
+- API: `surf.waterY(x, z)` (water height, null under 0.6 units of water), `surf.splash(x, z, strength, crown)`
+  (sizes for strength s: a churned patch 5s, a ring 10s and a fainter ring 15s born 0.35 s later; crown:
+  12 + 12s drops, a column and a low blossom of spray), `surf.wake(state, x, y, z, vx, vz, r, dt)` (a collar every 0.1 s carried at the body's speed, a ring
+  every 0.5-0.75 s, puffs behind every max(2.5, 1.2r) of travel, drops off the front above speed 6; only where
+  the water is between y - 4 and y + 3r), `surf.foam(...)` (one decal), `surf.setLook(name or fields)`.
+- main.js: landing in the water lays a splash without the crown (it would fill the view); the player (r 2.5)
+  and ground ghosts (r = 0.55 x size, the cloak's footprint) get wakes; a spark diving into the sea splashes
+  where it went in and is removed there (before, it flew on under the water to its maximum range: a small
+  gameplay change). `?debug` adds `npcs`, `shootSpark` and `paused` (get/set; the preview has no pointer lock).
+- Lessons. (1) The water mesh bunches its points at crests, so its triangles stand up to ~1.2 above the flat
+  evaluation on big waves (within ~0.2 on small ones), and a 6x6 decal's chords sagged 1.2-2.25 under crests:
+  both buried the foam from steep views. Fix: the 12x12 grid and drawing each decal nearer the camera along
+  its own view ray (same pixel) by 1.6 / max(sin a, 0.12), at most half the distance, a = the ray's elevation.
+  A constant offset b along the ray clears only a rise of b sin a (~1.5 at 49 degrees, 0.4 at 11 for b = 2).
+  Scan, 200 frames per camera on a collar of size 13.2 at a ghost's spot; per frame the share of the decal's
+  full contribution (depth test off) that survives the depth test, counting frames where that full
+  contribution is > 25 % of its maximum: close camera (49 degrees) without the bias (6x6 or 12x12) 68-69
+  frames under 0.9 and 23-24 under 0.5, with it 0; mid (20 degrees) 37-39 of 143 under 0.9 and 15-16 under
+  0.5, with it 0; game camera (11 degrees) 8 frames for every variant (a crest really in front). (2) Back-face
+  culling rightly hides rings on a crest's far slope. (3) A plain ring buffer of 768 wrapped in ~1.07 s at
+  720 adds/s (~43 wading ghosts) and overwrote 250 live decals/s. Now the next slot, or the first free one
+  within 32, else the one ending soonest, out of 1024: 45 ghosts 512 adds/s, none cut short, at most 422
+  alive; 90 ghosts 1062 adds/s, 5.6/s (0.5 %) cut short with 36 % of their life left, at most 856 alive.
+  (4) Collars that stayed where they were laid smeared behind a moving body; carried at its speed, the four
+  alive at once stay one sharp ring. (5) A ghost glides level while the troughs pass under it: hence y - 4.
+- Verified (headless preview, 960x540): shots r12-aom-obl (oblique overview), r12-aom-fp (first person on the
+  beach), r12-aom-wade (a wading ghost's collar and ring) and r12-aom-splash (an open-water splash). Oblique
+  view, sRGB: open water (100-130, 225-228, 233-236) against AoM's (96-102, 222-229, 233-239); sand (203-204,
+  188-190, 164-166), the Praia de Mira tan. The splash reads from steep and low cameras; `?look=classic` gives
+  the Round 7 look. Render (readPixels-synced, ms per frame): 0.37-0.39 with decals vs 0.38 without (noise).
+  Console: only pointer-lock errors. The physics harness was not re-run: evalSurf and sample are unchanged
+  (the decals' gFlat is GLSL only; waterY reads evalSurf(curl = false)).
+- Limits: milky overdraw on a ghost's lowest ~1.6 units (the bias draws the foam over them); ghosts glide
+  level over the troughs (game logic, unchanged); no dark blob shadow under units on land as in AoM (decals are
+  fire-and-forget; it needs updatable slots: follow-up). Not hand-play-tested.
+- Harness: notes-claude/aom-harness.js (paste into the console of ?debug, or eval it after fetching it) with
+  notes-claude/shot_sink.py (`python -I shot_sink.py 8790 <outdir>`; JPEG bytes, unlike shotserver.py's data
+  URLs). It shims rAF (the hidden pane never fires it), sets 960x540, parks all ghosts but one wading one and
+  hides the menus (a hidden #endMenu also hides game over). __setShot takes its aspect from innerWidth, which is
+  0 in a hidden pane: set 960 / 540 or the frame is blank. step(n) uses a fixed 1/60 s. Intermediate shots stay
+  in the session scratchpad.
+- Sources: https://godotshaders.com/shader/stylized-water-for-godot-4-x ,
+  https://gamedev.net/shaderlab/37-stylized-water-surface/ ,
+  https://80.lv/articles/beautiful-unity-water-shader-affected-by-shoreline-shape-wind ,
+  https://store.godotengine.org/asset/emace-art/stylized-water-shader/ , https://wiki.ryzom.dev/postmortem/nel/water ,
+  https://community.khronos.org/t/water-question/43367 , https://community.khronos.org/t/bump-map-flitering/40169 ,
+  https://tympanus.net/codrops/?p=88608 , https://github.com/jklintan/Procedural-Water
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
-save renderer.toDataURL captures while the preview pane is hidden).
+save renderer.toDataURL captures while the preview pane is hidden). Round 8: aom-harness.js (page test harness)
+and shot_sink.py (POST receiver for JPEG bytes); see Round 8.
 
 Committed 4fc714e and pushed to origin/claude/shorebreak-waves on 17 Oct 2026 (owner request).
 Round 3 e55afdb pushed 18 Oct 2026 (owner request). Round 4 0400658 pushed 18 Oct 2026 (owner request). No PR.
 Round 5 9dd2038 pushed 18 Oct 2026 (owner request), with this notes commit; the push republishes /claude/ (see below).
 Round 6 7e4ddc3 (crest rows) pushed 19 Oct 2026 (owner request).
-Round 7 (collapsed roller as a solid step) committed 19 Oct 2026 in the commit that adds this line; not pushed
-(awaiting the owner).
+Round 7 c1d874e (collapsed roller as a solid step) is on origin/claude/shorebreak-waves (checked 19 Oct 2026).
+Round 8 (AoM look, foam decals) committed 19 Oct 2026 in the commit that adds this line; not pushed (awaiting
+the owner).
 
 ## GitHub Pages (Codex-owned, 18 Oct 2026)
 Codex publishes all three versions: https://alcatrao.github.io/BeachDefense/ (main),
