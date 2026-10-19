@@ -49,6 +49,7 @@ let survivalTime = 0;
 const gravity = -0.02, jumpStrength = 0.5;
 const keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
 let surf = null;
+let softGL = false; // WebGL without a GPU: see softwareGL()
 // player-in-water state (velocities in units per frame, like the rest of the movement code)
 const sea = { vx: 0, vz: 0, tumble: 0, tumbleDur: 1.6, inWater: false, skimming: false, overlay: null, lastHit: -1 };
 const sparks = [];
@@ -384,6 +385,9 @@ function initScene() {
   character.add(camera);
 
   renderer = new THREE.WebGLRenderer();
+  softGL = softwareGL(renderer);
+  // without a GPU every pixel is shaded on the CPU: draw a quarter of them (the browser scales the canvas up)
+  if (softGL) renderer.setPixelRatio(0.5);
   renderer.setSize(window.innerWidth, window.innerHeight);
   // filmic tone mapping keeps the Sky shader from washing out to white
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -436,9 +440,20 @@ function initSkyAndLights() {
   scene.add(directionalLight);
 }
 
+// Software WebGL (SwiftShader, llvmpipe, WARP: no GPU, as in the headless browser of the Pages smoke test) runs the
+// shaders on the CPU: the medium water took ~0.4 s a frame there and Round 8 stalled the smoke test's screenshot.
+// There the water takes the 'soft' quality (see createSurf; a quarter of the cost) and the canvas is drawn at half
+// resolution. ?soft=1 forces this, ?soft=0 turns it off.
+function softwareGL(renderer) {
+  const q = new URLSearchParams(location.search).get('soft');
+  if (q != null) return q !== '0';
+  const gl = renderer.getContext(), d = gl.getExtension('WEBGL_debug_renderer_info');
+  return /SwiftShader|llvmpipe|softpipe|Software|Basic Render/i.test(String(gl.getParameter(d ? d.UNMASKED_RENDERER_WEBGL : gl.RENDERER)));
+}
+
 function createWater() {
   const params = new URLSearchParams(location.search);
-  const quality = params.get('surf') || 'medium';
+  const quality = params.get('surf') || (softGL ? 'soft' : 'medium');
   const rogueIn = params.has('rogue') ? Number(params.get('rogue')) || 0 : undefined; // ?rogue=N: first rogue wave after N s
   surf = createSurf(scene, { sunDir: sunDirection(), quality, rogueIn, look: LOOK });
   return surf;

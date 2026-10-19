@@ -303,7 +303,8 @@ default.lgt has a dim cyan 10 40 50), suninclination 38, sunrotation 243, ambien
   culling rightly hides rings on a crest's far slope. (3) A plain ring buffer of 768 wrapped in ~1.07 s at
   720 adds/s (~43 wading ghosts) and overwrote 250 live decals/s. Now the next slot, or the first free one
   within 32, else the one ending soonest, out of 1024: 45 ghosts 512 adds/s, none cut short, at most 422
-  alive; 90 ghosts 1062 adds/s, 5.6/s (0.5 %) cut short with 36 % of their life left, at most 856 alive.
+  alive; 90 ghosts 1062 adds/s, 5.6/s (0.5 %) cut short with 36 % of their life left, at most 856 alive
+  (allocator replaced on 19 Oct 2026: see "Round 8 publish failure" below).
   (4) Collars that stayed where they were laid smeared behind a moving body; carried at its speed, the four
   alive at once stay one sharp ring. (5) A ghost glides level while the troughs pass under it: hence y - 4.
 - Verified (headless preview, 960x540): shots r12-aom-obl (oblique overview), r12-aom-fp (first person on the
@@ -333,15 +334,67 @@ default.lgt has a dim cyan 10 40 50), suninclination 38, sunrotation 243, ambien
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
 save renderer.toDataURL captures while the preview pane is hidden). Round 8: aom-harness.js (page test harness)
-and shot_sink.py (POST receiver for JPEG bytes); see Round 8.
+and shot_sink.py (POST receiver for JPEG bytes); see Round 8. notes-claude/swprobe/ (software-WebGL timing, see
+"Round 8 publish failure"): copy the folder to the session scratchpad and run it there, since it writes logs/,
+shots/ and profiles/ next to itself; run it with the governor venv's Python (-I) through aiwork.py.
 
 Committed 4fc714e and pushed to origin/claude/shorebreak-waves on 17 Oct 2026 (owner request).
 Round 3 e55afdb pushed 18 Oct 2026 (owner request). Round 4 0400658 pushed 18 Oct 2026 (owner request). No PR.
 Round 5 9dd2038 pushed 18 Oct 2026 (owner request), with this notes commit; the push republishes /claude/ (see below).
 Round 6 7e4ddc3 (crest rows) pushed 19 Oct 2026 (owner request).
 Round 7 c1d874e (collapsed roller as a solid step) is on origin/claude/shorebreak-waves (checked 19 Oct 2026).
-Round 8 (AoM look, foam decals) committed 19 Oct 2026 in the commit that adds this line; not pushed (awaiting
-the owner).
+Round 8 7b14b70 (AoM look, foam decals) pushed 19 Oct 2026 (owner request, c1d874e..7b14b70). Its auto-publish
+failed: the hook run 39318718012 passed, but main's publisher run 39318742626 stopped in Codex's smoke test
+("claude page.screenshot: Timeout 90000ms exceeded", software WebGL), so the deploy was skipped and /claude/ kept
+serving Round 7. See "Round 8 publish failure" below.
+The software-WebGL tier that fixes it is committed with this section (19 Oct 2026); not pushed: it needs the
+owner's OK, since a push republishes /claude/.
+
+## Round 8 publish failure and the software-WebGL tier (19 Oct 2026)
+Round 8 did not go live. Main's publisher run 39318742626 failed in Codex's tooling/pages/smoke.cjs (origin/main
+116c998): "claude page.screenshot: Timeout 90000ms exceeded". The smoke test runs Playwright's Chromium Headless
+Shell 141.0.7390.37 with software WebGL (--use-angle=swiftshader unless GPU is set) at 1280x800 with a 90 s
+default timeout; on the claude page it waits for __beach.surf, then 2.5 s, then takes claude-game.png. That step
+took 141 s including the 90 s timeout. In earlier passing runs (Round 7) the claude page took 123-143 s, so its
+screenshot already took roughly 70-90 s there (inference), close to the limit, against ~3 s on this machine: the
+CI runner is ~25-30x slower for a reason not known. Round 8's heavier frames tipped it over. The run's
+pages-browser-evidence artifact (5,934,075 bytes) would give exact timings; not downloaded (needs the owner's OK).
+- Local repro (notes-claude/swprobe/): headless Edge, ANGLE on SwiftShader (Vulkan, "SwiftShader Device
+  (Subzero)"), 4 CPUs by process affinity, 1280x800, serving Round 7, Round 8 (from git) and the working tree.
+  cdpshot.py times CDP Page.captureScreenshot the way smoke.cjs takes it; swprobe.py with probe.html times every
+  draw call (gl.finish around each); swreport.py summarises. Round 8 here: screenshots 2.8-3.4 s, frame median
+  467-484 ms (Round 7: 2.5-3.1 s, 401-417 ms). No timeout here.
+- Cost: the water took 376 ms of Round 8's 426 ms frame (median), bound by its vertex shader, which evaluates
+  surfPos three times per vertex (two nearby points give the normal); 3,180,492 indices. Skipping the ripples or
+  the caustics saved only 1-8 %. Round 8 also drew all 1024 decal slots every frame, dead or alive (1024 x 288
+  triangles, each vertex evaluating the waves).
+- Fix, only where WebGL has no GPU (the GPU look is unchanged): main.js softwareGL() matches the unmasked
+  renderer string (SwiftShader, llvmpipe, softpipe, "Software", "Basic Render" = WARP); `?soft=1` forces it and
+  `?soft=0` turns it off. Then the canvas is drawn at pixel ratio 0.5 and the water takes quality 'soft': grid
+  factor 2.2 (medium 1.35, low 1.8), the FACETS define (the fragment shader takes each facet's normal from
+  dFdx/dFdy of vWorld, so the vertex shader evaluates the surface once: -52 % on the water; three.js 0.186 is
+  WebGL2-only, so the derivatives are built in) and anisotropy 1. Grid factor 2.7 saved only ~10 % more.
+- Decals, all tiers: add() takes the lowest free slot (else the next unused one, else the one ending soonest)
+  and update(time) trims dead slots off the top, so instanceCount = highest live slot + 1 and only those are
+  drawn. A live decal now gives way only when all 1024 are alive (Round 8: when none of the 32 slots after its
+  cursor was free), so Round 8's cut-short counts are an upper bound. The mesh stays visible at instanceCount 0,
+  so three.js compiles its program at startup (first decal draw under SwiftShader 26-27 ms, was 64 ms).
+- Results here (SwiftShader, 4 CPUs, 1280x800 viewport; three screenshots after the smoke test's 2.5 s wait):
+  | Build                   | Canvas   | Screenshots (s) | Frame median / p90 (ms) | Triangles drawn |
+  | Round 7 c1d874e         | 1280x800 | 2.9 / 2.5 / 2.8 | 417 / 901               | 1,142,256       |
+  | Round 8 7b14b70         | 1280x800 | 3.4 / 3.0 / 3.0 | 484 / 634               | 1,472,016       |
+  | this commit (auto soft) | 640x400  | 0.7 / 0.8 / 0.7 | 100 / 167               | 711,636         |
+  | same, second run        | 640x400  | 0.7 / 0.7 / 0.7 | 100 / 150               | 641,940         |
+  | this commit, ?soft=0    | 1280x800 | 2.5 / 2.6 / 2.4 | 406 / 784               | 1,144,272       |
+  Per draw (soft): water 87 ms mean (Round 8: 376), sky 8 ms. ?soft=0 shows the decal change alone brings the
+  medium path back to Round 7's cost; the soft tier adds a ~4x margin on top.
+- Verified (preview pane, RTX 5070 Ti through ANGLE D3D11): medium quality (no FACETS, anisotropy 8); a wading
+  ghost's collars and rings render (42 slots drawn); the oblique overview matches Round 8; console only
+  pointer-lock errors. `?soft=1` on the GPU: the FACETS shader compiles on D3D11 and looks the same apart from
+  slightly faceted shading up close. At the game view the soft tier is barely different (slightly streakier
+  whitewater).
+- Not verified: CI, until the next push (at 25-30x the soft screenshot would take ~18-25 s there: inference).
+  Not hand-played on a software renderer.
 
 ## GitHub Pages (Codex-owned, 18 Oct 2026)
 Codex publishes all three versions: https://alcatrao.github.io/BeachDefense/ (main),

@@ -659,13 +659,17 @@ void main() {
   vec3 P = surfPos(xz, f, th, wt, sw, ag);
   float drift = gDrift;
   vCrest = gCrest;
+#ifdef FACETS
+  vNrm = vec3(0.0, 1.0, 0.0); // unused: the fragment shader takes each facet's own normal
+#else
   // normal from offsets near the grid spacing (x 4.7, z 1.75): no shading detail the mesh cannot follow
   vec3 P1 = surfPos(xz + vec2(1.8, 0.0), f1, t1, w1, s1, a1);
   vec3 P2 = surfPos(xz + vec2(0.0, 1.0), f1, t1, w1, s1, a1);
-  vSand = sw;
-  vAge = ag;
   vec3 n = cross(P2 - P, P1 - P);
   vNrm = length(n) > 1e-6 ? normalize(n) : vec3(0.0, 1.0, 0.0);
+#endif
+  vSand = sw;
+  vAge = ag;
   vWorld = P;
   vFoam = f;
   vThin = th;
@@ -783,8 +787,13 @@ const vec3 BED = vec3(${BED_LIN.map((v) => v.toFixed(4)).join(', ')}); // the dr
 const mat2 RIPA = mat2(0.94, 0.34, -0.34, 0.94), RIPB = mat2(0.94, -0.34, 0.34, 0.94); // +-20 degrees
 
 void main() {
+#ifdef FACETS
+  vec3 N = normalize(cross(dFdx(vWorld), dFdy(vWorld)));
+  if (dot(N, cameraPosition - vWorld) < 0.0) N = -N; // toward the eye, as the flipped vertex normal below
+#else
   vec3 N = normalize(vNrm);
   if (!gl_FrontFacing) N = -N;
+#endif
   vec3 Ng = N; // geometric normal, before the detail normal map
   vec3 toCam = cameraPosition - vWorld;
   float dist = length(toCam);
@@ -977,7 +986,7 @@ function gridLines(min, max, fine0, fine1, base, grow) {
 // from z 600 to 2000 offshore), so the far field and the mesh edges stay as they were; the near edge follows
 // row 0, which stays under the sand (d < -125, the swash reaches about -90).
 function buildGeometry(quality) {
-  const f = quality === 'high' ? 1.0 : quality === 'low' ? 1.8 : 1.35;
+  const f = { high: 1.0, low: 1.8, soft: 2.2 }[quality] || 1.35;
   const xs = gridLines(-4950, 4950, -800, 800, 3.5 * f, 0.0075);
   const zs = gridLines(-260, 4850, -260, 350, 1.3 * f, 0.0145);
   const nx = xs.length, nz = zs.length;
@@ -1194,7 +1203,8 @@ void main() {
 class Decals {
   constructor(scene, uniforms, count) {
     this.count = count;
-    this.next = 0;
+    this.hi = -1; // the highest slot in use: only slots 0..hi are drawn
+    this.now = 0;
     const plane = new THREE.PlaneGeometry(2, 2, 12, 12); // fine enough that its chords barely sag under a crest
     const g = new THREE.InstancedBufferGeometry();
     g.index = plane.index;
@@ -1205,7 +1215,7 @@ class Decals {
     this.b = attr(4, [-1e9, 1, 0, 0]); // born long ago: dead
     this.c = attr(4, [1, 0, 0, 0]);
     g.setAttribute('aA', this.a); g.setAttribute('aB', this.b); g.setAttribute('aC', this.c);
-    g.instanceCount = count;
+    g.instanceCount = 0;
     this.mesh = new THREE.Mesh(g, new THREE.ShaderMaterial({
       vertexShader: DECAL_VERT, fragmentShader: DECAL_FRAG,
       uniforms: { uTime: uniforms.uTime, uRogue: uniforms.uRogue }, // shared with the water: the same waves
@@ -1217,20 +1227,29 @@ class Decals {
     scene.add(this.mesh);
   }
   add(x, z, size, rot, birth, life, kind, alpha, stretch = 1, vx = 0, vz = 0) {
-    // the next slot, or the first that is free a little further on; a crowd of wading ghosts lays more foam than the
-    // pool holds, and then the one ending soonest gives way rather than a fresh ring
+    // the lowest free slot, so the live decals stay packed at the start of the pool and only those are drawn; a
+    // crowd of wading ghosts lays more foam than the pool holds, and then the one ending soonest gives way
     const A = this.a.array, B = this.b.array, C = this.c.array;
-    let i = this.next, end = Infinity;
-    for (let k = 0; k < 32; k++) {
-      const j = (this.next + k) % this.count, e = B[j * 4] + B[j * 4 + 1];
-      if (e <= birth) { i = j; break; }
-      if (e < end) { end = e; i = j; }
+    let i = -1, soonest = 0, end = Infinity;
+    for (let j = 0; j <= this.hi; j++) {
+      const e = B[j * 4] + B[j * 4 + 1];
+      if (e <= this.now) { i = j; break; }
+      if (e < end) { end = e; soonest = j; }
     }
-    this.next = (i + 1) % this.count;
+    if (i < 0) i = this.hi + 1 < this.count ? this.hi + 1 : soonest;
+    if (i > this.hi) { this.hi = i; this.mesh.geometry.instanceCount = i + 1; }
     A[i * 4] = x; A[i * 4 + 1] = z; A[i * 4 + 2] = size; A[i * 4 + 3] = rot;
     B[i * 4] = birth; B[i * 4 + 1] = life; B[i * 4 + 2] = kind; B[i * 4 + 3] = alpha;
     C[i * 4] = stretch; C[i * 4 + 1] = Math.random(); C[i * 4 + 2] = vx; C[i * 4 + 3] = vz;
     this.a.needsUpdate = this.b.needsUpdate = this.c.needsUpdate = true;
+  }
+  // drop the dead slots at the top of the pool from the draw
+  update(time) {
+    this.now = time;
+    const B = this.b.array;
+    let hi = this.hi;
+    while (hi >= 0 && B[hi * 4] + B[hi * 4 + 1] <= time) hi--;
+    if (hi !== this.hi) { this.hi = hi; this.mesh.geometry.instanceCount = hi + 1; }
   }
   dispose(scene) {
     scene.remove(this.mesh);
@@ -1272,11 +1291,16 @@ function applyLook(u, L) {
 }
 
 // ---------- public API ----------
+// quality: 'high', 'medium', 'low', or 'soft' for WebGL without a GPU, where the shaders run on the CPU and the
+// water is bound by its vertex shader: the coarsest grid, facet normals (the vertex shader evaluates the surface
+// once instead of three times) and plain trilinear filtering
 export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 'aom' } = {}) {
+  const soft = quality === 'soft';
   const loader = new THREE.TextureLoader();
   const normTex = loader.load('./textures/waternormals.jpg');
   normTex.wrapS = normTex.wrapT = THREE.RepeatWrapping;
-  normTex.anisotropy = 8; // the stretched ripples are sampled at grazing angles (clamped to the GPU's maximum)
+  // the stretched ripples are sampled at grazing angles (clamped to the GPU's maximum)
+  normTex.anisotropy = soft ? 1 : 8;
 
   const { geometry, vertices } = buildGeometry(quality);
   const uniforms = {
@@ -1292,6 +1316,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
     vertexShader: VERT,
     fragmentShader: FRAG,
     uniforms,
+    defines: soft ? { FACETS: '' } : {},
     side: THREE.DoubleSide,
     transparent: true,
   });
@@ -1480,6 +1505,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
       if (time >= nextRogue) { spawnRogue(cameraX); nextRogue = time + rnd(SURF.rogueMin, SURF.rogueMax); }
       emitSpray(dt, cameraX);
       spray.update(dt);
+      decals.update(time);
     },
     sample, waterY, splash, wake,
     // one foam decal: kind 0 ring, 1 puff (stretched along rot), 2 churned patch, 3 collar; size in units, life in s

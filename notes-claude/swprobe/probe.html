@@ -1,0 +1,69 @@
+<!doctype html><meta charset="utf-8"><title>probe</title>
+<style>body{margin:0}iframe{border:0;width:1280px;height:800px;display:block}</style>
+<iframe id="f"></iframe>
+<script>
+// Mimics tooling/pages/smoke.cjs on the claude page under software WebGL, and profiles each draw call.
+const q = new URLSearchParams(location.search), v = q.get('v'), tag = q.get('tag') || v;
+const T0 = performance.now(), ev = [], frames = [], slow = [], perProg = {}, info = {};
+const now = () => Math.round(performance.now() - T0);
+const log = (k, x) => ev.push([now(), k, x === undefined ? null : x]);
+const body = (final) => JSON.stringify({ v, tag, final, ev, frames: frames.slice(-400), slow, perProg, info });
+const syncPost = (obj) => { try { const x = new XMLHttpRequest(); x.open('POST', '/log/' + tag, false); x.send(JSON.stringify(obj)); } catch (e) {} };
+const post = (final) => fetch('/log/' + tag, { method: 'POST', body: body(final) }).catch(() => {});
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+async function until(fn, tmax, label) { const t = performance.now(); while (performance.now() - t < tmax) { try { const r = fn(); if (r) return r; } catch (e) {} await sleep(50); } log('timeout', label); throw new Error('timeout ' + label); }
+const f = document.getElementById('f');
+(async () => {
+  try {
+    setInterval(() => post(false), 10000);
+    f.src = '/' + v + '/?debug=1' + (q.get('extra') ? '&' + q.get('extra') : ''); log('nav');
+    await until(() => f.contentWindow.document.querySelector('#startButton'), 120000, 'dom');
+    const w = f.contentWindow; log('dom');
+    w.addEventListener('error', e => log('error', String(e.message).slice(0, 300)));
+    w.addEventListener('unhandledrejection', e => log('rejection', String(e.reason).slice(0, 300)));
+    const ce = w.console.error.bind(w.console); w.console.error = (...a) => { log('console.error', a.map(String).join(' ').slice(0, 300)); ce(...a); };
+    // profile every draw: sync readPixels after it, so the time includes the GPU process (and any shader JIT)
+    const names = new Map(), PX = new Uint8Array(4);
+    const progName = (gl, p) => {
+      if (!p) return 'none'; if (names.has(p)) return names.get(p);
+      let vs = '', fs = '';
+      for (const s of gl.getAttachedShaders(p) || []) { const src = gl.getShaderSource(s) || ''; if (gl.getShaderParameter(s, gl.SHADER_TYPE) === gl.VERTEX_SHADER) vs = src; else fs = src; }
+      const sn = (vs.match(/#define SHADER_NAME (\S+)/) || [])[1] || '';
+      const kind = /\baB\b/.test(vs) ? 'decal' : /uEmboss/.test(fs) ? 'water' : /turbidity/.test(fs) ? 'sky' : /surfPos/.test(vs) ? 'surfPos-other' : 'other';
+      const n = `${kind}:${sn}:${vs.length}/${fs.length}:#${names.size}`; names.set(p, n); return n;
+    };
+    const proto = w.WebGL2RenderingContext.prototype;
+    if (q.get('prof') !== '0') for (const fn of ['drawArrays', 'drawElements', 'drawArraysInstanced', 'drawElementsInstanced']) {
+      const o = proto[fn];
+      proto[fn] = function (...a) {
+        const name = progName(this, this.getParameter(this.CURRENT_PROGRAM)), first = !(name in perProg);
+        const inst = fn === 'drawArraysInstanced' ? a[3] : fn === 'drawElementsInstanced' ? a[4] : 1;
+        const cnt = fn.startsWith('drawArrays') ? a[2] : a[1];
+        if (first) { perProg[name] = { n: 0, ms: 0, max: 0, firstMs: null, inst, cnt }; syncPost({ v, tag, live: 'first draw starting', name, t: now(), inst, cnt }); }
+        const t = performance.now(); o.apply(this, a); this.readPixels(0, 0, 1, 1, this.RGBA, this.UNSIGNED_BYTE, PX);
+        const dt = performance.now() - t, P = perProg[name];
+        P.n++; P.ms += dt; P.max = Math.max(P.max, dt); if (first) { P.firstMs = Math.round(dt); syncPost({ v, tag, live: 'first draw done', name, t: now(), ms: Math.round(dt) }); }
+        if (dt > 200 && slow.length < 200) slow.push([now(), name, Math.round(dt), inst, cnt]);
+      };
+    }
+    await until(() => typeof w.document.querySelector('#startButton').onclick === 'function', 120000, 'startReady'); log('startReady');
+    let last = null; const step = () => { const t = performance.now(); if (last != null) frames.push([now(), Math.round(t - last)]); last = t; w.requestAnimationFrame(step); }; w.requestAnimationFrame(step);
+    let n0 = frames.length; await until(() => frames.length >= n0 + 2, 600000, 'menuFrames'); log('menuFrames');
+    // Start is ignored (it shows #loadingMessage) until the ghost models have loaded: click until the game starts
+    const started = () => w.document.querySelector('canvas') && w.document.querySelector('#startMenu').style.display === 'none';
+    let clicks = 0;
+    while (!started() && clicks < 300) { w.document.querySelector('#startButton').click(); clicks++; if (clicks === 1) log('clicked');
+      for (let k = 0; k < 20 && !started(); k++) await sleep(50); }
+    if (!started()) throw new Error('never started'); log('started', clicks);
+    await until(() => w.__beach && w.__beach.surf, 60000, 'surf'); log('surf');
+    const r = w.__beach.renderer, gl = r.getContext(), dbg = gl.getExtension('WEBGL_debug_renderer_info');
+    info.renderer = dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+    info.size = [r.domElement.width, r.domElement.height]; info.pixelRatio = r.getPixelRatio();
+    await sleep(2500); log('waited2500');
+    n0 = frames.length; await until(() => frames.length >= n0 + 2, 600000, 'gameFrames'); log('gameFrames');
+    n0 = frames.length; await until(() => frames.length >= n0 + 10, 600000, 'steady'); log('steady');
+    info.programs = r.info.programs ? r.info.programs.length : null; info.calls = r.info.render.calls; info.triangles = r.info.render.triangles;
+  } catch (e) { log('fail', String(e)); }
+  post(true);
+})();
+</script>
