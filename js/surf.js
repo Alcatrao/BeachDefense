@@ -166,6 +166,7 @@ function crestState(fn, x, dc, o) {
   o.imp = m(impOf(A.p), impOf(B.p));
   // and the tube's air pocket closes (p 1.05 -> 1.5): the roller becomes one solid tumbling mass (see evalSurf)
   o.fill = sstep(1.05, 1.5, cur.p);
+  o.pC = cur.p; // the stage of the curl in charge
   return o;
 }
 // impact whitewater of one stage: from the moment the lip lands (p ~ 0.9) until the bore has taken over
@@ -229,6 +230,7 @@ export function evalSurf(x, z, t, curl, out = {}) {
   const yv = Hc * (u < 0 ? nGauss(u, wfk, L) : nGauss(u, wb, L)) - 0.2 * Htc;
   const hw = Math.min(Math.max((yv - pivY) / (topY - pivY), 0), 1);
   const bw = 1 - sstep(0, (0.45 * Hc + wc) * kw, u);
+  let wm = 0; // the collapsed roller's step (see below), kept out of the swash pull
   if (curl) {
     const th = w.thetaMax * Math.pow(hw, 1.1) * bw;
     if (th > 0) {
@@ -252,6 +254,35 @@ export function evalSurf(x, z, t, curl, out = {}) {
       if (rag > 0) {
         const a = 0.16 * Hc * rag * rollerLumps(x, u, fn, t) / Math.max(Math.hypot(rx, ry), 0.35 * Hc);
         rx += a * rx; ry += a * ry;
+      }
+      // the collapsed roller rides the bore as a solid step (p 1.5 -> 1.9): its front (u 0..uN, up to the nose, its
+      // most forward point) becomes a steep ramp down to a toe just under the face at most 0.6 m ahead, and the inner
+      // wall (u uT..0) the straight chord from the toe back to the face. Otherwise the ragged chord pokes through the
+      // face and the near edge-on underside shows as a thin crest-parallel seam.
+      const wallT = w.fill * sstep(1.5, 1.9, w.pC) * sstep(0, 0.02, sig);
+      if (wallT > 0) {
+        const uB = (0.45 * Hc + wc) * kw;
+        const uN = 0.3 * uB * wb / Math.pow(uB ** 4 + wb ** 4, 0.25); // stays on the roller's front at any size
+        const eT = Math.exp(-((0.5 * L / wfk) ** 2)), gT = (pivY + 0.2 * Htc) / Hc;
+        const uT = -wfk * Math.sqrt(-Math.log(Math.min(Math.max(gT + (1 - gT) * eT, 1e-4), 0.9999)));
+        wm = wallT * sstep(uT, 0.5 * uT, u) * (1 - sstep(uN, 2 * uN, u));
+        if (u >= uT && u < uN) {
+          const yN = Hc * nGauss(uN, wb, L) - 0.2 * Htc, hwN = Math.min(Math.max((yN - pivY) / (topY - pivY), 0), 1);
+          const bwN = 1 - sstep(0, uB, uN), thN = w.thetaMax * Math.pow(hwN, 1.1) * bwN;
+          const XN = -(dc + uN - dp), YN = yN - pivY, cN = Math.cos(thN), sN = Math.sin(thN);
+          let nx = -(XN * cN + YN * sN), ny = -XN * sN + YN * cN; // the nose, with its own lumps
+          const aN = 1 + 0.16 * Hc * w.imp * Math.sqrt(hwN) * bwN * rollerLumps(x, uN, fn, t) / Math.max(Math.hypot(nx, ny), 0.35 * Hc);
+          nx *= aN; ny *= aN;
+          // a gentle front on a small late step instead of a backlit vertical wall
+          const toeX = nx - Math.min(0.6 / sig, 0.5 * uN);
+          const zT = sig * (toeX + dp - dc), yv0 = Hc - 0.2 * Htc;
+          const eps = (0.25 * H + 0.8) * Hc / Math.max(H, 1e-3) * sstep(0.1, 0.3, sig);
+          const toeY = (Hc * (zT < 0 ? nGauss(zT, wf, L) : nGauss(zT, wb, L)) - 0.2 * Htc - eps - yv0) / sig + yv0 - pivY;
+          let qx, qy;
+          if (u >= 0) { const q = u / uN; qx = toeX + (nx - toeX) * q; qy = toeY + (ny - toeY) * q; }
+          else { const q = Math.min(Math.max(u / uT, 0), 1); qx = toeX + (dc + uT - dp - toeX) * q; qy = toeY * (1 - q); }
+          rx += (qx - rx) * wallT; ry += (qy - ry) * wallT;
+        }
       }
       const yc = Hc * bump - 0.2 * Htc + sig * (pivY + ry - yv);
       dA += sig * (dp + rx - (dc + u));
@@ -284,7 +315,7 @@ export function evalSurf(x, z, t, curl, out = {}) {
     // smooth max of the sea surface and the swash film: a hard max leaves a crease the grid renders as a staircase
     const hm = Math.min(Math.max(0.5 + 0.5 * (ys - y) / 2.5, 0), 1);
     const ym = y + (ys - y) * hm + 2.5 * hm * (1 - hm);
-    y += (ym - y) * k; dA += (d - dA) * k * hm;
+    y += (ym - y) * k; dA += (d - dA) * k * hm * (1 - wm); // pulling the step back to rest would lean it
   }
 
   out.x = x; out.y = y; out.z = zs + dA;
@@ -479,6 +510,7 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
   float bw = 1.0 - sstep(0.0, (0.45 * Hc + wc) * kw, u);
   float th = thetaMax * pow(hw, 1.1) * bw;
   float imp = mix(impOf(A.p), impOf(B.p), wB);
+  float wm = 0.0; // the collapsed roller's step (see below), kept out of the swash pull
   if (th > 0.0) {
     float dp = dc - (0.5 * wc + 0.12 * Hc * pc);
     float X = -(dc + u - dp), Y = yv - pivY;
@@ -500,6 +532,30 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
     if (rag > 0.0) {
       float a = 0.16 * Hc * rag * rollerLumps(x, u, fn) / max(length(vec2(rx, ry)), 0.35 * Hc); // never through the axis
       rx += a * rx; ry += a * ry;
+    }
+    // the collapsed roller rides the bore as a solid step (p 1.5 -> 1.9): its front (u 0..uN, up to the nose) a steep
+    // ramp down to a toe just under the face at most 0.6 m ahead, the inner wall (u uT..0) the chord from the toe back
+    // to the face. Otherwise the ragged chord pokes through the face and the edge-on underside shows as a thin seam
+    float wallT = fillT * sstep(1.5, 1.9, pC) * sstep(0.0, 0.02, sig);
+    if (wallT > 0.0) {
+      float uB = (0.45 * Hc + wc) * kw;
+      float uN = 0.3 * uB * wb / pow(pow(uB, 4.0) + pow(wb, 4.0), 0.25); // stays on the roller's front at any size
+      float eT = exp(-pow(0.5 * L / wfk, 2.0)), gT = (pivY + 0.2 * Htc) / Hc;
+      float uT = -wfk * sqrt(-log(clamp(gT + (1.0 - gT) * eT, 1e-4, 0.9999)));
+      wm = wallT * sstep(uT, 0.5 * uT, u) * (1.0 - sstep(uN, 2.0 * uN, u));
+      if (u >= uT && u < uN) {
+        float yN = Hc * nGauss(uN, wb, L) - 0.2 * Htc, hwN = clamp((yN - pivY) / (topY - pivY), 0.0, 1.0);
+        float bwN = 1.0 - sstep(0.0, uB, uN), thN = thetaMax * pow(hwN, 1.1) * bwN;
+        float XN = -(dc + uN - dp), YN = yN - pivY, cN = cos(thN), sN = sin(thN);
+        vec2 nose = vec2(-(XN * cN + YN * sN), -XN * sN + YN * cN); // with its own lumps
+        nose *= 1.0 + 0.16 * Hc * imp * sqrt(hwN) * bwN * rollerLumps(x, uN, fn) / max(length(nose), 0.35 * Hc);
+        float toeX = nose.x - min(0.6 / sig, 0.5 * uN); // a gentle front on a small late step, not a backlit wall
+        float zT = sig * (toeX + dp - dc), yv0 = Hc - 0.2 * Htc;
+        float eps = (0.25 * H + 0.8) * Hc / max(H, 1e-3) * sstep(0.1, 0.3, sig);
+        vec2 toe = vec2(toeX, (Hc * (zT < 0.0 ? nGauss(zT, wf, L) : nGauss(zT, wb, L)) - 0.2 * Htc - eps - yv0) / sig + yv0 - pivY);
+        vec2 q = u >= 0.0 ? mix(toe, nose, u / uN) : mix(toe, vec2(dc + uT - dp, 0.0), clamp(u / uT, 0.0, 1.0));
+        rx = mix(rx, q.x, wallT); ry = mix(ry, q.y, wallT);
+      }
     }
     float yc = Hc * bump - 0.2 * Htc + sig * (pivY + ry - yv);
     dA += sig * (dp + rx - (dc + u));
@@ -536,7 +592,7 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
     float k = sstep(40.0, 20.0, d);
     float hm = clamp(0.5 + 0.5 * (ys - y) / 2.5, 0.0, 1.0);
     float ym = y + (ys - y) * hm + 2.5 * hm * (1.0 - hm);
-    y += (ym - y) * k; dA += (d - dA) * k * hm;
+    y += (ym - y) * k; dA += (d - dA) * k * hm * (1.0 - wm); // pulling the step back to rest would lean it
     // wet-sand look: dark where damp, a glassy film just behind the retreating water
     float edge = max(-d - r, 0.0);
     float glaze = tt > 0.3 ? exp(-edge / (0.25 * R + 4.0)) : 0.0;

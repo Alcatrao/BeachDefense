@@ -208,6 +208,49 @@ the shaders and the physics are unchanged; two comments updated):
   Not hand-play-tested.
 - Intermediate and debug shots stay in the session scratchpad, not committed.
 
+## Round 7 (19 Oct 2026, lead Claude session's task: remove the crest-parallel seam left on the collapsing
+## roller and bore at close range, p ~1.9-2.6, render-only; the follow-up named in Round 6's limits)
+Cause (CPU profiles of crest fn 49 through the curl branch): after the collapse the roller is still drawn as a
+closed loop. Its inner wall (u uT..0, the chord from the lip back down to the face) carries the rag lumps and
+poked up through the face (by up to 0.51 m at x 0, p 1.92 and 0.10 m at p 2.2; 0.41 and 0.07 m at x -645,
+p 1.90 and 2.3), and the loop's underside, seen nearly edge-on from close range, rendered as the thin line.
+Change in js/surf.js, the curl branch of surfPos (GLSL) and its mirror evalSurf(curl = true), kept identical
+(crestState also returns pC, the stage of the curl in charge). Physics samples evalSurf(curl = false), which
+never enters the new code; the crest rows, the far field, the beach join and the wet-sand line are untouched.
+- The collapsed roller rides the bore as a solid step, blended in by wallT = fill * sstep(1.5, 1.9, pC): its
+  front (u 0..uN, up to the nose, its most forward point, which keeps its own rotation and rag lumps) is a
+  straight ramp down to a toe at most 0.6 m ahead of the nose and (0.25 H + 0.8) m under the face; the inner
+  wall (u uT..0) is the straight chord from the toe back to the face, without lumps. The toe depth fades out
+  as sig drops from 0.3 to 0.1 near the shore, so no vertical drop is left as the roller flattens.
+- uN = 0.3 * uB * wb / (uB^4 + wb^4)^(1/4), 0.3 times a soft minimum of uB and wb, so the nose stays on the
+  roller's front at any size (tied to uB alone it fell behind the front at small sig).
+- The swash's pull back to rest (dA) is masked over the step (wm); otherwise it leans the wall.
+- Ramp run chosen by measurement: a vertical front showed as a grey backlit band at p 3.0; a 0.6 m run keeps
+  the chord at most 0.006 m above the face for p >= 1.9; 1.2 m poked 2-4 cm through it again. Step height at
+  x 0: 1.46 m at p 2.6, 1.11 at 2.75, 0.55 at 2.9, 0.39 at 3.0, 0.17 at 3.1.
+- Verified (headless preview, 1280x720 per panel, spray hidden, rogue off), A/B shots with 7e4ddc3 on the left
+  and Round 7 on the right: r11-ab-p192-close and r11-ab-p220-close (x 0, p 1.92 and 2.2, close range),
+  r11-ab-p260-front (p 2.6), r11-ab-x-645-p220-close (outer bar) and r11-zoom-p300-toe (p 3.0, zoomed). The seam
+  is gone at p 1.92, 2.2 and 2.6, close and front, and so is the crease between roller and bore on the outer
+  bars (also x -400 at p 1.92 and 2.6). At p 3.0 the base's dark dashed line becomes a faint light edge at the
+  toe. Beach views (p 1.92, 2.6, 3.2), a high view (p 2.2), the far field and the wet-sand line are unchanged
+  apart from the seam. GPU vertex positions read back from the shader (wind chop off) match
+  evalSurf(curl = true) within 3.3 mm over 17 cases.
+- Physics, the Round 6 harness on a fresh page: identical to 7e4ddc3 (wipeouts 2 at z 21, 2 at z -64, 1 at
+  z 100; maximum heights 18.1/15.3/17.7, water 14.4/10.7/13.7; rogue lift 32.8 at z 430, water 40.8); only the
+  randomly drawn next rogue differed (162). Spray: 4949 of 6000 particles alive after 2 s of updates. Render
+  (readPixels timing, A/B alternated twice on one page, ms per frame, Round 7 vs 7e4ddc3): beach 0.49-0.52 vs
+  0.49-0.52, high 0.54 vs 0.53, close 0.59-0.61 vs 0.58-0.61 (0.22-0.31 without the surf); surf.update
+  0.08-0.12 ms. Console: only pointer-lock errors.
+- Limits: a faint soft edge at the toe at p >= 3.0, slightly faceted because the low step spans about one mesh
+  row (much fainter than the base's line); a small dark notch on the front at p 2.6 (probably the nose's rag
+  lumps); the half-collapsed roller at p 1.55-1.75, before the step takes over, was already partly exposed in
+  7e4ddc3 and is slightly more so with the ramp. The square-ish foam pattern on the tall step is the existing
+  foam texture (the base's roller has it too). Not hand-play-tested.
+- Intermediate and debug shots stay in the session scratchpad, not committed. The page helpers (GPU/CPU parity,
+  A/B sheets, crest finder) are outside the repo: C:\Users\joaoa\AppData\Roaming\Claude\side-session-notes\
+  local_f261344c-dddd-4e11-9b93-ef3f8fb5ec9e\round7-claude-harness.js.
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
@@ -216,7 +259,9 @@ save renderer.toDataURL captures while the preview pane is hidden).
 Committed 4fc714e and pushed to origin/claude/shorebreak-waves on 17 Oct 2026 (owner request).
 Round 3 e55afdb pushed 18 Oct 2026 (owner request). Round 4 0400658 pushed 18 Oct 2026 (owner request). No PR.
 Round 5 9dd2038 pushed 18 Oct 2026 (owner request), with this notes commit; the push republishes /claude/ (see below).
-Round 6 (crest rows) committed 19 Oct 2026 in the commit that adds this line; not pushed (awaiting the owner).
+Round 6 7e4ddc3 (crest rows) pushed 19 Oct 2026 (owner request).
+Round 7 (collapsed roller as a solid step) committed 19 Oct 2026 in the commit that adds this line; not pushed
+(awaiting the owner).
 
 ## GitHub Pages (Codex-owned, 18 Oct 2026)
 Codex publishes all three versions: https://alcatrao.github.io/BeachDefense/ (main),
