@@ -1,0 +1,395 @@
+{
+  "rows": [
+    {
+      "time": 28,
+      "before": {
+        "vertices": 15510,
+        "triangles": 30268,
+        "crestZ": 8.119999885559082,
+        "crestY": 1.86698317527771,
+        "reconstructionMs": 4.199999928474426,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 330,
+        "reusedCells": 15510,
+        "activeCells": 15510,
+        "uploadBytes": 859536,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 7.919999980926514,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 329,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 5.87693957469189,
+          "tangentNormalMismatchP95": 20.84197314220613,
+          "normalJumpMean": 8.99347298719524,
+          "normalJumpP95": 28.7084211000551
+        }
+      },
+      "after": {
+        "vertices": 15888,
+        "triangles": 31020,
+        "crestZ": 8.068602561950684,
+        "crestY": 1.874731183052063,
+        "reconstructionMs": 1.4000000953674316,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 331,
+        "contour": {
+          "points": 331,
+          "segments": 330,
+          "ambiguousCells": 0,
+          "invalidDegree": 0,
+          "maxFairingDisplacement": 0.04692282385412391,
+          "method": "connected-marching-squares"
+        },
+        "uploadBytes": 880656,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 2.9,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 330,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 4.851271266849495,
+          "tangentNormalMismatchP95": 17.034831189227678,
+          "normalJumpMean": 8.884813549577073,
+          "normalJumpP95": 31.610924065215855
+        }
+      }
+    },
+    {
+      "time": 30,
+      "before": {
+        "vertices": 13207,
+        "triangles": 25852,
+        "crestZ": 4.119999885559082,
+        "crestY": 0.8134060502052307,
+        "reconstructionMs": 1.0999999046325684,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 281,
+        "reusedCells": 13207,
+        "activeCells": 13207,
+        "uploadBytes": 732848,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 1.3199999809265137,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 46
+        },
+        "quality": {
+          "sectionEdges": 281,
+          "branchVertices": 1,
+          "tangentNormalMismatchMean": 5.430780486610997,
+          "tangentNormalMismatchP95": 15.640139963915917,
+          "normalJumpMean": 7.259708908654738,
+          "normalJumpP95": 23.9420811297335
+        }
+      },
+      "after": {
+        "vertices": 13584,
+        "triangles": 26508,
+        "crestZ": 4.041295528411865,
+        "crestY": 0.822676420211792,
+        "reconstructionMs": 1,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 283,
+        "contour": {
+          "points": 283,
+          "segments": 282,
+          "ambiguousCells": 1,
+          "invalidDegree": 0,
+          "maxFairingDisplacement": 0.05600347794401643,
+          "method": "connected-marching-squares"
+        },
+        "uploadBytes": 752784,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 1.0199999809265137,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 282,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 4.5220303398393025,
+          "tangentNormalMismatchP95": 14.024058905701342,
+          "normalJumpMean": 8.295952465238749,
+          "normalJumpP95": 23.7287515526328
+        }
+      }
+    },
+    {
+      "time": 31.5,
+      "before": {
+        "vertices": 13536,
+        "triangles": 26404,
+        "crestZ": 4.092814922332764,
+        "crestY": 0.591485321521759,
+        "reconstructionMs": 2,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 288,
+        "reusedCells": 13536,
+        "activeCells": 13536,
+        "uploadBytes": 750000,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 2.1,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 287,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 4.736820856186676,
+          "tangentNormalMismatchP95": 15.315833125110176,
+          "normalJumpMean": 7.058946712674563,
+          "normalJumpP95": 22.358902877732884
+        }
+      },
+      "after": {
+        "vertices": 13872,
+        "triangles": 27072,
+        "crestZ": 4.031928539276123,
+        "crestY": 0.6260437369346619,
+        "reconstructionMs": 1.600000023841858,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 289,
+        "contour": {
+          "points": 289,
+          "segments": 288,
+          "ambiguousCells": 0,
+          "invalidDegree": 0,
+          "maxFairingDisplacement": 0.05423483580641402,
+          "method": "connected-marching-squares"
+        },
+        "uploadBytes": 768768,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 1.5400000095367432,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 288,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 3.7510849471933585,
+          "tangentNormalMismatchP95": 11.776808021727133,
+          "normalJumpMean": 6.840464214699618,
+          "normalJumpP95": 18.90742680563487
+        }
+      }
+    },
+    {
+      "time": 33.5,
+      "before": {
+        "vertices": 13066,
+        "triangles": 25484,
+        "crestZ": 4.440000057220459,
+        "crestY": 0.3104482591152191,
+        "reconstructionMs": 2,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 278,
+        "reusedCells": 13066,
+        "activeCells": 13066,
+        "uploadBytes": 723920,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 2.0599999904632567,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 277,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 5.279186675053979,
+          "tangentNormalMismatchP95": 16.274943392188572,
+          "normalJumpMean": 7.2673936372234955,
+          "normalJumpP95": 26.913223230823345
+        }
+      },
+      "after": {
+        "vertices": 13392,
+        "triangles": 26132,
+        "crestZ": 4.364884376525879,
+        "crestY": 0.30826812982559204,
+        "reconstructionMs": 1.4000000953674316,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 279,
+        "contour": {
+          "points": 279,
+          "segments": 278,
+          "ambiguousCells": 0,
+          "invalidDegree": 0,
+          "maxFairingDisplacement": 0.05399680926028907,
+          "method": "connected-marching-squares"
+        },
+        "uploadBytes": 742128,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 1.4600000143051148,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 278,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 3.9436198235940045,
+          "tangentNormalMismatchP95": 12.150811948286503,
+          "normalJumpMean": 7.14446449778389,
+          "normalJumpP95": 20.167241919566994
+        }
+      }
+    },
+    {
+      "time": 36,
+      "before": {
+        "vertices": 13724,
+        "triangles": 26772,
+        "crestZ": 6.840000152587891,
+        "crestY": 0.7135006785392761,
+        "reconstructionMs": 2.100000023841858,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 292,
+        "reusedCells": 13724,
+        "activeCells": 13724,
+        "uploadBytes": 760432,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 2.1,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 291,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 5.893837590809846,
+          "tangentNormalMismatchP95": 16.911338146225514,
+          "normalJumpMean": 7.691544118831072,
+          "normalJumpP95": 22.4675723992227
+        }
+      },
+      "after": {
+        "vertices": 14064,
+        "triangles": 27448,
+        "crestZ": 6.919466495513916,
+        "crestY": 0.7180535197257996,
+        "reconstructionMs": 1.5,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 293,
+        "contour": {
+          "points": 293,
+          "segments": 292,
+          "ambiguousCells": 0,
+          "invalidDegree": 0,
+          "maxFairingDisplacement": 0.051512357754947516,
+          "method": "connected-marching-squares"
+        },
+        "uploadBytes": 779424,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 1.5,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 292,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 4.415691096038407,
+          "tangentNormalMismatchP95": 12.160030498531908,
+          "normalJumpMean": 7.821193111548989,
+          "normalJumpP95": 23.433308411126678
+        }
+      }
+    },
+    {
+      "time": 40,
+      "before": {
+        "vertices": 13442,
+        "triangles": 26220,
+        "crestZ": 11.479999542236328,
+        "crestY": 1.2695430517196655,
+        "reconstructionMs": 2.0999999046325684,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 286,
+        "reusedCells": 13442,
+        "activeCells": 13442,
+        "uploadBytes": 744784,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 2.1,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 285,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 4.656512081154501,
+          "tangentNormalMismatchP95": 14.824191948725078,
+          "normalJumpMean": 6.931112386532629,
+          "normalJumpP95": 19.351936005805744
+        }
+      },
+      "after": {
+        "vertices": 13776,
+        "triangles": 26884,
+        "crestZ": 11.542956352233887,
+        "crestY": 1.2663202285766602,
+        "reconstructionMs": 1.5999999046325684,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 287,
+        "contour": {
+          "points": 287,
+          "segments": 286,
+          "ambiguousCells": 0,
+          "invalidDegree": 0,
+          "maxFairingDisplacement": 0.05652637785519085,
+          "method": "connected-marching-squares"
+        },
+        "uploadBytes": 763440,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 1.5199999809265137,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 286,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 3.486321067551317,
+          "tangentNormalMismatchP95": 10.990498971611439,
+          "normalJumpMean": 6.250924947354508,
+          "normalJumpP95": 21.23149029120135
+        }
+      }
+    }
+  ],
+  "errors": []
+}

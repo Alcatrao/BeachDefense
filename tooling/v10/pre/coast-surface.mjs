@@ -1,0 +1,54 @@
+import * as T from 'three';import{createWaterMaterial}from'./water-material.mjs';import{bottom,WIDTH}from'./fluid.mjs';
+// One nonuniform surface-nets grid spans the beach. A smooth partition of unity
+// blends liquid density, before extraction, so the rider patch has no cut edge.
+export function createCoastSurface(scene,shore,tier={columns:48}){
+ const h=.16,y0=-3.6,z0=-7.8,ny=54,nz=228,S=ny*nz,maxX=tier.columns||48,N=maxX*S;
+ const d=new Float32Array(N),ff=new Float32Array(N),ids=new Int32Array(N),base=new Float32Array(S),bf=new Float32Array(S),liquid=new Float32Array(S),scratch=new Float32Array(S),sf=new Float32Array(S),labels=new Uint8Array(S),queue=new Int32Array(S);
+ const solid=new Uint8Array(S);for(let k=0;k<nz;k++)for(let j=0;j<ny;j++)solid[j+k*ny]=y0+j*h<bottom(0,z0+k*h)+.03?1:0;
+ const lh=.2,lx0=-2.2,lnx=23,local=new Float32Array(lnx*S),lf=new Float32Array(lnx*S);
+ const sums=new Float32Array(300000),weights=new Float32Array(100000);
+ const pos=new Float32Array(300000),norm=new Float32Array(300000),foam=new Float32Array(100000),wetness=new Float32Array(100000),indices=new Uint32Array(600000),geo=new T.BufferGeometry();
+ for(const[name,array,size]of[['position',pos,3],['normal',norm,3],['foam',foam,1],['wetness',wetness,1]])geo.setAttribute(name,new T.BufferAttribute(array,size).setUsage(T.DynamicDrawUsage));geo.setIndex(new T.BufferAttribute(indices,1).setUsage(T.DynamicDrawUsage));
+ const mat=createWaterMaterial(tier);
+ const mesh=new T.Mesh(geo,mat);mesh.scale.setScalar(6);mesh.frustumCulled=false;scene.add(mesh);
+ let vertices=0,triangles=0,ms=0,crestY=0,crestZ=12,nx=0;
+ const xs=new Float64Array(maxX),activeCells=new Int32Array(100000),cellStart=new Int32Array(maxX+1),profileCells=new Int32Array(S),profile=new Float32Array(S*6);
+ const corners=[0,S,S+1,1,ny,ny+S,ny+S+1,ny+1],cx=[0,1,1,0,0,1,1,0],cy=[0,0,1,1,0,0,1,1],cz=[0,0,0,0,1,1,1,1],edges=[[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]],profileCorners=[0,1,ny+1,ny],profileY=[0,1,1,0],profileZ=[0,0,1,1],factors=[.45,-.47];
+ const filtered=(src,a)=>(4*src[a]+2*(src[a-1]+src[a+1]+src[a-ny]+src[a+ny])+src[a-ny-1]+src[a-ny+1]+src[a+ny-1]+src[a+ny+1])/16;
+ let profileCount=0,reusedCells=0,activeCount=0;
+ const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
+ function update(f,originX=null,live=null,focusX=0){const start=performance.now();base.fill(0);bf.fill(0);
+ for(let i=0;i<f.n;i++){const a=i*3,x=f.p[a],y=f.p[a+1],z=f.p[a+2],j=Math.floor((y-y0)/h),k=Math.floor((z-z0)/h);if(Math.abs(x)>.21)continue;for(let zz=Math.max(0,k-2);zz<=Math.min(nz-1,k+2);zz++)for(let yy=Math.max(0,j-2);yy<=Math.min(ny-1,j+2);yy++){const q=1-(x*x+(y0+yy*h-y)**2+(z0+zz*h-z)**2)/(.21*.21);if(q<=0)continue;const w=q*q*q,b=yy+zz*ny;base[b]+=w;bf[b]+=w*f.foam[i];}}
+ scratch.set(base);sf.set(bf);
+ for(let k=1;k<nz-1;k++)for(let j=1;j<ny-1;j++){const a=j+k*ny;base[a]=filtered(scratch,a);bf[a]=filtered(sf,a);}
+
+ liquid.set(base);for(let k=0;k<nz;k++)for(let j=0;j<ny;j++)if(solid[j+k*ny])base[j+k*ny]=4;
+ labels.fill(0);let head=0,tail=0;for(let k=0;k<nz;k++){queue[tail++]=k*ny;labels[k*ny]=1;}while(head<tail){const a=queue[head++],j=a%ny,k=Math.floor(a/ny);for(let edge=0;edge<4;edge++){const b=edge===0?(j>0?a-1:-1):edge===1?(j<ny-1?a+1:-1):edge===2?(k>0?a-ny:-1):(k<nz-1?a+ny:-1);if(b>=0&&!labels[b]&&base[b]>=1.05){labels[b]=1;queue[tail++]=b;}}}for(let a=0;a<S;a++){bf[a]/=Math.max(.0001,base[a]);if(!labels[a])base[a]=Math.min(base[a],1.05*.99);base[a]/=1.05;const z=z0+Math.floor(a/ny)*h,y=y0+(a%ny)*h,offshore=smooth((z-22)/4);base[a]=base[a]*(1-offshore)+Math.max(0,Math.min(4,1-y/h*2))*offshore;bf[a]*=1-offshore;}
+ const active=originX!==null&&live?.n;nx=0;for(let c=-1;c<=17;c++){const x=-107.5+c*215/16;if(!active||Math.abs(x-originX)>2.45)xs[nx++]=x;}if(active)for(let c=0;c<lnx;c++)xs[nx++]=Math.max(-107.5,Math.min(107.5,originX+lx0+c*lh));
+ if(!active){nx=maxX;const center=Math.max(-100,Math.min(100,focusX));for(let i=0;i<nx;i++){const u=2*i/(nx-1)-1;xs[i]=center+Math.sign(u)*Math.pow(Math.abs(u),1.8)*(u<0?center+121:121-center);}}
+ if(nx>maxX)throw Error('Surface grid capacity');for(let i=1;i<nx;i++){const x=xs[i];let j=i-1;while(j>=0&&xs[j]>x){xs[j+1]=xs[j];j--;}xs[j+1]=x;}let unique=0;for(let i=0;i<nx;i++)if(!unique||xs[i]-xs[unique-1]>.08)xs[unique++]=xs[i];nx=unique;
+ if(active){local.fill(0);lf.fill(0);for(let i=0;i<live.n;i++){const a=i*3,x=live.p[a],y=live.p[a+1],z=live.p[a+2],ix=Math.floor((x-lx0)/lh),iy=Math.floor((y-y0)/h),iz=Math.floor((z-z0)/h);for(let k=Math.max(0,iz-3);k<=Math.min(nz-1,iz+3);k++)for(let j=Math.max(0,iy-3);j<=Math.min(ny-1,iy+3);j++)for(let c=Math.max(0,ix-2);c<=Math.min(lnx-1,ix+2);c++){const q=1-((lx0+c*lh-x)**2+(y0+j*h-y)**2+(z0+k*h-z)**2)/(.35*.35);if(q<=0)continue;const w=q*q*q,b=c*S+j+k*ny;local[b]+=w;lf[b]+=w*live.foam[i];}}}
+ for(let c=0;c<nx;c++){const x=xs[c]-(originX??0),weight=active?smooth((WIDTH/2-Math.abs(x))/.8):0,cc=Math.max(0,Math.min(lnx-1,Math.round((x-lx0)/lh))),offset=c*S;if(!weight){d.set(base,offset);ff.set(bf,offset);continue;}for(let k=0;k<nz;k++)for(let j=0;j<ny;j++){const a=j+k*ny,b=offset+a,li=cc*S+a,ld=solid[a]?4:local[li]/1.1;const w=weight*(1-smooth((z0+k*h-22)/4));d[b]=base[a]*(1-w)+ld*w;ff[b]=bf[a]*(1-w)+(lf[li]/Math.max(.0001,local[li]))*w;}}
+ // The background density is constant alongshore. Extract its profile once,
+ // then reuse the exact surface-net vertex for every unaffected column pair.
+ profileCount=0;for(let k=1;k<nz-2;k++)for(let j=1;j<ny-2;j++){const a=j+k*ny;let mask=0;for(let q=0;q<4;q++)if(base[a+profileCorners[q]]>=1)mask|=1<<q;if(!mask||mask===15)continue;let y=0,z=0,F=0,hits=0;for(let u=0;u<4;u++){const v=(u+1)%4,au=a+profileCorners[u],av=a+profileCorners[v],da=base[au],db=base[av];if((da>=1)===(db>=1))continue;const t=(1-da)/(db-da);y+=profileY[u]+t*(profileY[v]-profileY[u]);z+=profileZ[u]+t*(profileZ[v]-profileZ[u]);F+=bf[au]+t*(bf[av]-bf[au]);hits++;}const b=a*6;profile[b]=y0+(j+y/hits)*h;profile[b+1]=z0+(k+z/hits)*h;profile[b+2]=F/hits;let gy=0,gz=0;for(let q=0;q<4;q++){const b=a+profileCorners[q];gy+=2*(base[b-1]-base[b+1]);gz+=2*(base[b-ny]-base[b+ny]);}profile[b+3]=gy;profile[b+4]=gz;profile[b+5]=Math.min(1,Math.max(liquid[a],liquid[a+1],liquid[a+ny],liquid[a+ny+1])/1.05);profileCells[profileCount++]=a;}
+ ids.fill(-1,0,nx*S);vertices=0;let count=0;crestY=-100;activeCount=0;reusedCells=0;
+
+ for(let c=0;c<nx-1;c++){cellStart[c]=activeCount;
+ const untouched=!active||(Math.abs(xs[c]-originX)>=WIDTH/2&&Math.abs(xs[c+1]-originX)>=WIDTH/2&&((xs[c]-originX)*(xs[c+1]-originX)>0));
+ if(untouched){const xx=(xs[c]+xs[c+1])*.5,slope=shore(xx*6+.5)-shore(xx*6-.5),offset=shore(xx*6)/6;for(let i=0;i<profileCount;i++){const a=profileCells[i],p=a*6,v=vertices++,b=v*3;ids[c*S+a]=v;activeCells[activeCount++]=c*S+a;pos[b]=xx;pos[b+1]=profile[p];pos[b+2]=profile[p+1]+offset;foam[v]=profile[p+2];wetness[v]=profile[p+5];norm[b]=-slope*profile[p+4];norm[b+1]=profile[p+3];norm[b+2]=profile[p+4];if(profile[p+1]>4&&profile[p+1]<12&&Math.abs(xx)<14&&profile[p]>crestY){crestY=profile[p];crestZ=profile[p+1];}}reusedCells+=profileCount;continue;}
+ for(let k=1;k<nz-2;k++)for(let j=1;j<ny-2;j++){const a=c*S+j+k*ny;let mask=0;for(let q=0;q<8;q++)if(d[a+corners[q]]>=1)mask|=1<<q;if(!mask||mask===255)continue;let x=0,y=0,z=0,F=0,hits=0;for(const[u,v]of edges){const au=a+corners[u],av=a+corners[v],da=d[au],db=d[av];if((da>=1)===(db>=1))continue;const t=(1-da)/(db-da);x+=cx[u]+t*(cx[v]-cx[u]);y+=cy[u]+t*(cy[v]-cy[u]);z+=cz[u]+t*(cz[v]-cz[u]);F+=ff[au]+t*(ff[av]-ff[au]);hits++;}const v=vertices++,b=v*3;if(v>=100000)throw Error('Surface vertex capacity');ids[a]=v;activeCells[activeCount++]=a;const xx=xs[c]+x/hits*(xs[c+1]-xs[c]),yy=y0+(j+y/hits)*h,zz=z0+(k+z/hits)*h;pos[b]=xx;pos[b+1]=yy;pos[b+2]=zz+shore(xx*6)/6;foam[v]=F/hits;wetness[v]=1;
+ // Average cell gradients gives a shared, smooth normal on the reconstructed skin.
+ let gy=0,gz=0;for(const q of corners){gy+=d[a+q-1]-d[a+q+1];gz+=d[a+q-ny]-d[a+q+ny];}const gx=c>0&&c<nx-2?(d[a-S]-d[a+S])*8*h/(xs[c+1]-xs[c-1]):0,slope=(shore(xx*6+.5)-shore(xx*6-.5));norm[b]=gx-slope*gz;norm[b+1]=gy;norm[b+2]=gz;
+ if(zz>4&&zz<12&&Math.abs(xx)<14&&yy>crestY){crestY=yy;crestZ=zz;}}}
+ cellStart[nx-1]=activeCount;
+ const quad=(a,b,c,e)=>{a=ids[a];b=ids[b];c=ids[c];e=ids[e];if(a<0||b<0||c<0||e<0)return;if(count+6>indices.length)throw Error('Surface index capacity');indices[count++]=a;indices[count++]=b;indices[count++]=c;indices[count++]=a;indices[count++]=c;indices[count++]=e;};
+ for(let i=cellStart[1];i<activeCount;i++){const a=activeCells[i],j=a%ny,k=Math.floor((a%S)/ny);if(j<2||k<2)continue;const inside=d[a]>=1;if(inside!==(d[a+S]>=1))quad(a-1-ny,a-ny,a,a-1);if(inside!==(d[a+1]>=1))quad(a-S-ny,a-S,a,a-ny);if(inside!==(d[a+ny]>=1))quad(a-S-1,a-1,a,a-S);}
+ // Small nonshrinking fairing passes remove grid kinks, retaining overhangs.
+ // Alongshore coordinates stay fixed; displacement per pass is bounded at 4 cm.
+ for(const factor of factors){sums.fill(0,0,vertices*3);weights.fill(0,0,vertices);for(let i=0;i<count;i+=3){const a=indices[i],b=indices[i+1],c=indices[i+2];for(let edge=0;edge<3;edge++){const u=edge===0?a:edge===1?b:c,v=edge===0?b:edge===1?c:a;weights[u]++;weights[v]++;for(let q=1;q<3;q++){const delta=pos[v*3+q]-pos[u*3+q];sums[u*3+q]+=delta;sums[v*3+q]-=delta;}}}for(let i=0;i<vertices;i++)if(weights[i])for(let q=1;q<3;q++)pos[i*3+q]+=Math.max(-.04,Math.min(.04,factor*sums[i*3+q]/weights[i]));}
+ geo.setDrawRange(0,count);for(const a of Object.values(geo.attributes)){a.updateRange.count=vertices*a.itemSize;a.needsUpdate=vertices>0;}geo.index.updateRange.count=count;geo.index.needsUpdate=count>0;triangles=count/3;mat.uniforms.time.value=f.time;ms=performance.now()-start;
+ }
+ function checkSurface(){const edges=new Map(),add=(a,b)=>{const key=Math.min(a,b)*100000+Math.max(a,b);edges.set(key,(edges.get(key)||0)+1);};for(let i=0;i<geo.drawRange.count;i+=3){const a=indices[i],b=indices[i+1],c=indices[i+2];add(a,b);add(b,c);add(c,a);}let interiorBoundaryEdges=0,nonmanifoldEdges=0;for(const[key,count]of edges){if(count>2)nonmanifoldEdges++;if(count!==1)continue;const a=Math.floor(key/100000)*3,b=(key%100000)*3,x=(pos[a]+pos[b])*.5,y=(pos[a+1]+pos[b+1])*.5,z=(pos[a+2]+pos[b+2])*.5-shore(x*6)/6;if(Math.abs(x)<105&&y>-3.1&&y<4.3&&z>-5&&z<24)interiorBoundaryEdges++;}return{interiorBoundaryEdges,nonmanifoldEdges};}
+ return{mesh,update,checkSurface,cutaway(on){mat.uniforms.cut.value=on?0:-645;mat.uniforms.cutEnd.value=on?12:645;},diagnostics:()=>({vertices,triangles,crestZ,crestY,reconstructionMs:ms,widthMetres:215,xColumns:nx,singleSurface:true,profileCount,reusedCells,activeCells:activeCount,uploadBytes:vertices*32+triangles*12,allocatedUploadBytes:pos.byteLength+norm.byteLength+foam.byteLength+wetness.byteLength+indices.byteLength})};
+}

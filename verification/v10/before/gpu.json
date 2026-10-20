@@ -1,0 +1,184 @@
+{
+  "mode": "gpu",
+  "gpu": {
+    "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "timer": true,
+    "width": 1920,
+    "height": 1080
+  },
+  "errors": [],
+  "failed": [],
+  "screenshotMs": 349,
+  "frames": 301,
+  "cpuFrameMs": 1.2033333333333334,
+  "frameIntervalMs": 16.680666666666664,
+  "p95FrameIntervalMs": 16.800000000000182,
+  "draws": {
+    "scene": {
+      "callsPerFrame": 11.9734219269103,
+      "indexReferencesPerFrame": 251171.64119601328,
+      "cpuSubmitMsPerFrame": 0.012292359754492674
+    },
+    "water": {
+      "callsPerFrame": 2,
+      "indexReferencesPerFrame": 88550.23255813954,
+      "cpuSubmitMsPerFrame": 0.0016611291720621609
+    },
+    "foam": {
+      "callsPerFrame": 1,
+      "indexReferencesPerFrame": 2338.6843853820596,
+      "cpuSubmitMsPerFrame": 0.0009966775824461268
+    }
+  },
+  "timers": {
+    "available": true,
+    "disjoint": false,
+    "sums": {
+      "scene": {
+        "ns": 99426272,
+        "draws": 1997
+      },
+      "water": {
+        "ns": 44177664,
+        "draws": 336
+      },
+      "foam": {
+        "ns": 13500000,
+        "draws": 167
+      }
+    }
+  },
+  "diagnostic": {
+    "game": {
+      "active": true,
+      "paused": false,
+      "input": {
+        "automatedTest": true,
+        "pointerLocked": false,
+        "cameraRoll": 0
+      },
+      "renderFrames": 430,
+      "rider": {
+        "x": 0,
+        "y": 10.849556355847001,
+        "z": -87.29702010153468,
+        "vx": 0,
+        "vy": 0,
+        "vz": -1.1582594055990705,
+        "mode": "swimming",
+        "grounded": false
+      },
+      "tier": {
+        "name": "hardware",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "pixelRatio": 1,
+        "columns": 48,
+        "farX": 48,
+        "farZ": 24,
+        "particles": 640,
+        "anisotropy": 1
+      },
+      "draws": {
+        "frame": 430,
+        "calls": 15,
+        "triangles": 116012,
+        "points": 0,
+        "lines": 0
+      },
+      "geometries": 15,
+      "ocean": {
+        "coast": {
+          "vertices": 15134,
+          "triangles": 29532,
+          "crestZ": 4.440000057220459,
+          "crestY": 0.45065486431121826,
+          "reconstructionMs": 2.399999976158142,
+          "widthMetres": 215,
+          "xColumns": 48,
+          "singleSurface": true,
+          "profileCount": 322,
+          "reusedCells": 15134,
+          "activeCells": 15134,
+          "uploadBytes": 838672,
+          "allocatedUploadBytes": 5600000
+        },
+        "local": {
+          "foamPoints": 130
+        },
+        "effects": {
+          "capacity": 640,
+          "live": 130,
+          "drawSlots": 204,
+          "totalBorn": 1188,
+          "vertices": 4,
+          "trianglesPerInstance": 2,
+          "gpuAnimated": true
+        },
+        "revision": 214
+      }
+    },
+    "fluid": {
+      "particles": 0,
+      "ambientParticles": 15056,
+      "time": 32.29999999999945,
+      "localTime": 32.29999999999945,
+      "originX": 0,
+      "rider": {
+        "position": [
+          0,
+          1.108259392641167,
+          -1.4347744035620391
+        ],
+        "velocity": [
+          0,
+          0,
+          -0.19304323426651177
+        ],
+        "quaternion": [
+          0.0038231325606185697,
+          0,
+          0,
+          0.9999926918020071
+        ],
+        "angularVelocity": [
+          -0.09076187376177944,
+          0,
+          0
+        ],
+        "tiltDegrees": 0.43809978772549124,
+        "contacts": 2,
+        "totalImpulse": 2869.858409285897,
+        "waterForceZ": 2.2459332521273345,
+        "waterHeight": 0.7442081243546851,
+        "waterDepth": 0.4862427061819442,
+        "flowZ": 0.10272816216277139,
+        "skimming": false,
+        "wiped": false
+      },
+      "dryBeach": false,
+      "board": null,
+      "localActive": true,
+      "physicsMs": 0.2999999523162842,
+      "ambientMs": 15.299999952316284,
+      "ambientDropped": 0,
+      "backgroundMode": "live",
+      "characterModel": "particle-height-and-flow",
+      "breaker": {
+        "z": 5.154117647058823,
+        "y": 0.28412091732025146,
+        "strength": 0.29518115959580626
+      },
+      "oneWayCoupling": true,
+      "maxParcelStepRms": 0.0431335189782511,
+      "phaseError": 0,
+      "droppedTime": 0,
+      "revision": 214
+    },
+    "pointerLockAttempts": 0
+  },
+  "gpuPerDrawMs": {
+    "scene": 0.049787817726589884,
+    "water": 0.13148114285714288,
+    "foam": 0.08083832335329341
+  }
+}
