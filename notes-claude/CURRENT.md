@@ -330,6 +330,86 @@ default.lgt has a dim cyan 10 40 50), suninclination 38, sunrotation 243, ambien
   https://community.khronos.org/t/water-question/43367 , https://community.khronos.org/t/bump-map-flitering/40169 ,
   https://tympanus.net/codrops/?p=88608 , https://github.com/jklintan/Procedural-Water
 
+## Round 9 (19-20 Oct 2026, owner: the water sometimes looks 'squared' (one pattern repeating a lot); whiter,
+## brighter, watery foam; AoM's meteor splash as a line of splashes where the tube breaks; foam to hide the tube
+## rolling back as soon as, or even before, it breaks)
+AoM's splash was read from the owner's install for technique only (reference/aom-2026-10-19/README.md, "Meteor
+splash (Round 9)"; git-ignored, nothing copied): one particle effect whose texture is a single painted plume (a
+mottled white sheet over streaks fanning down, on transparent ground) on a few big billboards that burst up,
+spread and fall back. All changes are in js/surf.js.
+- Repetition: the tiled normal map lined up into a regular weave over open water. normNT() samples it without
+  tiling (iq's technique 3: a smooth noise picks one of 9 random offsets per irregular patch; two offsets blend
+  across each border, sharpened by the samples' difference; textureGrad keeps the mip level across the borders)
+  on all four layers: the two detail layers (the second now turned ~37 degrees, R37) and both wavelet sets.
+  Cat's paws: two drifting noises vary the detail x0.7-1.3 and the wavelets x0.45-1.35 in large patches.
+  The soft tier keeps plain fetches (SOFT define).
+- Foam: whiter and brighter, on its shaded side too: base (0.80, 0.88, 0.94), was (0.70, 0.80, 0.88), to white
+  with thickness; light 0.98 + 0.8 wrap, was 0.74 + 0.95 wrap. Thin films keep a lighter water tint (body x1.6 +
+  0.3, was x2). The churn shadow is a light blue (0.78, 0.87, 0.95), was (0.62, 0.73, 0.85), with ao 0.8-1.08,
+  was 0.62-1.12. Aerated water (0.44, 0.67, 0.71), was (0.36, 0.60, 0.64). Fresh foam is wet: a soft sheen and
+  twinkling bubble glints (hashed cells in rest space, each at least about a pixel wide, gone where the cells
+  would shimmer). The vivid grade no longer tints foam.
+- Splash plumes (class Splashes, plumeAtlas): billboards drawn from a procedural 2x2 atlas of four plume pictures
+  made at start-up (256 px tiles, 128 on the soft tier; R opacity, G dissolve order, B shading): a broad sheet
+  with a dome top and a torn outline, a fan of streaks out of its underside, 30 flung and 40 falling drops, fine
+  grain. A plume reaches full height by 40 % of its life and widens, then its top falls back, it sinks and it
+  dissolves from the thin spray inwards. It stands upright, turned most of the way to lie along its crest (never
+  edge-on), leans back half-way towards a camera looking down, and throws its top shoreward. Its depth is taken
+  nearer the camera by up to 0.3 of its height (at most half the distance, less from above), so the face behind
+  does not cut it in straight lines. It fades out from 2000 to 3500 units. One instanced quad each, a pool of
+  1024 (soft 128), the lowest free slot as in Decals, instanceCount trimmed to the highest live slot;
+  transparent, no depth write, render order 3. emitSpray emits them crest by crest (H > 2.5) every 1/30 s in
+  the 40-unit columns within 1600 of the camera:
+  | kind         | where                                            | stage p  | rate /s | height     | life s  |
+  | 0 plunge     | where the lip lands (H > 3, sig > 0.25)          | 0.85-1.5 | 5       | 1.6-2.1 H  | 1.5-2.3 |
+  | 1 shore dump | just ahead of the crest, curl lost (loss > 0.15) | 0.12-1.3 | 6       | 1.0-1.4 H  | 1.3-2.0 |
+  | 2 bore       | off the tumbling bore front                      | 1.5-3    | 1.5     | 0.55-0.9 H | 1.0-1.6 |
+  (loss = 1 - sstep(15, 45, dc); H is capped at 40, and kind 0's height is scaled by 0.7 + 0.3 min(sig, 1).)
+  Rates thin out as 1 / (1 + |dx| / 1000) (soft: half rate, only within 700 of the camera), scaled so the
+  plumes alive at once fit 85 % of the pool.
+- Roll-back: a closeout near the sand shrinks its roller away with the depth (sig, crest d 45 -> 15), which in
+  clear water read as the curl rolling back. fCol turns the shrinking roller into fresh whitewater that spills
+  down the face as the roller goes (down to the toe once it is gone), and the shore-dump plumes cover the
+  collapse. The swash's foam age no longer overrides fresh whitewater arriving over it (aged, it opened into a
+  lace that a steep face stretched into vertical streaks).
+- Ice wall: a closeout that broke late (db ~40) was still ~9 high when its crest reached the waterline, where the
+  land clamp cut its face into a wall standing on the sand. Every crest now becomes a bore within 16 of the sand
+  (bore = 1 - (1 - bore)(1 - sstep(16, 3, dc)), in stageState and stageS, mirrored). This is the only change to
+  evalSurf (physics). Example: crest fn 44 at x 0 has H 12.5 at dc 12.2, 6.7 at 8.6 and 1.9 at 5.1.
+- Physics, the Round 6 harness on a fresh page: wipeouts 2/2/1 at z 21/-64/100 (unchanged); maximum heights
+  18.2/14.9/17.7 (were 18.1/15.3/17.7); water 14.4/10.5/13.7 (were 14.4/10.7/13.7); rogue lift 32.8 at z 430,
+  water 40.8 (unchanged). With the near-sand bore term disabled the harness gives the old numbers exactly, so the
+  change at z -64 (the waterline is at z -78.7 at x 0) is that term. GPU vertex positions (wind chop off) match
+  evalSurf(curl = true) within 1.6 mm over 10 cases of 901 points, no misses: 9 crests 4-12 from the sand at
+  x 0 and -400, plus Round 7's fn 49 at x 0, t 442.9.
+- Cost (RTX 5070 Ti through ANGLE D3D11, readPixels-synced medians, ms per water render; "no de-tiling" is this
+  round with plain fetches):
+  | view            | no de-tiling | anisotropy 8 | anisotropy 4 (committed) |
+  | 1080p first     | 0.54         | 0.60         | 0.65 (noise)             |
+  | 1080p high      | 0.57         | 0.64         | 0.60                     |
+  | 1080p telephoto | 0.49         | 0.54         | 0.54                     |
+  | 4K first        | 0.98         | 1.13         | 1.07 (+10 %)             |
+  | 4K high         | 1.33-1.39    | 1.58-1.61    | 1.59 (+14-19 %)          |
+  Cat's paws and glints are ~0.13 ms of the 4K first-person cost (1.00 without both, at anisotropy 8). The
+  normal map's anisotropy is now 4 on the non-soft tiers (Round 8's "anisotropy 8" above is historical): it
+  differs from 8 by a mean of 0.73/255 on the high view (p99 6, max 33) and <= 0.04 on the others. Dropped:
+  plain fetches for the wavelets (they carry most of the visible de-tiling: the weave comes back), branching
+  around the second fetch (bit-exact, no gain), a cheaper hash (slower), clamp variants (no gain).
+- SwiftShader (notes-claude/swprobe, now with s8 = 635ef93; 4 CPUs, 1280x800): the soft tier (the CI path) has
+  water 93 ms mean and a frame median of 107 ms, against 635ef93's 88 / 100, so the smoke test's margin holds.
+  ?soft=0: 515-533 / 569-597 against 379 / 417 (680-748 / 767-847 before anisotropy 4).
+- Verified (preview pane, RTX 5070 Ti): aom medium (anisotropy 4, no defines, pixel ratio 1, 12 programs),
+  ?look=classic (7 programs) and ?soft=1 (anisotropy 1, FACETS + SOFT, pixel ratio 0.5, 10 programs) compile
+  without shader logs and render; console: only pointer-lock errors. Checked on shots of open water, foam, plumes
+  along plunging and dumping crests, and the near-shore collapse.
+- Limits: plumes are flat pictures; the blocky pattern on collapsed walls is the existing foam texture (Round 7's
+  limit); analytic break-time predictions fail while a rogue is in, so the tests stepped frames; not
+  hand-play-tested; the CI smoke test runs only after a push.
+- Intermediate and debug shots stay in the session scratchpad, not committed. The Round 9 page helpers (shader
+  variant timing, A/B sheets, crest finders) are in the worktree's git-ignored reference/ (gpu_wv.js,
+  helpers_r9c.js).
+- Sources: https://iquilezles.org/articles/texturerepetition/
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
@@ -347,8 +427,12 @@ Round 8 7b14b70 (AoM look, foam decals) pushed 19 Oct 2026 (owner request, c1d87
 failed: the hook run 39318718012 passed, but main's publisher run 39318742626 stopped in Codex's smoke test
 ("claude page.screenshot: Timeout 90000ms exceeded", software WebGL), so the deploy was skipped and /claude/ kept
 serving Round 7. See "Round 8 publish failure" below.
-The software-WebGL tier that fixes it is committed with this section (19 Oct 2026); not pushed: it needs the
-owner's OK, since a push republishes /claude/.
+The software-WebGL tier that fixes it, 635ef93, pushed 19 Oct 2026 (owner request, 7b14b70..635ef93): hook run
+39326681529 passed, main's publisher run 39326703937 passed the smoke test (original, codex, claude with surf) and
+deployed at 21:24:50Z. Checked by HTTP the same evening: live versions.json pins claude 635ef93, and live
+/claude/index.html, js/main.js and js/surf.js match 635ef93 (SHA-256). Round 8's look is live at /claude/.
+Round 9 (de-tiled ripples, whiter foam, splash plumes) committed 20 Oct 2026, not pushed: push only on the owner's
+OK (each push is a public deploy).
 
 ## Round 8 publish failure and the software-WebGL tier (19 Oct 2026)
 Round 8 did not go live. Main's publisher run 39318742626 failed in Codex's tooling/pages/smoke.cjs (origin/main
@@ -393,8 +477,10 @@ pages-browser-evidence artifact (5,934,075 bytes) would give exact timings; not 
   pointer-lock errors. `?soft=1` on the GPU: the FACETS shader compiles on D3D11 and looks the same apart from
   slightly faceted shading up close. At the game view the soft tier is barely different (slightly streakier
   whitewater).
-- Not verified: CI, until the next push (at 25-30x the soft screenshot would take ~18-25 s there: inference).
-  Not hand-played on a software renderer.
+- CI (after the push): publisher run 39326703937 passed. Its smoke step took 93 s for all three pages, against
+  153-172 s in five earlier passing runs (18-19 Oct; a sixth took 97 s) and 172 s in Round 8's failed run. Per-page
+  timings are in the run's pages-browser-evidence artifact (not downloaded).
+  Not verified: hand play on a software renderer.
 
 ## GitHub Pages (Codex-owned, 18 Oct 2026)
 Codex publishes all three versions: https://alcatrao.github.io/BeachDefense/ (main),

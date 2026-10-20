@@ -132,6 +132,9 @@ function stageState(Hn, db, db0, boreK, dc, o) {
   const Hbore = Math.min(Hn, boreK * depthC + 0.8);
   o.p = p;
   o.bore = sstep(0.95, 2.0, p); // the crash spends the wave's height quickly: bore height by p ~ 2
+  // ... and near the sand in any case: a closeout that broke late (db ~ 40) would still be ~9 high when its crest
+  // reaches the waterline, where the land clamp cuts its face off into a wall standing on the sand
+  o.bore = 1 - (1 - o.bore) * (1 - sstep(16, 3, dc));
   o.H = Hpre + (Hbore - Hpre) * o.bore;
   // the landed lip keeps the shape of the wave that threw it (Hc) and is squashed down to the bore height H,
   // so it collapses into a low roller; the shape relaxes to the bore's own over p 2.6..5
@@ -422,7 +425,7 @@ WS stageS(float Hn, float db, float db0, float boreK, float dc) {
   float depthC = max(SLOPE * dc - 0.5, 0.3);
   float Hbore = min(Hn, boreK * depthC + 0.8);
   w.p = p;
-  w.bore = sstep(0.95, 2.0, p);
+  w.bore = 1.0 - (1.0 - sstep(0.95, 2.0, p)) * (1.0 - sstep(16.0, 3.0, dc)); // a bore by the sand in any case
   w.H = mix(Hpre, Hbore, w.bore);
   w.Hc = mix(w.H, Hpre, 1.0 - sstep(2.6, 5.0, p)); // shape height of the collapsing curl (see stageState)
   w.steep = sstep(-1.6, 0.9, p);
@@ -622,6 +625,13 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
   float roll = sstep(0.75 * (1.0 - spread), 0.75 * (1.0 - spread) + 0.25, sqrt(hw) * bw);
   float fImp = imp * max(1.5 * max(roll, s2 < 0.0 ? sstep(-2.4 * wf, -1.0 * wf, s2) : 0.0),
     s2 > 0.0 ? 0.9 * (1.0 - sstep(0.0, 0.4 * L, s2)) : 0.0);
+  // a closeout near the sand: its roller shrinks away with the depth (sig, crest d 45 -> 15) before or just after
+  // its lip lands, which in clear water reads as the curl rolling back. So the shrinking roller turns to
+  // whitewater, which spills down the face as the roller goes (down to the toe once it is gone): the curl
+  // collapses into foam
+  float loss = 1.0 - sstep(15.0, 45.0, dc);
+  float fCol = sstep(0.08, 0.35, loss) * sstep(0.05, 0.4, pC) * (1.0 - sstep(3.0, 5.0, pC))
+    * max(1.5 * sstep(0.3, 0.65, sqrt(hw) * bw), s2 < 0.0 ? 1.3 * sstep(-(0.5 + 1.6 * loss) * wf - 3.0, -(0.5 + 1.6 * loss) * wf, s2) : 0.0);
   float fZone = 0.22 * sstep(dbz + 30.0, dbz - 60.0, d) * (0.5 + 0.5 * sin(x * 0.013 + z * 0.021 + fn));
   float fCap = 0.25 * sstep(0.85, 1.0, bump) * capP;
   // residual foam left behind by broken waves: thins out as it ages (behind this crest, or the previous one)
@@ -629,11 +639,13 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
   float zoneIn = max(sstep(dbz + 10.0, dbz - 50.0, d), 0.7 * sstep(BAROUT + 10.0, BAROUT - 50.0, d) * sstep(REF1 - 40.0, REF0, d));
   float broke = s2 > 0.0 ? max(bore, lip2) : 1.0;
   float fRes = zoneIn * broke * (0.14 + 0.6 * exp(-3.0 * ageB));
-  foam = clamp(max(max(max(fLip, fFace), max(fBore, fZone)), max(max(fCap, fRes), fImp)) * filmP, 0.0, 1.6);
+  foam = clamp(max(max(max(fLip, fFace), max(fBore, fZone)), max(max(fCap, fRes), max(fImp, fCol))) * filmP, 0.0, 1.6);
   foam = max(foam, wet);
-  float young = max(max(max(fLip, fBore * (1.0 - sstep(0.0, 0.3 * L, s2))), fFace), fImp);
+  float young = max(max(max(fLip, fBore * (1.0 - sstep(0.0, 0.3 * L, s2))), fFace), max(fImp, fCol));
   age = clamp(mix(ageB, 0.0, min(young, 1.0)), 0.0, 1.0);
-  age = mix(age, swAge, min(wet * 1.5, 1.0));
+  // the swash's foam ages with the swash, but a breaker's fresh whitewater arriving over it stays fresh (aged, it
+  // opens into lace, which a steep face stretches into vertical streaks)
+  age = mix(age, swAge, min(wet * 1.5, 1.0) * (1.0 - min(young, 1.0)));
   thin = hw * bw * sh;
   wetOut = wet;
   gCrest.x = dA - dc; // displaced position relative to the crest: the whitewater pattern travels and tumbles with it
@@ -785,6 +797,22 @@ float billow(vec2 q, float t, float k3) {
 
 const vec3 BED = vec3(${BED_LIN.map((v) => v.toFixed(4)).join(', ')}); // the dry sand as rendered (linear, before the x1.55)
 const mat2 RIPA = mat2(0.94, 0.34, -0.34, 0.94), RIPB = mat2(0.94, -0.34, 0.34, 0.94); // +-20 degrees
+const mat2 R37 = mat2(0.8, 0.6, -0.6, 0.8); // turns the second detail layer ~37 degrees off the first
+// One detail normal from the tiled normal map without visible repetition (iq's "texture repetition",
+// technique 3): a smooth noise over the texture picks one of 9 random offsets per irregular patch, and two
+// offsets blend across each patch border (the border sharpened by the samples' difference). c is in texture
+// tiles, cx and cy its screen derivatives (explicit, so a patch border does not jump the mip level).
+vec3 normNT(vec2 c, vec2 cx, vec2 cy, float seed) {
+#ifdef SOFT
+  return texture2D(uNormTex, c).rgb * 2.0 - 1.0;
+#else
+  float l = 8.0 * vnoise(ROT * c * 0.9 + seed);
+  float ia = floor(l), f = fract(l);
+  vec2 oa = sin(vec2(3.0, 7.0) * (ia + seed)), ob = sin(vec2(3.0, 7.0) * (ia + 1.0 + seed));
+  vec3 a = textureGrad(uNormTex, c + oa, cx, cy).rgb, b = textureGrad(uNormTex, c + ob, cx, cy).rgb;
+  return mix(a, b, smoothstep(0.25, 0.75, f - 0.1 * (a.x + a.y + a.z - b.x - b.y - b.z))) * 2.0 - 1.0;
+#endif
+}
 
 void main() {
 #ifdef FACETS
@@ -799,20 +827,25 @@ void main() {
   float dist = length(toCam);
   vec3 V = toCam / dist;
 
-  vec2 uv = vWorld.xz;
-  vec3 n1 = texture2D(uNormTex, uv * 0.011 + vec2(0.012, 0.017) * uTime).rgb * 2.0 - 1.0;
-  vec3 n2 = texture2D(uNormTex, uv * 0.029 - vec2(0.021, -0.009) * uTime).rgb * 2.0 - 1.0;
-  vec3 dn = n1 + n2;
-  float detail = 0.32 * (1.0 - smoothstep(250.0, 3500.0, dist));
+  // detail normals: two layers of the normal map, the second turned off the first, each sampled without
+  // tiling (normNT: a tiled map repeats as a regular weave over open water)
+  vec2 uv = vWorld.xz, ux = dFdx(uv), uy = dFdy(uv);
+  // cat's paws: the wind roughens the sea in large drifting patches, so the ripples are not one uniform weave
+  float paw = smoothstep(0.2, 0.8, 0.6 * vnoise(ROT * uv * 0.0042 + vec2(0.0, 0.02) * uTime) + 0.4 * vnoise(uv * 0.0117 - vec2(0.015, 0.0) * uTime));
+  vec3 n1 = normNT(uv * 0.011 + vec2(0.012, 0.017) * uTime, ux * 0.011, uy * 0.011, 0.0);
+  vec3 n2 = normNT(R37 * uv * 0.029 - vec2(0.021, -0.009) * uTime, R37 * ux * 0.029, R37 * uy * 0.029, 3.7);
+  vec3 dn = n1 + vec3(n2.xy * R37, n2.z); // the second layer's slope turned back to the world frame
+  float detail = 0.32 * (0.7 + 0.6 * paw) * (1.0 - smoothstep(250.0, 3500.0, dist));
   vec3 dN = vec3(dn.x, 0.0, dn.y) * detail;
   vec3 Nb = normalize(N + dN); // the surface the ripples ride on: the emboss below shades them relative to it
   // fine wind ripples stretched along the crests, two sets crossing at a shallow angle: the dense, embossed
   // wavelets of AoM's water. Each set's slope is turned back from its rotated, stretched frame; the sets fade
   // out before they would shimmer.
-  float rk = uRipple * (1.0 - smoothstep(150.0, 1100.0, dist));
+  float rk = uRipple * (0.45 + 0.9 * paw) * (1.0 - smoothstep(150.0, 1100.0, dist));
   if (rk > 0.0) {
-    vec3 q1 = texture2D(uNormTex, (RIPA * uv) * vec2(0.035, 0.13) + vec2(0.0, 0.05) * uTime).rgb * 2.0 - 1.0;
-    vec3 q2 = texture2D(uNormTex, (RIPB * uv) * vec2(0.03, 0.11) + vec2(0.31, 0.04) * uTime).rgb * 2.0 - 1.0;
+    mat2 MA = mat2(0.035, 0.0, 0.0, 0.13) * RIPA, MB = mat2(0.03, 0.0, 0.0, 0.11) * RIPB; // turned, then stretched
+    vec3 q1 = normNT(MA * uv + vec2(0.0, 0.05) * uTime, MA * ux, MA * uy, 7.1);
+    vec3 q2 = normNT(MB * uv + vec2(0.31, 0.04) * uTime, MB * ux, MB * uy, 1.9);
     vec2 g = vec2(q1.x * 0.27, q1.y) * RIPA + vec2(q2.x * 0.27, q2.y) * RIPB;
     dN += vec3(g.x, 0.0, g.y) * rk;
   }
@@ -843,7 +876,7 @@ void main() {
   body += uSSS * vThin * (0.5 + 1.6 * back) * smoothstep(4.0, 14.0, vDepth); // no glow through a low bore front
   // freshly broken water is full of bubbles: milky pale turquoise and nearly opaque, even between the foam patches
   float aer = smoothstep(0.7, 1.3, vFoam) * (1.0 - vAge);
-  body = mix(body, vec3(0.36, 0.60, 0.64) * (0.7 + 0.45 * NdL), 0.8 * aer);
+  body = mix(body, vec3(0.44, 0.67, 0.71) * (0.7 + 0.45 * NdL), 0.8 * aer);
   F *= 1.0 - 0.6 * vThin; // a steep, thin breaking face shows its body colour more than the sky
 
   // Shallow water: the sand under it is seen through the water with per-channel (Beer-Lambert) extinction
@@ -901,11 +934,27 @@ void main() {
   float af = 1.0 - exp(-3.2 * tau);
   float wrap = clamp(dot(Nf, uSunDir) * 0.6 + 0.4, 0.0, 1.0);
   float thickL = smoothstep(0.05, 1.1, tau);
-  vec3 foamCol = mix(vec3(0.70, 0.80, 0.88), vec3(1.0), thickL) * (0.74 + 0.95 * wrap + 0.3 * back + 0.32 * Nf.y) * (0.94 + 0.06 * ft);
-  foamCol = mix(mix(body * 2.0, foamCol, 0.6), foamCol, thickL); // thin films keep some water colour
-  // churn shading: lump tops catch the light, the hollows between the lumps are in soft blue-grey shadow
-  float ao = 0.62 + 0.5 * smoothstep(0.02, 0.62, churn);
-  foamCol *= mix(vec3(1.0), ao * mix(vec3(0.62, 0.73, 0.85), vec3(1.0), smoothstep(0.05, 0.5, churn)), churnA);
+  // bubbles scatter nearly all the light they get, so even the shaded side of the foam stays a bright white
+  vec3 foamCol = mix(vec3(0.80, 0.88, 0.94), vec3(1.0), thickL) * (0.98 + 0.8 * wrap + 0.3 * back + 0.3 * Nf.y) * (0.95 + 0.05 * ft);
+  foamCol = mix(mix(body * 1.6 + 0.3, foamCol, 0.6), foamCol, thickL); // thin films are translucent: they keep some water colour
+  // churn shading: lump tops catch the light, the hollows between the lumps in a light blue shadow
+  float ao = 0.8 + 0.28 * smoothstep(0.02, 0.62, churn);
+  foamCol *= mix(vec3(1.0), ao * mix(vec3(0.78, 0.87, 0.95), vec3(1.0), smoothstep(0.05, 0.5, churn)), churnA);
+  // foam is wet: its lumps catch the sun as a soft sheen, and fresh foam glitters with bubble glints that
+  // twinkle (each glint at least about a pixel wide, dimmed as it widens, and gone where the cells would shimmer)
+  float sunF = max(dot(reflect(-V, Nf), uSunDir), 0.0);
+  float fresh = max(aer, 1.0 - vAge);
+  float glint = (pow(sunF, 20.0) * 0.5 + pow(sunF, 160.0) * 2.5) * (0.4 + 0.6 * fresh);
+  vec2 sp = vRest * 2.3;
+  float fw = length(fwidth(sp));
+  if (fw < 0.6) {
+    vec2 sh = hash2(floor(sp));
+    float rad = max(0.14, 0.7 * fw);
+    float tw = pow(max(sin(uTime * (1.5 + 2.5 * sh.x) + 6.2831 * sh.y), 0.0), 6.0);
+    float sd = length(fract(sp) - 0.5 - 0.6 * (sh.yx - 0.5));
+    glint += 9.0 * smoothstep(rad, 0.0, sd) * (0.0196 / (rad * rad)) * tw * fresh * thickL * (1.0 - smoothstep(0.3, 0.6, fw)) * smoothstep(0.1, 0.5, wrap);
+  }
+  foamCol += vec3(1.0, 0.97, 0.9) * glint;
   P = mix(P, foamCol, af);
   W *= 1.0 - af;
 
@@ -944,7 +993,7 @@ void main() {
   if (uVivid > 0.0) {
     vec3 v = mix(vec3(dot(tgt, vec3(0.2126, 0.7152, 0.0722))), tgt, 1.0 + 0.15 * uVivid);
     v.g += 0.55 * max(v.b - v.g, 0.0);
-    tgt = mix(tgt, clamp(v * (1.0 + 0.04 * uVivid), 0.0, 1.0), min(uVivid, 1.0) * (1.0 - (W.r + W.g + W.b) / 3.0));
+    tgt = mix(tgt, clamp(v * (1.0 + 0.04 * uVivid), 0.0, 1.0), min(uVivid, 1.0) * (1.0 - (W.r + W.g + W.b) / 3.0) * (1.0 - af)); // (not the foam: it stays white)
   }
   // the ripples' emboss again, in display space: the cyan sits near the top of the filmic curve, which squeezes
   // the lit/unlit difference in the water's light (above) nearly flat
@@ -1257,6 +1306,217 @@ class Decals {
   }
 }
 
+// ---------- splash plumes ----------
+// The idea of AoM's meteor splash: a few big painted plumes of white water on billboards that shoot up, spread
+// and fall back, which reads as a real splash at almost no cost. Here a line of them goes up where the lip of a
+// breaking wave lands, where a shore dump slams down, and (smaller) off the tumbling bore front.
+// The plume pictures are drawn once at start-up (four variants in a 2x2 atlas, each tile N x N): R the plume's
+// opacity, G the order it dissolves in (thin spray first, the dense core last), B its shading.
+// Each is a broad sheet of spray across its upper part with a torn outline, a fan of streaks falling back out of
+// its underside and loose drops round it, all made of a fine grain, near-white with a pale blue-grey in the thin
+// parts, so that it reads as a burst of droplets rather than a lumpy cloud. The billboards are about ASP times wider than tall, so
+// the picture is drawn squeezed by that much across, and its grain comes out round.
+function plumeAtlas(N) {
+  const S = 2 * N, out = new Uint8Array(S * S * 4), ASP = 1.5;
+  const lat = new Float32Array(256 * 256), Dd = new Float32Array(N * N);
+  const vn = (x, y) => { // smooth value noise on a 256-periodic lattice
+    const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi;
+    const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
+    const i0 = xi & 255, i1 = (xi + 1) & 255, j0 = (yi & 255) << 8, j1 = ((yi + 1) & 255) << 8;
+    const a = lat[j0 + i0], b = lat[j0 + i1], c = lat[j1 + i0], d = lat[j1 + i1];
+    return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
+  };
+  const fbm = (x, y) => 0.5 * vn(x, y) + 0.3 * vn(2.03 * x + 5.2, 2.03 * y + 1.3) + 0.2 * vn(4.1 * x + 9.1, 4.1 * y + 3.7);
+  // a round drop at (X, Y) (X -0.5..0.5 across the width, Y 0..1 up the height), rad heights across
+  const drop = (X, Y, rad, amp) => {
+    const cx = (X + 0.5) * N, cy = Y * N, R = rad * N, Rx = R / ASP, kx = 1 / (Rx * Rx), ky = 1 / (R * R);
+    for (let py = Math.max(0, Math.floor(cy - R)); py <= Math.min(N - 1, Math.ceil(cy + R)); py++) {
+      const dy = py + 0.5 - cy;
+      for (let px = Math.max(0, Math.floor(cx - Rx)); px <= Math.min(N - 1, Math.ceil(cx + Rx)); px++) {
+        const dx = px + 0.5 - cx, q = 1 - dx * dx * kx - dy * dy * ky;
+        if (q > 0) Dd[py * N + px] = Math.max(Dd[py * N + px], amp * Math.min(1, 3 * q));
+      }
+    }
+  };
+  for (let t = 0; t < 4; t++) {
+    let s = hashU(t * 7919 + 17);
+    const r = () => hash01(s = hashU(s + 0x9e3779b9));
+    for (let i = 0; i < lat.length; i++) lat[i] = r();
+    // the mass (in widths across, heights up): a broad sheet of spray across nearly the whole width of the upper
+    // part, centred at height cy, ax across and ay up and down from it; squarish, with a low dome for a top, its
+    // outline torn by a warped noise and the grain
+    const cy = 0.6 + 0.03 * r(), ax = 0.44 + 0.03 * r(), ay = 0.24 + 0.03 * r(), sx = 200 * r(), sy = 200 * r();
+    const fy = cy + 0.5; // the streaks under it fan out from a point this high up
+    Dd.fill(0);
+    for (let i = 0; i < 30; i++) { // drops flung up and out of its top and sides
+      const ang = Math.PI * (-0.1 + 1.2 * r()), d = 1.02 + 0.25 * r();
+      drop(ax * d * Math.cos(ang), cy + ay * d * Math.sin(ang), 0.003 + 0.005 * r(), 0.5 + 0.5 * r());
+    }
+    for (let i = 0; i < 40; i++) drop(0.9 * (r() - 0.5), 0.05 + (cy - 0.15) * r(), 0.003 + 0.004 * r(), 0.6); // and falling
+    const ox = (t & 1) * N, oy = (t >> 1) * N;
+    for (let py = 0; py < N; py++) {
+      const Y = (py + 0.5) / N;
+      for (let px = 0; px < N; px++) {
+        const X = (px + 0.5) / N - 0.5, x = ASP * X; // x: X in heights, for noise that comes out round
+        // the grain: fine droplets, clumps of them and broad patches
+        const gf = fbm(x * 60 + sy, Y * 60 + sx), gm = fbm(x * 17 + sx, Y * 17 + sy), gb = fbm(x * 6 + sy, Y * 6 + sx);
+        const w1 = fbm(x * 2.2 + sx, Y * 2.2 + sy), w2 = fbm(x * 2.2 + sy + 31, Y * 2.2 + sx + 17);
+        const ex = Math.abs(X + 0.12 * (w1 - 0.5)) / ax;
+        let ey = (Y - cy + 0.14 * (w2 - 0.5)) / ay;
+        if (ey > 0) ey += 0.3 * ex * ex; // the dome: lower at the sides
+        const e2 = ex * ex, f2 = ey * ey;
+        const rr = Math.sqrt(Math.sqrt(e2 * e2 + f2 * f2)) + 0.45 * (gb - 0.5) + 0.3 * (gm - 0.5) + 0.3 * (gf - 0.5);
+        const mass = sstep(1.0, 0.65, rr), thick = sstep(0.85, 0.25, rr);
+        // the spray falling out of its underside, fanning out from the point above: th the angle off the vertical.
+        // Thin spray all across, thickened into streaks of many widths (two octaves of a wavering noise across th),
+        // each ending at its own length; v runs 0 in the mass's lower part to 1 at the foot
+        let fan = 0;
+        const yv = cy - 0.5 * ay;
+        if (Y < yv + 0.1) {
+          const dy = fy - Y, th = Math.atan2(x, dy), rho = Math.sqrt(x * x + dy * dy), v = Math.max((yv - Y) / yv, 0);
+          const q = th * 9 + 0.8 * (gb - 0.5) + sx;
+          const band = 0.65 * vn(q, sy + 2.5 * rho) + 0.35 * vn(2.3 * q + 7.7, sy + 5 * rho + 3.1);
+          const len = 0.55 + 0.5 * vn(th * 9 + sx + 17.3, sy + 7.1);
+          fan = (0.45 + 0.55 * sstep(0.36, 0.66, band)) * sstep(len, 0.55 * len, v) * sstep(0.95, 0.65, Math.abs(th)) * (1 - 0.3 * v);
+        }
+        const D = Math.max(mass, fan);
+        const edge = sstep(0.5, 0.45, Math.abs(X)) * sstep(1.0, 0.9, Y) * sstep(0.0, 0.08, Y);
+        // mottled all through: the grain eats holes into the thin parts and thins the core in patches
+        const a = Math.max(sstep(0.12, 0.9, D * (0.1 + 0.6 * gm + 0.5 * gf + 0.35 * thick)), Dd[py * N + px]) * edge;
+        // the order it dissolves in: thin spray first, the core last, grain by grain
+        const dis = Math.min(Math.max(0.1 + 0.3 * gf + 0.2 * gm + 0.3 * thick + 0.08 * (1 - Y), 0), 1);
+        // its shading, mottled in broad patches and by the grain: white on the dense clumps, a blue-grey in the thin
+        // and shaded parts
+        const lit = Math.min(Math.max(0.52 + 0.3 * thick + 1.0 * (gb - 0.5) + 0.8 * (gm - 0.5) + 0.5 * (gf - 0.5) + 0.15 * (Y - 0.5), 0), 1);
+        const o = ((oy + py) * S + ox + px) * 4;
+        out[o] = Math.round(a * 255); out[o + 1] = Math.round(dis * 255); out[o + 2] = Math.round(lit * 255); out[o + 3] = 255;
+      }
+    }
+  }
+  const tex = new THREE.DataTexture(out, S, S, THREE.RGBAFormat, THREE.UnsignedByteType);
+  tex.generateMipmaps = true;
+  tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter;
+  tex.needsUpdate = true;
+  return tex;
+}
+const SPLASH_VERT = /* glsl */`
+uniform float uTime;
+uniform vec3 uSunDir;
+attribute vec4 aA; // base x, y, z (at the water), birth time
+attribute vec4 aB; // full width, full height, life, alpha
+attribute vec4 aC; // variant 0..3, flip (+-1), lean (top thrown shoreward, per unit height), drift (z units per s)
+attribute vec2 aD; // the crest's horizontal normal (x, z), seaward
+varying vec2 vUv;
+varying float vP, vAlpha, vBack;
+void main() {
+  float age = uTime - aA.w, p = age / aB.z;
+  if (p < 0.0 || p > 1.0) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); return; } // dead: beyond the far plane
+  // bursts up to its full height by p 0.4 and keeps spreading; then its top falls back and it sinks into the
+  // water as it dissolves, so it never hangs over the water the wave has left behind
+  float rise = 1.0 - (1.0 - min(p * 2.5, 1.0)) * (1.0 - min(p * 2.5, 1.0));
+  float h = aB.y * (0.3 + 0.7 * rise) * (1.0 - 0.4 * smoothstep(0.4, 1.0, p));
+  float w = aB.x * (0.55 + 0.45 * sqrt(p)) * (1.0 + 0.15 * p);
+  vec3 base = aA.xyz + vec3(0.0, -0.35 * aB.y * p * p, aC.w * age);
+  // upright, and turned from the camera most of the way round to stand along its crest: turned square to the
+  // camera, it would cross the breaking face behind it at a slant towards the sides of the view (more so where the
+  // shore runs at an angle), and the face would cut it in slanting lines; it still never goes edge-on. Leant back
+  // half-way towards a camera looking down.
+  vec3 toC = cameraPosition - base;
+  float lh = length(toC.xz);
+  vec2 hc = lh > 1e-3 ? toC.xz / lh : aD;
+  vec2 hd = normalize(hc + 3.0 * dot(hc, aD) * aD);
+  float b = 0.5 * atan(toC.y, lh);
+  vec3 up = vec3(-hd.x * sin(b), cos(b), -hd.y * sin(b));
+  vec3 right = vec3(hd.y, 0.0, -hd.x) * aC.y;
+  vec2 q = position.xy; // x -1..1, y 0..1
+  vec3 P = base + right * (0.5 * w * q.x) + up * (h * q.y) - vec3(aD.x, 0.0, aD.y) * (aC.z * h * q.y * q.y);
+  vUv = (vec2(0.5 + 0.5 * q.x, q.y) + vec2(mod(aC.x, 2.0), floor(aC.x * 0.5))) * 0.5;
+  vBack = pow(max(dot(normalize(P - cameraPosition), uSunDir), 0.0), 3.0);
+  vAlpha = aB.w * smoothstep(0.0, 0.06, p) * (1.0 - smoothstep(0.85, 1.0, p)) * (1.0 - smoothstep(2000.0, 3500.0, lh));
+  vP = p;
+  vec4 cp = projectionMatrix * viewMatrix * vec4(P, 1.0);
+  // its depth is taken a few units nearer the camera (less when looking down, where the water would stop hiding
+  // its sunk foot): the breaking face it stands against leans past its plane here and there, and would cut it in
+  // straight lines
+  vec3 toP = P - cameraPosition;
+  float dP = length(toP);
+  vec4 cb = projectionMatrix * viewMatrix * vec4(P - toP * (min(0.3 * aB.y, 0.5 * dP) * (1.0 - 0.75 * abs(toP.y) / dP) / dP), 1.0);
+  gl_Position = vec4(cp.xy, cb.z / cb.w * cp.w, cp.w);
+}`;
+const SPLASH_FRAG = /* glsl */`
+uniform sampler2D uPlume;
+varying vec2 vUv;
+varying float vP, vAlpha, vBack;
+void main() {
+  vec4 t = texture2D(uPlume, vUv);
+  // dissolves from the thin spray inwards over the later part of its life
+  float T = 0.08 + 0.95 * smoothstep(0.35, 1.0, vP);
+  float a = t.r * smoothstep(T - 0.12, T + 0.06, t.g) * vAlpha;
+  if (a < 0.01) discard;
+  // near-white, a pale blue-grey in the thin and shaded parts; against the sun the dense core dims a little and the
+  // thin spray glows
+  vec3 col = mix(vec3(0.80, 0.88, 0.94), vec3(1.0), t.b);
+  col = mix(col, col * vec3(0.92, 0.95, 0.97), vBack * smoothstep(0.4, 0.9, t.r)) + 0.3 * vBack * (1.0 - t.r);
+  gl_FragColor = vec4(min(col, vec3(1.0)), a);
+}`;
+
+class Splashes {
+  constructor(scene, uniforms, count, texSize) {
+    this.count = count;
+    this.hi = -1; // the highest slot in use: only slots 0..hi are drawn
+    this.now = 0;
+    const plane = new THREE.PlaneGeometry(2, 1).translate(0, 0.5, 0);
+    const g = new THREE.InstancedBufferGeometry();
+    g.index = plane.index;
+    g.setAttribute('position', plane.getAttribute('position'));
+    const attr = (n, init) => new THREE.InstancedBufferAttribute(new Float32Array(count * n).map((_, i) => init[i % n]), n)
+      .setUsage(THREE.DynamicDrawUsage);
+    this.a = attr(4, [0, 0, 0, -1e9]); // born long ago: dead
+    this.b = attr(4, [1, 1, 1, 0]);
+    this.c = attr(4, [0, 1, 0, 0]);
+    this.d = attr(2, [0, 1]);
+    g.setAttribute('aA', this.a); g.setAttribute('aB', this.b); g.setAttribute('aC', this.c); g.setAttribute('aD', this.d);
+    g.instanceCount = 0;
+    this.tex = plumeAtlas(texSize);
+    this.mesh = new THREE.Mesh(g, new THREE.ShaderMaterial({
+      vertexShader: SPLASH_VERT, fragmentShader: SPLASH_FRAG,
+      uniforms: { uTime: uniforms.uTime, uSunDir: uniforms.uSunDir, uPlume: { value: this.tex } },
+      transparent: true, depthWrite: false, side: THREE.DoubleSide, // (a flipped plume is wound the other way)
+    }));
+    this.mesh.frustumCulled = false;
+    this.mesh.renderOrder = 3; // over the foam and the spray
+    scene.add(this.mesh);
+  }
+  add(x, y, z, w, h, birth, life, alpha, lean = 0, drift = 0, nx = 0, nz = 1) {
+    // the lowest free slot (as in Decals); when the pool is full, the one ending soonest gives way
+    const A = this.a.array, B = this.b.array, C = this.c.array, D = this.d.array;
+    let i = -1, soonest = 0, end = Infinity;
+    for (let j = 0; j <= this.hi; j++) {
+      const e = A[j * 4 + 3] + B[j * 4 + 2];
+      if (e <= this.now) { i = j; break; }
+      if (e < end) { end = e; soonest = j; }
+    }
+    if (i < 0) i = this.hi + 1 < this.count ? this.hi + 1 : soonest;
+    if (i > this.hi) { this.hi = i; this.mesh.geometry.instanceCount = i + 1; }
+    A[i * 4] = x; A[i * 4 + 1] = y; A[i * 4 + 2] = z; A[i * 4 + 3] = birth;
+    B[i * 4] = w; B[i * 4 + 1] = h; B[i * 4 + 2] = life; B[i * 4 + 3] = alpha;
+    C[i * 4] = Math.floor(Math.random() * 4); C[i * 4 + 1] = Math.random() < 0.5 ? -1 : 1; C[i * 4 + 2] = lean; C[i * 4 + 3] = drift;
+    D[i * 2] = nx; D[i * 2 + 1] = nz;
+    this.a.needsUpdate = this.b.needsUpdate = this.c.needsUpdate = this.d.needsUpdate = true;
+  }
+  update(time) {
+    this.now = time;
+    const A = this.a.array, B = this.b.array;
+    let hi = this.hi;
+    while (hi >= 0 && A[hi * 4 + 3] + B[hi * 4 + 2] <= time) hi--;
+    if (hi !== this.hi) { this.hi = hi; this.mesh.geometry.instanceCount = hi + 1; }
+  }
+  dispose(scene) {
+    scene.remove(this.mesh);
+    this.mesh.geometry.dispose(); this.mesh.material.dispose(); this.tex.dispose();
+  }
+}
+
 // ---------- looks ----------
 // 'aom' (the default) is the shiny cyan water of the owner's Age of Mythology setup (a water mod under the
 // MenuArctic lighting): saturated cyan, clear shallows over pale sand, a darker band where the bottom drops away,
@@ -1299,8 +1559,9 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
   const loader = new THREE.TextureLoader();
   const normTex = loader.load('./textures/waternormals.jpg');
   normTex.wrapS = normTex.wrapT = THREE.RepeatWrapping;
-  // the stretched ripples are sampled at grazing angles (clamped to the GPU's maximum)
-  normTex.anisotropy = soft ? 1 : 8;
+  // the stretched ripples are sampled at grazing angles (clamped to the GPU's maximum); 4 looks the same as 8
+  // here and keeps the de-tiled layers' doubled fetches cheap on GPUs short of texture throughput
+  normTex.anisotropy = soft ? 1 : 4;
 
   const { geometry, vertices } = buildGeometry(quality);
   const uniforms = {
@@ -1316,7 +1577,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
     vertexShader: VERT,
     fragmentShader: FRAG,
     uniforms,
-    defines: soft ? { FACETS: '' } : {},
+    defines: soft ? { FACETS: '', SOFT: '' } : {},
     side: THREE.DoubleSide,
     transparent: true,
   });
@@ -1327,6 +1588,8 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
 
   const decals = new Decals(scene, uniforms, 1024);
   const spray = new Spray(scene, 6000);
+  // the plumes along a breaking lip (fewer and smaller pictures on the software tier)
+  const splashes = new Splashes(scene, uniforms, soft ? 128 : 1024, soft ? 128 : 256);
   const st = {};
   let time = 0, emitAcc = 0;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -1369,16 +1632,22 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
   // spray sources found in one emission tick: kind, x, z, y, H, wanted count (flat, reused)
   const jobs = [];
   const LIFE = [0.95, 1.35, 1.6]; // mean particle life of each kind (lip spray, splash-up, mist), s
+  // splash plumes found in one tick: kind (0 plunge, 1 shore dump, 2 bore), x, crest fn, wanted count
+  const pjobs = [];
+  const PLIFE = [1.9, 1.65, 1.3]; // mean plume life of each kind, s
+  const _ps = {}, _pw = {};
   function emitSpray(dt, cx) {
     emitAcc += dt;
     if (emitAcc < 1 / 30) return;
     const step = emitAcc; emitAcc = 0;
-    jobs.length = 0;
-    let want = 0;
+    jobs.length = 0; pjobs.length = 0;
+    let want = 0, pwant = 0;
     for (let x = Math.round(cx / 40) * 40 - 1600; x <= cx + 1600; x += 40) {
       const ex = x + (Math.random() - 0.5) * 40;
       const zs = shoreZ(ex);
       const k = step * 30 / (1 + Math.abs(ex - cx) / 700); // distant columns are small on screen: emit fewer
+      // plumes are bigger, so they thin out more slowly with distance (on the software tier: only near the camera)
+      const pk = soft ? (Math.abs(ex - cx) < 700 ? 0.5 * step : 0) : step / (1 + Math.abs(ex - cx) / 1000);
       const nLo = Math.ceil(phaseAt(ex, 15, time) / TAU), nHi = Math.floor(phaseAt(ex, 440, time) / TAU);
       for (let fn = nLo; fn <= nHi; fn++) {
         const dc = crestD(fn, ex, time);
@@ -1393,6 +1662,50 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
         if (st.p > 0.9 && st.p < 3.2 && st.H > 2) {
           const n = Math.min(20, st.H * 0.4 * Math.random() + 0.1) * k; jobs.push(2, ex, zs + dc, 0, st.H, n); want += n * LIFE[2];
         }
+        // a line of splash plumes where the lip lands; where a wave dumps on the shore before its lip can land
+        // (the shallows shrink its curl away: the plumes cover the collapse); and smaller ones off the bore front
+        if (pk > 0 && st.H > 2.5) {
+          const loss = 1 - sstep(15, 45, dc); // how much of the curl the shallows have taken
+          let kind = -1, rate = 0;
+          if (st.p > 0.85 && st.p < 1.5 && st.H > 3 && st.sig > 0.25) {
+            kind = 0; rate = 5 * sstep(0.85, 0.95, st.p) * (1 - sstep(1.25, 1.5, st.p));
+          } else if (st.p > 0.12 && st.p < 1.3 && st.H > 3 && loss > 0.15) {
+            kind = 1; rate = 6 * sstep(0.12, 0.35, st.p) * (1 - sstep(1.0, 1.3, st.p)) * sstep(0.15, 0.5, loss);
+          } else if (st.p > 1.5 && st.p < 3) {
+            kind = 2; rate = 1.5 * (1 - sstep(2.4, 3, st.p));
+          }
+          if (rate > 0) { const n = rate * pk; pjobs.push(kind, ex, fn, n); pwant += n * PLIFE[kind]; }
+        }
+      }
+    }
+    // as with the spray: the plumes alive at once must fit in the pool
+    const pscale = Math.min(1, 0.85 * splashes.count * step / Math.max(pwant, 1e-3));
+    for (let j = 0; j < pjobs.length; j += 4) {
+      const kind = pjobs[j], ex = pjobs[j + 1], fn = pjobs[j + 2];
+      const n = Math.floor(pjobs[j + 3] * pscale + Math.random());
+      for (let i = 0; i < n; i++) {
+        const px = ex + rnd(-20, 20), dcx = crestD(fn, px, time);
+        crestState(fn, px, dcx, _ps);
+        const H = Math.min(_ps.H, 40), c = TAU / kOf(dcx) / SURF.period;
+        let d, h, w, life, lean, drift, alpha;
+        if (kind === 0) { // thrown up where the lip lands, higher than the crest, and carried shoreward with the bore
+          d = lipTip(_ps, dcx).d + rnd(-1.5, 1.5);
+          h = H * rnd(1.6, 2.1) * (0.7 + 0.3 * Math.min(_ps.sig, 1)); w = h * rnd(1.2, 1.6);
+          life = rnd(1.5, 2.3); lean = rnd(0.15, 0.45); drift = -c * rnd(0.85, 1.0); alpha = rnd(0.85, 1);
+        } else if (kind === 1) { // a shore dump: the whole front slams down just ahead of the crest
+          d = dcx - H * rnd(0.2, 0.5);
+          h = H * rnd(1.0, 1.4); w = h * rnd(1.3, 1.8);
+          life = rnd(1.3, 2.0); lean = rnd(0.1, 0.3); drift = -c * rnd(0.3, 0.55); alpha = rnd(0.85, 1);
+        } else { // puffs off the tumbling bore front, riding with it
+          d = dcx - rnd(0, 2);
+          h = H * rnd(0.55, 0.9); w = h * rnd(1.3, 1.9);
+          life = rnd(1.0, 1.6); lean = rnd(0.2, 0.4); drift = -c * rnd(0.8, 1.0); alpha = rnd(0.6, 0.85);
+        }
+        const pz = shoreZ(px) + d;
+        // it stands along the crest line here: slope dz/dx of z = shoreZ(x) + crestD(fn, x, t)
+        const sl = (shoreZ(px + 1) - shoreZ(px - 1) - (wobble(px + 1) - wobble(px - 1)) / kOf(dcx)) / 2 - SURF.kx / kOf(dcx);
+        const nl = 1 / Math.sqrt(1 + sl * sl);
+        splashes.add(px, evalSurf(px, pz, time, false, _pw).y - 0.12 * H, pz, w, h, time, life, alpha, lean, drift, -sl * nl, nl);
       }
     }
     // the particles alive at once (rate x life) must fit in the pool: busy moments such as closeouts
@@ -1506,6 +1819,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
       emitSpray(dt, cameraX);
       spray.update(dt);
       decals.update(time);
+      splashes.update(time);
     },
     sample, waterY, splash, wake,
     // one foam decal: kind 0 ring, 1 puff (stretched along rot), 2 churned patch, 3 collar; size in units, life in s
@@ -1520,7 +1834,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
     // switch or tune the look: a LOOKS name, or an object with any of its fields
     setLook(L) { applyLook(material.uniforms, typeof L === 'string' ? LOOKS[L] : L); },
     dispose() {
-      scene.remove(mesh); scene.remove(spray.points); decals.dispose(scene);
+      scene.remove(mesh); scene.remove(spray.points); decals.dispose(scene); splashes.dispose(scene);
       geometry.dispose(); material.dispose();
       spray.points.geometry.dispose(); spray.points.material.dispose();
     },
