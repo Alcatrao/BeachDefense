@@ -462,6 +462,50 @@ compute cost); given in chat, summary below.
 - Limits: the fn 44 closeout above; plumes are still flat pictures; not hand-play-tested.
 - Shots: reference/r10-shots (git-ignored). Page helpers: reference/helpers_r10p.js (plume A/B).
 
+## Round 11 (20-21 Oct 2026, owner: water still climbing the tubes beside the break; 3D-looking foam effects)
+Owner, on Round 10: "still some water going backwards (climbing up the wave instead of falling down) on the
+tubes, specially in the zones immediately to the side of where the tube is breaking"; and whether the foam effects
+(2D sprites, yes: the plumes are billboards) could be higher quality or 3D. Answered in chat: keep billboards but
+light them as 3D relief (normal-mapped, self-shadowed, rim-lit), plus lit spray; a soft depth fade and layered
+sub-sprites as further steps.
+- Cause: the foam texture, glints and detail normals were mapped on world xz (open sea) or the rest grid (foam).
+  Both stay put while the wave advances, so on a steep face the pattern slides up it as the face moves through.
+- Breaker frame: surfPos sets gBrk = (x + 37 fn, s2 + 51 fn, weight), a texture frame of the crest's own (x and
+  the distance along the profile, s2, which runs over the face, round the tip and up the lip's outer side), with
+  weight stK sstep(-3 wf, -1.8 wf, s2) (1 - sstep(0.5 uBs, uBs, s2)) gCrest.y sstep(15, 40, d). stK =
+  max(sstep(0.6, 0.85, sh), sstep(0.45, 0.7, 0.86 H / wf)): breaking, or a face steeper than ~25 deg (0.86 H / wf
+  is its largest slope). The slope term is what covers the unbroken shoulder beside the tube, which the first
+  version (sh only) left on world xz; the steep shoulder there is the "zones to the side" the owner saw.
+- The fragment shader runs that frame's second coordinate down the face at VFALL = 3.5 m/s and turns slopes from it
+  into the world with a cotangent frame from screen derivatives (Schueler; Tq, Bq capped at 1.5 where squeezed).
+  Detail normals, ripples, foam and sparkle are sampled in both frames and cross-faded by wK = vBrk.z; the shared
+  pieces are now helpers (detailSlope, ripWarp, rippleSlope, sparkle).
+- Measured (reference/flow_r11.js: block matching two renders 0.015 s apart at fov 14 on fn 49 at x 100, t 441.9
+  and 442.1, masked to wK > 0.5, screen thirds; + = down the screen; "geo" is a pattern painted in the breaker frame
+  as the reference): median px r10 -1/0/0 and -1/-2/-4, share moving up 0.55/0.46/0.40 and 0.59/0.65/0.95; r11
+  8/6/2 and 8/5/1, up 0.11/0.27/0.30 and 0.10/0.24/0.45; geo 8/8/8, up 0.04-0.16. The shoulder after the slope
+  weight was checked on shots (r11-ov4 weight overlay, r11-lit1), not re-measured.
+- Plumes (3D-lit billboards): plumeAtlas now also builds a relief atlas uPlumeR (RG slope normal, B height from
+  blurred lumps, the fan and the density), and the main atlas's B is ao (0.8 + 0.2 lit). SPLASH_VERT passes the
+  sun in the billboard's tangent frame (vL) and a bow tilt (vM); SPLASH_FRAG lights the relief normal with wrapped
+  diffuse (0.65 dot + 0.35), one self-shadow step towards the sun (non-SOFT tiers only), a sky term from n.y,
+  shades between white and sea-grey (0.58, 0.72, 0.8), and adds a rim and back glow when the sun is behind it,
+  then the haze. Built at 1024 instances / 256 texels (soft tier 128 / 128).
+- Spray: each point is a lit ball of droplets (view-space sun vSun, wrap diffuse, a rim glow when backlit; Spray
+  takes uniforms.uSunDir). Subtle in the beach view, where the sun is behind the waves.
+- Cost (RTX 5070 Ti, whole scene, 1080p, timer queries, q25 / median ms): fov 16 none 0.816 / 0.989, r10 1.037 /
+  1.105, r11 1.051 / 1.11; fov 7 0.811 / 0.851, 0.854 / 0.894, 0.878 / 0.901. So r11 adds ~0.01-0.02 ms.
+  SwiftShader (swprobe r10a r11a r11b r10b; r10 = f4823f8): water mean 1826 / 627 / 717 / 792 ms, frame median
+  2612 / 738 / 847 / 952 ms; r10a was contended (steady only at 19 s, water rising to 2.1 s per draw), so against
+  r10b r11 is no slower. Both tiers compile with no errors (preview ?debug and ?debug&soft=1, 21 Oct).
+- Limits: no soft depth fade where plumes meet the water (needs a depth texture) and no layered sub-sprites; the
+  plumes are still billboards; not hand-play-tested.
+- Gotcha: a stale window.__shotCam (a fov 55 close-up) overrode every measurement render for a while; set it to
+  null before measuring.
+- Shots: reference/r11-shots (git-ignored). Page helpers: reference/helpers_r11.js (__seqV, __crestOf, __rep,
+  __stripes), helpers_r11p.js (__mkR10 plume A/B, __mkV, __relSheet, __rebuild11, __srcShaders), flow_r11.js
+  (__flow).
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
@@ -488,7 +532,10 @@ Round 9 1220921 (de-tiled ripples, whiter foam, splash plumes) pushed 20 Oct 202
 original and both subfolder versions before publishing" and deployed at 08:10:48Z. Checked by HTTP at 08:11Z: live
 versions.json pins claude 1220921, and live /claude/index.html, js/main.js and js/surf.js match 1220921 (SHA-256;
 index.html and main.js are unchanged since 635ef93). Round 9's look is live at /claude/.
-Round 10 committed locally 20 Oct 2026; not pushed (waiting for the owner).
+Round 10 f4823f8 pushed 20 Oct 2026 at 22:34Z (owner request, 1220921..f4823f8): hook run 39509072242 passed;
+main's publisher run 39509090645 (main 116c998) passed "Test original and both subfolder versions before
+publishing" and deployed at 22:38:57Z. Checked by HTTP at 22:40Z: live versions.json pins claude f4823f8, and live
+/claude/index.html, js/main.js and js/surf.js match f4823f8 (SHA-256). Round 10 is live at /claude/.
 
 ## Round 8 publish failure and the software-WebGL tier (19 Oct 2026)
 Round 8 did not go live. Main's publisher run 39318742626 failed in Codex's tooling/pages/smoke.cjs (origin/main

@@ -372,6 +372,7 @@ const GLSL_COMMON = /* glsl */`
 #define TAU 6.28318530718
 float gDrift; // set by surfPos: how far the swash has carried its foam up the beach (for foam texturing only)
 vec2 gCrest;  // set by surfPos: position across the crest (s2) and a mask that is 1 near the crest (foam texturing only)
+vec3 gBrk;    // set by surfPos: the breaker's own texture frame and its weight (see the end of surfPos)
 bool gFlat = false; // set before surfPos: no crest bunching and no curl, so (x, z) stays put (JS evalSurf with curl false)
 const float K0 = ${K0.toFixed(9)};
 const float OMEGA = ${OMEGA.toFixed(9)};
@@ -676,6 +677,15 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
   thin = hw * bw * sh;
   wetOut = wet;
   gCrest.x = dA - dc; // displaced position relative to the crest: the whitewater pattern travels and tumbles with it
+  // a steep or breaking face and its curl take their foam, glints and ripples from the breaker's own frame: x and
+  // the position across the crest (s2), which the fragment shader runs down the face and the hanging curtain. The
+  // rest grid and the world xz would climb the steep face, and the rest grid also climbs the curtain once the lip
+  // pitches over (from the face it runs round the tip and up the lip's outer side). Steep means breaking (sh) or a
+  // face over ~25 deg (0.86 H / wf, the face's largest slope): the unbroken shoulder beside a tube is that steep too
+  float uBs = max((0.45 * Hc + wc) * kw * sig, 0.3 * Hc);
+  float stK = max(sstep(0.6, 0.85, sh), sstep(0.45, 0.7, 0.86 * H / wf));
+  gBrk = vec3(x + 37.0 * fn, s2 + 51.0 * fn, stK * sstep(-3.0 * wf, -1.8 * wf, s2)
+    * (1.0 - sstep(0.5 * uBs, uBs, s2)) * gCrest.y * sstep(15.0, 40.0, d));
   return vec3(x, y, zs + dA);
 }
 `;
@@ -692,12 +702,14 @@ varying float vAge;
 varying float vLand;
 varying vec2 vRest;
 varying vec2 vCrest;
+varying vec3 vBrk;
 void main() {
   float f, th, wt, sw, ag, f1, t1, w1, s1, a1;
   vec2 xz = position.xz;
   vec3 P = surfPos(xz, f, th, wt, sw, ag);
   float drift = gDrift;
   vCrest = gCrest;
+  vBrk = gBrk;
 #ifdef FACETS
   vNrm = vec3(0.0, 1.0, 0.0); // unused: the fragment shader takes each facet's own normal
 #else
@@ -743,6 +755,7 @@ varying float vAge;
 varying float vLand;
 varying vec2 vRest;
 varying vec2 vCrest;
+varying vec3 vBrk;
 
 vec2 hash2(vec2 p) {
   p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
@@ -840,6 +853,40 @@ vec3 normNT(vec2 c, vec2 cx, vec2 cy, float seed) {
   return mix(a, b, smoothstep(0.25, 0.75, f - 0.1 * (a.x + a.y + a.z - b.x - b.y - b.z))) * 2.0 - 1.0;
 #endif
 }
+// the detail normals' slope: two layers of the normal map, the second turned off the first, at c (metres; cx and cy
+// its screen derivatives), each sampled without tiling (normNT: a tiled map repeats as a regular weave over open water)
+vec2 detailSlope(vec2 c, vec2 cx, vec2 cy) {
+  vec3 n1 = normNT(c * 0.011 + vec2(0.012, 0.017) * uTime, cx * 0.011, cy * 0.011, 0.0);
+  vec3 n2 = normNT(R37 * c * 0.029 - vec2(0.021, -0.009) * uTime, R37 * cx * 0.029, R37 * cy * 0.029, 3.7);
+  return n1.xy + n2.xy * R37; // the second layer's slope turned back
+}
+// fine wind ripples stretched along the crests, two sets crossing at a shallow angle: the dense, embossed wavelets of
+// AoM's water. Each set's slope is turned back from its rotated, stretched frame. w = c with its lines bent by a
+// gentle warp (ripWarp), so that the sets do not lie over the whole sea as one even, parallel weave (not on the
+// software tier, which has the tiled map anyway)
+vec2 ripWarp(vec2 c) {
+#ifdef SOFT
+  return c;
+#else
+  return c + 9.0 * vec2(vnoise(c * 0.021 + 3.3), vnoise(ROT * c * 0.021 + 8.1));
+#endif
+}
+vec2 rippleSlope(vec2 w, vec2 cx, vec2 cy) {
+  mat2 MA = mat2(0.035, 0.0, 0.0, 0.13) * RIPA, MB = mat2(0.03, 0.0, 0.0, 0.11) * RIPB; // turned, then stretched
+  vec3 q1 = normNT(MA * w + vec2(0.0, 0.05) * uTime, MA * cx, MA * cy, 7.1);
+  vec3 q2 = normNT(MB * w + vec2(0.31, 0.04) * uTime, MB * cx, MB * cy, 1.9);
+  return vec2(q1.x * 0.27, q1.y) * RIPA + vec2(q2.x * 0.27, q2.y) * RIPB;
+}
+// a bubble glint in each cell of sp that twinkles: at least about a pixel wide, dimmed as it widens, and gone where
+// the cells would shimmer (fw = the cells' screen footprint, from outside any branch)
+float sparkle(vec2 sp, float fw) {
+  if (fw >= 0.6) return 0.0;
+  vec2 hs = hash2(floor(sp));
+  float rad = max(0.14, 0.7 * fw);
+  float tw = pow(max(sin(uTime * (1.5 + 2.5 * hs.x) + 6.2831 * hs.y), 0.0), 6.0);
+  float sd = length(fract(sp) - 0.5 - 0.6 * (hs.yx - 0.5));
+  return 9.0 * smoothstep(rad, 0.0, sd) * (0.0196 / (rad * rad)) * tw * (1.0 - smoothstep(0.3, 0.6, fw));
+}
 
 void main() {
 #ifdef FACETS
@@ -854,36 +901,40 @@ void main() {
   float dist = length(toCam);
   vec3 V = toCam / dist;
 
-  // detail normals: two layers of the normal map, the second turned off the first, each sampled without
-  // tiling (normNT: a tiled map repeats as a regular weave over open water)
+  // The foam texture, its glints and the detail normals are mapped on the world xz (the open sea) or the rest grid
+  // (foam), both of which climb a steep face. Where the face is steep or breaking (weight wK) they come instead from
+  // the breaker's own frame (vBrk, see surfPos), whose second coordinate runs down the face and the hanging curtain
+  // at VFALL m/s, the way the water falls there. Tq and Bq are the surface gradients of its two coordinates (from
+  // the screen derivatives, Schueler's cotangent frame; capped where the frame is squeezed): they turn the slopes
+  // of the normal maps from that frame into the world.
+  float wK = vBrk.z < 0.01 ? 0.0 : (vBrk.z > 0.99 ? 1.0 : vBrk.z);
+  vec2 qb = vec2(vBrk.x, vBrk.y + 3.5 * uTime), qx = dFdx(qb), qy = dFdy(qb); // VFALL = 3.5
+  vec3 dpx = dFdx(vWorld), dpy = dFdy(vWorld);
+  vec3 cq1 = cross(dpy, N), cq2 = cross(N, dpx);
+  float dq = dot(dpx, cq1), idq = dq / max(dq * dq, 1e-30);
+  vec3 Tq = (cq1 * qx.x + cq2 * qy.x) * idq, Bq = (cq1 * qx.y + cq2 * qy.y) * idq;
+  Tq *= min(1.0, 1.5 * inversesqrt(dot(Tq, Tq) + 1e-12));
+  Bq *= min(1.0, 1.5 * inversesqrt(dot(Bq, Bq) + 1e-12));
+
+  // detail normals
   vec2 uv = vWorld.xz, ux = dFdx(uv), uy = dFdy(uv);
   // cat's paws: the wind roughens the sea in large drifting patches, so the ripples are not one uniform weave
   float paw = smoothstep(0.2, 0.8, 0.6 * vnoise(ROT * uv * 0.0042 + vec2(0.0, 0.02) * uTime) + 0.4 * vnoise(uv * 0.0117 - vec2(0.015, 0.0) * uTime));
-  vec3 n1 = normNT(uv * 0.011 + vec2(0.012, 0.017) * uTime, ux * 0.011, uy * 0.011, 0.0);
-  vec3 n2 = normNT(R37 * uv * 0.029 - vec2(0.021, -0.009) * uTime, R37 * ux * 0.029, R37 * uy * 0.029, 3.7);
-  vec3 dn = n1 + vec3(n2.xy * R37, n2.z); // the second layer's slope turned back to the world frame
+  vec2 dn = detailSlope(uv, ux, uy);
   float detail = 0.32 * (0.7 + 0.6 * paw) * (1.0 - smoothstep(250.0, 3500.0, dist));
   vec3 dN = vec3(dn.x, 0.0, dn.y) * detail;
+  if (wK > 0.0) { vec2 db = detailSlope(qb, qx, qy); dN = mix(dN, (Tq * db.x + Bq * db.y) * detail, wK); }
   vec3 Nb = normalize(N + dN); // the surface the ripples ride on: the emboss below shades them relative to it
-  // fine wind ripples stretched along the crests, two sets crossing at a shallow angle: the dense, embossed
-  // wavelets of AoM's water. Each set's slope is turned back from its rotated, stretched frame; the sets fade
-  // out before they would shimmer.
+  // the ripples, which fade out before they would shimmer
   float rk = uRipple * (0.45 + 0.9 * paw) * (1.0 - smoothstep(150.0, 1100.0, dist));
   if (rk > 0.0) {
-    // stronger and weaker in patches a few tens of units across, and their lines bent by a gentle warp, so that
-    // the sets do not lie over the whole sea as one even, parallel weave (not on the software tier, which has the
-    // tiled map anyway)
-#ifdef SOFT
-    vec2 wv = uv;
-#else
-    rk *= 0.4 + 1.2 * smoothstep(0.15, 0.85, vnoise(ROT * uv * 0.035 + 1.7));
-    vec2 wv = uv + 9.0 * vec2(vnoise(uv * 0.021 + 3.3), vnoise(ROT * uv * 0.021 + 8.1));
+#ifndef SOFT
+    rk *= 0.4 + 1.2 * smoothstep(0.15, 0.85, vnoise(ROT * uv * 0.035 + 1.7)); // stronger and weaker in patches a few tens of units across
 #endif
-    mat2 MA = mat2(0.035, 0.0, 0.0, 0.13) * RIPA, MB = mat2(0.03, 0.0, 0.0, 0.11) * RIPB; // turned, then stretched
-    vec3 q1 = normNT(MA * wv + vec2(0.0, 0.05) * uTime, MA * ux, MA * uy, 7.1);
-    vec3 q2 = normNT(MB * wv + vec2(0.31, 0.04) * uTime, MB * ux, MB * uy, 1.9);
-    vec2 g = vec2(q1.x * 0.27, q1.y) * RIPA + vec2(q2.x * 0.27, q2.y) * RIPB;
-    dN += vec3(g.x, 0.0, g.y) * rk;
+    vec2 g = wK < 1.0 ? rippleSlope(ripWarp(uv), ux, uy) : vec2(0.0);
+    vec3 gw = vec3(g.x, 0.0, g.y);
+    if (wK > 0.0) { vec2 gb = rippleSlope(ripWarp(qb), qx, qy); gw = mix(gw, Tq * gb.x + Bq * gb.y, wK); }
+    dN += gw * rk;
   }
   N = normalize(N + dN);
 
@@ -943,7 +994,14 @@ void main() {
   float blot = clamp((0.65 * vnoise(uv * 0.028 + 0.37) + 0.35 * vnoise(ROT * uv * 0.071) - 0.38) / 0.3, 0.0, 1.0); // large-scale break-up
   float fa = vFoam * mix(0.7 + 0.6 * blot, 1.2, aer); // the large-scale break-up is for older foam, not fresh whitewater
   float ft = 0.0, tau = 0.0;
-  if (fa > 0.01) tau = foamThick(vRest, fa, vAge, dist, ft);
+  if (fa > 0.01) {
+    if (wK < 1.0) tau = foamThick(vRest, fa, vAge, dist, ft);
+    if (wK > 0.0) {
+      float ftB;
+      float tB = foamThick(qb, fa, vAge, dist, ftB);
+      tau = mix(tau, tB, wK); ft = mix(ft, ftB, wK);
+    }
+  }
   tau = mix(tau, max(tau, 1.1 + 0.4 * ft), aer); // fresh whitewater is a solid mass: no holes until it ages
   // fresh whitewater churns: billowing lumps, mapped in the crest's own frame (x, height, distance from the crest)
   // and projected along the geometric normal, so the lumps travel with the breaker without stretching on the
@@ -960,7 +1018,6 @@ void main() {
   }
   // relief from the thickness and the churn (surface-gradient bump mapping), faded out with distance
   float bumpK = 1.5 * (1.0 - smoothstep(60.0, 450.0, dist));
-  vec3 dpx = dFdx(vWorld), dpy = dFdy(vWorld);
   float hgt = (min(tau, 1.6) + 1.3 * churnA * churn) * bumpK;
   float hx = dFdx(hgt), hy = dFdy(hgt);
   vec3 r1 = cross(dpy, N), r2 = cross(N, dpx);
@@ -976,20 +1033,14 @@ void main() {
   // churn shading: lump tops catch the light, the hollows between the lumps in a light blue shadow
   float ao = 0.8 + 0.28 * smoothstep(0.02, 0.62, churn);
   foamCol *= mix(vec3(1.0), ao * mix(vec3(0.78, 0.87, 0.95), vec3(1.0), smoothstep(0.05, 0.5, churn)), churnA);
-  // foam is wet: its lumps catch the sun as a soft sheen, and fresh foam glitters with bubble glints that
-  // twinkle (each glint at least about a pixel wide, dimmed as it widens, and gone where the cells would shimmer)
+  // foam is wet: its lumps catch the sun as a soft sheen, and fresh foam glitters with bubble glints (sparkle)
   float sunF = max(dot(reflect(-V, Nf), uSunDir), 0.0);
   float fresh = max(aer, 1.0 - vAge);
   float glint = (pow(sunF, 20.0) * 0.5 + pow(sunF, 160.0) * 2.5) * (0.4 + 0.6 * fresh);
-  vec2 sp = vRest * 2.3;
-  float fw = length(fwidth(sp));
-  if (fw < 0.6) {
-    vec2 sh = hash2(floor(sp));
-    float rad = max(0.14, 0.7 * fw);
-    float tw = pow(max(sin(uTime * (1.5 + 2.5 * sh.x) + 6.2831 * sh.y), 0.0), 6.0);
-    float sd = length(fract(sp) - 0.5 - 0.6 * (sh.yx - 0.5));
-    glint += 9.0 * smoothstep(rad, 0.0, sd) * (0.0196 / (rad * rad)) * tw * fresh * thickL * (1.0 - smoothstep(0.3, 0.6, fw)) * smoothstep(0.1, 0.5, wrap);
-  }
+  float fwR = length(fwidth(vRest * 2.3)), fwB = 2.3 * length(abs(qx) + abs(qy));
+  float spk = wK < 1.0 ? sparkle(vRest * 2.3, fwR) : 0.0;
+  if (wK > 0.0) spk = mix(spk, sparkle(qb * 2.3, fwB), wK);
+  glint += spk * fresh * thickL * smoothstep(0.1, 0.5, wrap);
   foamCol += vec3(1.0, 0.97, 0.9) * glint;
   P = mix(P, foamCol, af);
   W *= 1.0 - af;
@@ -1121,38 +1172,50 @@ function buildGeometry(quality) {
 
 // ---------- spray particles ----------
 const SPRAY_VERT = /* glsl */`
+uniform vec3 uSunDir;
 attribute float aSize;
 attribute float aAlpha;
 attribute float aSeed;
 varying float vAlpha;
 varying float vSeed;
+varying vec3 vSun;
 void main() {
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
   gl_PointSize = aSize * (700.0 / max(-mv.z, 1.0));
   vAlpha = aAlpha;
   vSeed = aSeed;
+  vSun = normalize((viewMatrix * vec4(uSunDir, 0.0)).xyz);
   gl_Position = projectionMatrix * mv;
 }`;
 const SPRAY_FRAG = /* glsl */`
 varying float vAlpha;
 varying float vSeed;
+varying vec3 vSun;
 float h1(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) {
   vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f);
   return mix(mix(h1(i), h1(i + vec2(1.0, 0.0)), u.x), mix(h1(i + vec2(0.0, 1.0)), h1(i + 1.0), u.x), u.y);
 }
-// a ragged, soft-edged puff (each particle its own shape) rather than a round disc
+// a ragged, soft-edged puff (each particle its own shape) rather than a round disc, lit as a little ball of
+// droplets: white on its sunward side, a pale blue-grey away from it, and its rim glowing when the sun is behind it
 void main() {
   vec2 c = gl_PointCoord - 0.5;
   vec2 q = c * 4.0 + vSeed * 17.0;
   float n = 0.6 * vn(q) + 0.4 * vn(q * 2.3 + 3.1);
-  float a = smoothstep(1.0, 0.15, length(c) * 2.0 + 0.55 * (n - 0.5)) * vAlpha;
+  float r = length(c) * 2.0;
+  float a = smoothstep(1.0, 0.15, r + 0.55 * (n - 0.5)) * vAlpha;
   if (a < 0.01) discard;
-  gl_FragColor = vec4(0.97, 0.99, 1.0, a * (0.75 + 0.25 * n));
+  vec2 b = vec2(c.x, -c.y) * 2.0;
+  vec3 nb = vec3(b, sqrt(max(1.0 - dot(b, b), 0.0)));
+  float dif = clamp(dot(nb, vSun) * 0.6 + 0.4, 0.0, 1.0);
+  vec3 col = mix(vec3(0.62, 0.75, 0.82), vec3(1.0), clamp(0.45 + 0.7 * dif + 0.2 * (n - 0.5), 0.0, 1.0));
+  float rim = clamp(-vSun.z, 0.0, 1.0) * (0.3 + 0.7 * smoothstep(0.3, 1.0, r) * clamp(dot(b, vSun.xy) * 3.0 + 0.3, 0.0, 1.0));
+  col = min(col + vec3(1.0, 0.95, 0.85) * 0.5 * rim, vec3(1.0));
+  gl_FragColor = vec4(col, a * (0.75 + 0.25 * n));
 }`;
 
 class Spray {
-  constructor(scene, count) {
+  constructor(scene, count, sunDir) {
     this.count = count;
     this.pos = new Float32Array(count * 3);
     this.vel = new Float32Array(count * 3);
@@ -1175,6 +1238,7 @@ class Spray {
     g.boundingSphere = new THREE.Sphere(new THREE.Vector3(), 1e5);
     this.points = new THREE.Points(g, new THREE.ShaderMaterial({
       vertexShader: SPRAY_VERT, fragmentShader: SPRAY_FRAG,
+      uniforms: { uSunDir: sunDir },
       transparent: true, depthWrite: false,
     }));
     this.points.frustumCulled = false;
@@ -1347,14 +1411,19 @@ class Decals {
 // and fall back, which reads as a real splash at almost no cost. Here a line of them goes up where the lip of a
 // breaking wave lands, where a shore dump slams down, and (smaller) off the tumbling bore front.
 // The plume pictures are drawn once at start-up (four variants in a 2x2 atlas, each tile N x N): R the plume's
-// opacity, G the order it dissolves in (thin spray first, the dense core last), B its shading.
-// Each is a broad sheet of spray across its upper part with a torn outline, a fan of streaks falling back out of
-// its underside and loose drops round it, all made of a fine grain, near-white with a pale blue-grey in the thin
-// parts, so that it reads as a burst of droplets rather than a lumpy cloud. The billboards are about ASP times wider than tall, so
-// the picture is drawn squeezed by that much across, and its grain comes out round.
+// opacity, G the order it dissolves in (thin spray first, the dense core last), B how open it is to the light (dark
+// in the creases between its lumps), mottled a little by the grain. A second atlas holds its relief, so that the
+// shader lights it as a heap of lumps rather than a flat picture: RG the slope of its surface (its normal across and
+// up), B its height.
+// Each is a broad sheet of spray across its upper part with a torn outline, piled with round lumps of two sizes (the
+// cauliflower of a wave's white water), a fan of streaks falling back out of its underside and loose drops round it,
+// all made of a fine grain, near-white with a pale blue-grey in the thin parts. The billboards are about ASP times
+// wider than tall, so the picture is drawn squeezed by that much across, and its grain and lumps come out round.
 function plumeAtlas(N) {
-  const S = 2 * N, out = new Uint8Array(S * S * 4), ASP = 1.5;
+  const S = 2 * N, out = new Uint8Array(S * S * 4), rel = new Uint8Array(S * S * 4), ASP = 1.5;
   const lat = new Float32Array(256 * 256), Dd = new Float32Array(N * N);
+  const Hh = new Float32Array(N * N), Bn = new Float32Array(N * N), Bw = new Float32Array(N * N), Bt = new Float32Array(N * N);
+  const Ac = new Float32Array(N * N), Gc = new Float32Array(N * N), Lc = new Float32Array(N * N);
   const vn = (x, y) => { // smooth value noise on a 256-periodic lattice
     const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi;
     const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
@@ -1374,6 +1443,32 @@ function plumeAtlas(N) {
       }
     }
   };
+  // packed round lumps at (x, y) (in heights): sphere caps up to ~1 high on a jittered grid of cells c across
+  const lumps = (x, y, c, salt) => {
+    const gx = Math.floor(x / c), gy = Math.floor(y / c);
+    let m = 0;
+    for (let j = gy - 1; j <= gy + 1; j++) for (let i = gx - 1; i <= gx + 1; i++) {
+      const h = hashU(Math.imul(i, 73856093) ^ Math.imul(j, 19349663) ^ salt), h2 = hashU(h);
+      const dx = x - (i + 0.15 + 0.7 * hash01(h)) * c, dy = y - (j + 0.15 + 0.7 * hash01(h2)) * c;
+      const R = c * (0.6 + 0.35 * hash01(hashU(h2))), q = 1 - (dx * dx + dy * dy) / (R * R);
+      if (q > 0) m = Math.max(m, Math.sqrt(q) * R / c);
+    }
+    return m;
+  };
+  // a box blur of a tile's src into dst, r pixels each way (across, then up; clamped at the tile's edges)
+  const blur = (src, dst, r) => {
+    const k = 1 / (2 * r + 1), cl = i => Math.min(Math.max(i, 0), N - 1);
+    for (let py = 0; py < N; py++) {
+      let s = 0;
+      for (let j = -r; j <= r; j++) s += src[py * N + cl(j)];
+      for (let px = 0; px < N; px++) { Bt[py * N + px] = s * k; s += src[py * N + cl(px + r + 1)] - src[py * N + cl(px - r)]; }
+    }
+    for (let px = 0; px < N; px++) {
+      let s = 0;
+      for (let j = -r; j <= r; j++) s += Bt[cl(j) * N + px];
+      for (let py = 0; py < N; py++) { dst[py * N + px] = s * k; s += Bt[cl(py + r + 1) * N + px] - Bt[cl(py - r) * N + px]; }
+    }
+  };
   for (let t = 0; t < 4; t++) {
     let s = hashU(t * 7919 + 17);
     const r = () => hash01(s = hashU(s + 0x9e3779b9));
@@ -1389,7 +1484,7 @@ function plumeAtlas(N) {
       drop(ax * d * Math.cos(ang), cy + ay * d * Math.sin(ang), 0.003 + 0.005 * r(), 0.5 + 0.5 * r());
     }
     for (let i = 0; i < 40; i++) drop(0.9 * (r() - 0.5), 0.05 + (cy - 0.15) * r(), 0.003 + 0.004 * r(), 0.6); // and falling
-    const ox = (t & 1) * N, oy = (t >> 1) * N;
+    const ox = (t & 1) * N, oy = (t >> 1) * N, salt = hashU(s), salt2 = hashU(salt);
     for (let py = 0; py < N; py++) {
       const Y = (py + 0.5) / N;
       for (let px = 0; px < N; px++) {
@@ -1427,16 +1522,38 @@ function plumeAtlas(N) {
         // its shading by the grain and, more gently, in broad patches: white on the dense clumps, a blue-grey in the
         // thin parts (the light and shade across the whole plume come from its rounded normal in the shader)
         const lit = Math.min(Math.max(0.55 + 0.3 * thick + 0.5 * (gb - 0.5) + 0.8 * (gm - 0.5) + 0.5 * (gf - 0.5), 0), 1);
-        const o = ((oy + py) * S + ox + px) * 4;
-        out[o] = Math.round(a * 255); out[o + 1] = Math.round(dis * 255); out[o + 2] = Math.round(lit * 255); out[o + 3] = 255;
+        // its relief, in heights: a low heap over the mass piled with big and small lumps, the streaks raised a
+        // little (and lumpy) and the drops as beads
+        const l2 = lumps(x, Y, 0.05, salt2);
+        const hh = Math.max(0.2 * Math.sqrt(sstep(1.05, 0.2, rr)) + sstep(1.1, 0.55, rr) * (0.075 * lumps(x, Y, 0.14, salt) + 0.014 * l2)
+          + 0.001 * (gf - 0.5), fan * (0.025 + 0.012 * l2), 0.015 * Dd[py * N + px]);
+        const i = py * N + px;
+        Ac[i] = a; Gc[i] = dis; Lc[i] = lit; Hh[i] = Math.max(hh, 0) * edge;
       }
     }
+    // how open each point is to the light: how far it lies below its surroundings, near and wider
+    blur(Hh, Bn, Math.max(1, Math.round(0.03 * N)));
+    blur(Hh, Bw, Math.max(2, Math.round(0.09 * N)));
+    for (let py = 0; py < N; py++) for (let px = 0; px < N; px++) {
+      const i = py * N + px, o = ((oy + py) * S + ox + px) * 4;
+      const ao = Math.min(Math.max(1 - 9 * (0.6 * (Bn[i] - Hh[i]) + 0.4 * (Bw[i] - Hh[i])), 0.3), 1);
+      // the slope, per height across and up (a pixel is ASP / N heights across, 1 / N up)
+      const hx = (Hh[py * N + Math.min(px + 1, N - 1)] - Hh[py * N + Math.max(px - 1, 0)]) * N / (2 * ASP);
+      const hy = (Hh[Math.min(py + 1, N - 1) * N + px] - Hh[Math.max(py - 1, 0) * N + px]) * N / 2;
+      const nl = 1 / Math.sqrt(hx * hx + hy * hy + 1);
+      out[o] = Math.round(Ac[i] * 255); out[o + 1] = Math.round(Gc[i] * 255); out[o + 2] = Math.round(ao * (0.8 + 0.2 * Lc[i]) * 255); out[o + 3] = 255;
+      rel[o] = Math.round((0.5 - 0.5 * hx * nl) * 255); rel[o + 1] = Math.round((0.5 - 0.5 * hy * nl) * 255);
+      rel[o + 2] = Math.round(Math.min(Hh[i] / 0.32, 1) * 255); rel[o + 3] = 255;
+    }
   }
-  const tex = new THREE.DataTexture(out, S, S, THREE.RGBAFormat, THREE.UnsignedByteType);
-  tex.generateMipmaps = true;
-  tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter;
-  tex.needsUpdate = true;
-  return tex;
+  const mk = d => {
+    const tex = new THREE.DataTexture(d, S, S, THREE.RGBAFormat, THREE.UnsignedByteType);
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+    return tex;
+  };
+  return { tex: mk(out), rel: mk(rel) };
 }
 const SPLASH_VERT = /* glsl */`
 uniform float uTime;
@@ -1445,8 +1562,9 @@ attribute vec4 aA; // base x, y, z (at the water), birth time
 attribute vec4 aB; // full width, full height, life, alpha
 attribute vec4 aC; // variant 0..3, flip (+-1), lean (top thrown shoreward, per unit height), drift (z units per s)
 attribute vec2 aD; // the crest's horizontal normal (x, z), seaward
-varying vec2 vUv;
-varying float vP, vAlpha, vBack, vLit, vNy, vQy, vDist;
+varying vec2 vUv, vM;
+varying vec3 vL;
+varying float vP, vAlpha, vBack, vQy, vDist;
 void main() {
   float age = uTime - aA.w, p = age / aB.z;
   if (p < 0.0 || p > 1.0) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); return; } // dead: beyond the far plane
@@ -1474,10 +1592,10 @@ void main() {
     + fw * (0.12 * w * (1.0 - q.x * q.x));
   vUv = (vec2(0.5 + 0.5 * q.x, q.y) + vec2(mod(aC.x, 2.0), floor(aC.x * 0.5))) * 0.5;
   vBack = pow(max(dot(normalize(P - cameraPosition), uSunDir), 0.0), 3.0);
-  // lit as a rounded heap: a normal that bulges out of it towards the camera, up at its top and out at its sides
-  vec3 n = normalize(right * (0.9 * q.x) + up * (1.2 * q.y - 0.3) + fw * 0.7);
-  vLit = clamp(dot(n, uSunDir) * 0.6 + 0.4, 0.0, 1.0);
-  vNy = n.y;
+  // the sun in the plume's own frame (x across its picture, y up it, z out of it towards the camera), and the slope
+  // of its rounded shape (up at its top and out at its sides), which bends the relief round
+  vL = vec3(dot(uSunDir, right), dot(uSunDir, up), dot(uSunDir, vec3(hd.x * cos(b), sin(b), hd.y * cos(b))));
+  vM = vec2(0.6 * q.x, 0.8 * q.y - 0.2);
   vQy = q.y;
   vDist = length(P - cameraPosition);
   vAlpha = aB.w * smoothstep(0.0, 0.06, p) * (1.0 - smoothstep(0.85, 1.0, p)) * (1.0 - smoothstep(2000.0, 3500.0, lh));
@@ -1492,11 +1610,12 @@ void main() {
   gl_Position = vec4(cp.xy, cb.z / cb.w * cp.w, cp.w);
 }`;
 const SPLASH_FRAG = /* glsl */`
-uniform sampler2D uPlume;
+uniform sampler2D uPlume, uPlumeR;
 uniform vec3 uHazeCol;
 uniform float uHazeK;
-varying vec2 vUv;
-varying float vP, vAlpha, vBack, vLit, vNy, vQy, vDist;
+varying vec2 vUv, vM;
+varying vec3 vL;
+varying float vP, vAlpha, vBack, vQy, vDist;
 void main() {
   vec4 t = texture2D(uPlume, vUv);
   // dissolves from the thin spray inwards over the later part of its life
@@ -1505,19 +1624,34 @@ void main() {
   float foot = smoothstep(0.0, 0.3, vQy + 0.15 * (t.g - 0.5));
   float a = t.r * smoothstep(T - 0.12, T + 0.06, t.g) * vAlpha * foot;
   if (a < 0.01) discard;
-  // shaded in display colour, between white and a cool sea-grey, by the grain and the rounded normal (through the
-  // foam's tone curve every shade came out white and the plume flat); the thin spray against the sun glows, and it
-  // takes the water's haze
+  // lit as the heap of lumps in its relief, bent round by its rounded shape: the sun wrapped a little round into the
+  // side turned away from it, the sky from above, both shut out of the creases. Shaded in display colour, between
+  // white and a cool sea-grey (through the foam's tone curve every shade came out white and the plume flat)
+  vec4 rl = texture2D(uPlumeR, vUv);
+  vec2 sl = rl.xy * 2.0 - 1.0;
+  vec3 n = normalize(vec3(sl + vM, sqrt(max(1.0 - dot(sl, sl), 0.04))));
+  vec3 L = normalize(vL);
+  float dif = clamp(dot(n, L) * 0.65 + 0.35, 0.0, 1.0);
+#ifndef SOFT
+  // and shadowed by the lumps between it and the sun: one step towards it across the picture (0.04 heights; a
+  // tile is half the atlas, 1.5 heights across), against how far the sunbeam has risen out of the picture by then
+  float lxy = max(length(L.xy), 0.25);
+  float hs = texture2D(uPlumeR, vUv + L.xy / lxy * vec2(0.0133, 0.02)).b;
+  dif *= 1.0 - 0.6 * smoothstep(0.0, 0.03, (hs - rl.b) * 0.32 - 0.04 * L.z / lxy);
+#endif
+  float lit = (0.72 + 0.2 * n.y + 0.6 * dif) * t.b;
+  vec3 col = mix(vec3(0.58, 0.72, 0.8), vec3(1.0), clamp(lit - 0.1, 0.0, 1.0));
+  // against the sun its thin spray, the thin low parts of its relief and the rims of its lumps on the sun's side
+  // glow; and it takes the water's haze
   float dense = smoothstep(0.4, 0.9, t.r);
-  float sh = clamp(0.02 + 0.85 * t.b + 0.35 * vLit + 0.1 * vNy, 0.0, 1.0);
-  vec3 col = mix(vec3(0.6, 0.75, 0.81), vec3(1.0), sh);
-  col = min(col + vec3(1.0, 0.95, 0.85) * (0.3 * vBack * (1.0 - dense)), vec3(1.0));
+  float rim = smoothstep(0.25, 0.85, 1.0 - n.z) * clamp(dot(n.xy, L.xy) * 4.0, 0.0, 1.0);
+  col = min(col + vec3(1.0, 0.95, 0.85) * vBack * (0.35 * (1.0 - dense) + 0.25 * (1.0 - rl.b) + 0.45 * rim), vec3(1.0));
   vec3 hz = linearToOutputTexel(vec4(toneMapping(uHazeCol * 1.55), 1.0)).rgb;
   gl_FragColor = vec4(mix(col, hz, (1.0 - exp(-vDist * 0.00024)) * uHazeK), a);
 }`;
 
 class Splashes {
-  constructor(scene, uniforms, count, texSize) {
+  constructor(scene, uniforms, count, texSize, soft) {
     this.count = count;
     this.hi = -1; // the highest slot in use: only slots 0..hi are drawn
     this.now = 0;
@@ -1533,10 +1667,13 @@ class Splashes {
     this.d = attr(2, [0, 1]);
     g.setAttribute('aA', this.a); g.setAttribute('aB', this.b); g.setAttribute('aC', this.c); g.setAttribute('aD', this.d);
     g.instanceCount = 0;
-    this.tex = plumeAtlas(texSize);
+    const { tex, rel } = plumeAtlas(texSize);
+    this.tex = tex; this.rel = rel;
     this.mesh = new THREE.Mesh(g, new THREE.ShaderMaterial({
       vertexShader: SPLASH_VERT, fragmentShader: SPLASH_FRAG,
-      uniforms: { uTime: uniforms.uTime, uSunDir: uniforms.uSunDir, uHazeCol: uniforms.uHazeCol, uHazeK: uniforms.uHazeK, uPlume: { value: this.tex } },
+      uniforms: { uTime: uniforms.uTime, uSunDir: uniforms.uSunDir, uHazeCol: uniforms.uHazeCol, uHazeK: uniforms.uHazeK,
+        uPlume: { value: tex }, uPlumeR: { value: rel } },
+      defines: soft ? { SOFT: '' } : {},
       transparent: true, depthWrite: false, side: THREE.DoubleSide, // (a flipped plume is wound the other way)
     }));
     this.mesh.frustumCulled = false;
@@ -1569,7 +1706,7 @@ class Splashes {
   }
   dispose(scene) {
     scene.remove(this.mesh);
-    this.mesh.geometry.dispose(); this.mesh.material.dispose(); this.tex.dispose();
+    this.mesh.geometry.dispose(); this.mesh.material.dispose(); this.tex.dispose(); this.rel.dispose();
   }
 }
 
@@ -1643,9 +1780,9 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
   scene.add(mesh);
 
   const decals = new Decals(scene, uniforms, 1024);
-  const spray = new Spray(scene, 6000);
+  const spray = new Spray(scene, 6000, uniforms.uSunDir);
   // the plumes along a breaking lip (fewer and smaller pictures on the software tier)
-  const splashes = new Splashes(scene, uniforms, soft ? 128 : 1024, soft ? 128 : 256);
+  const splashes = new Splashes(scene, uniforms, soft ? 128 : 1024, soft ? 128 : 256, soft);
   const st = {};
   let time = 0, emitAcc = 0;
   const rnd = (a, b) => a + Math.random() * (b - a);
