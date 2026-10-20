@@ -1,0 +1,17 @@
+# Codex automation pointer safety — 20 October 2026
+
+User reported desktop cursor warping to the upper-left corner and confinement during local tests. The existing game called PointerLockControls.lock() on Start, Restart, Resume and canvas clicks even in a headless browser. This is a plausible capture path; the native Windows symptom was not independently reproduced, and no global cursor or desktop settings were changed.
+
+Fix: js/main.js routes all capture entry points through a guard. navigator.webdriver=true or ?automation=1 prevents a native pointer-lock request. Resume explicitly resumes the game in automation without pretending the pointer is locked. Normal manual play retains pointer lock. The v9 profiling harness is headless-only, opts into automation=1, replaces requestPointerLock with a fail-closed sentinel before application scripts load, and releases any pointer lock during cleanup. No native mouse input, foregrounding or cursor-position APIs are used.
+
+Verification: governor-admitted software WebGL run, v9/mouse-safe/software.json. Start, canvas click, Resume and Restart all exercised; automatedTest=true, pointerLocked=false, pointerLockAttempts=0, page errors=[]; test browser/server closed, no remaining matching headless Edge processes. A regression will fail if a capture request is introduced later. This verifies the test capture path; it cannot guarantee that unrelated applications or another assistant's tests never capture the desktop mouse.
+
+Performance check (short samples, not sustained play): immediately preceding look/software-tier result CPU callback 15.946 ms, frame interval 21.591 ms; after pointer guard CPU 15.871 ms, interval 21.152 ms. Both 2 water draws + 1 foam draw. Mean per-draw GPU/backend timing after guard: water 3.992 ms, foam .111 ms; combined 8.096 ms. Screenshot 213 ms, timeout 90 s. Difference is sample noise, not an optimization claim. Framebuffer 640x400 at 1280x800 viewport by the software tier.
+
+No push performed. Every push requires fresh owner approval because it publishes. Own branch confirmed codex/breaking-surf. No Claude branch inspected.
+
+Broader v9 work remains in progress: original procedural cyan/wavelet shader, software tier and upright camera are installed locally and profiled, but CPU surface reconstruction, instanced foam/splash effects, adaptive grid and cheap CPU height-based character physics still need implementation. Current gameplay still uses the prior fluid character and CPU surface reconstruction. The current cyan look needs visual refinement; no final realism or 60 fps improvement claim. Preserve the existing finite-body implementation while evaluating the owner's newly requested cheap height sampler. Baseline and look results are in verification/v9 below. RTX water/foam GPU baseline was already about .105 ms combined; CPU reconstruction is the principal target.
+
+Primary references used for profiling/design: https://registry.khronos.org/webgl/extensions/EXT_disjoint_timer_query_webgl2/ ; https://threejs.org/docs/pages/InstancedBufferGeometry.html ; https://threejs.org/docs/pages/Info.html . Timer query results are read only after profiling stops. Procedural textures are original; no installed Age of Mythology assets or user screenshot were read/copied/published.
+
+FINAL: broader work and both headless smokes completed; Escape/Resume automation fixed, zero capture attempts in final tests. Earlier pending paragraph is historical; see RESULTS.md for current runtime and limits.

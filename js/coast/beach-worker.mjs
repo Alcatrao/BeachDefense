@@ -1,20 +1,24 @@
-import {SurfWorld,Character} from './surf-physics.mjs';import{makeFluidSolver,WIDTH}from'./fluid.mjs';
-const Section=makeFluidSolver({width:.48,spacing:.12,cell:.16});let ambient=new Section({options:{sourceAmplitude:1.55,sourceK:.20,symmetry:true,separate:true,periodic:true}}),world=new SurfWorld({sourceAmplitude:1.55,sourceK:.20}),playing=false,last=performance.now(),acc=0,input={},waiting=false,pending=[],physicsMs=0,dropped=0,sendAt=-1;
-let pool={p:new Float32Array(world.fluid.n*3),foam:new Float32Array(world.fluid.n),ap:new Float32Array(ambient.n*3),af:new Float32Array(ambient.n)};
-let parcelMap=null,localClock=0;
-function seedLocal(){const f=world.fluid,rows=ambient.n/4;if(!Number.isInteger(rows))throw Error('Invalid transverse seed');if(!parcelMap){const map=new Map();for(let i=0;i<rows;i++){const a=i*3;map.set(Math.round((ambient.sourceRest[a+1]+5)/.12)+','+Math.round(ambient.sourceRest[a+2]/.12),i);}parcelMap=new Int32Array(f.n);for(let i=0;i<f.n;i++){const a=i*3,y=f.sourceRest[a+1],z=f.sourceRest[a+2],j=Math.round((y+5)/.12),k=Math.round(z/.12);let best=-1,d=Infinity;for(let zz=k-2;zz<=k+2;zz++)for(let yy=j-2;yy<=j+2;yy++){const q=map.get(yy+','+zz);if(q===undefined)continue;const b=q*3,dist=(ambient.sourceRest[b+1]-y)**2+(ambient.sourceRest[b+2]-z)**2;if(dist<d){d=dist;best=q;}}if(best<0)throw Error('Missing ambient parcel');parcelMap[i]=best;}}
- for(let i=0;i<f.n;i++){const a=i*3,b=parcelMap[i]*3;f.p[a]=f.sourceRest[a];f.p[a+1]=ambient.p[b+1];f.p[a+2]=ambient.p[b+2];f.v[a]=0;f.v[a+1]=ambient.v[b+1];f.v[a+2]=ambient.v[b+2];f.foam[i]=ambient.foam[parcelMap[i]];}f.time=ambient.time;f.rebuild();}
-// Resample the current background's material parcels when entering the surf.
-// After entry the local volume evolves and exchanges impulses with the rider.
-function mount({x=0,z=9,speed=-3,y=1.2}={}){seedLocal();world.originX=x;world.person=new Character(0,y,z);world.person.v[2]=speed;}
-let maxParcelStepRms=0,ambientMs=0,ambientDropped=0,ambientSeq=0;const ambientRequests=new Map();
-const background=new Worker(new URL('./ambient-worker.mjs',import.meta.url),{type:'module'});
-let readyResolve;const initialized=new Promise(resolve=>readyResolve=resolve);
+import {HeightField,HeightCharacter} from './height-physics.mjs';
+// One live physical section supplies both the visible breaker and the cheap
+// gameplay height/velocity sampler. No second 24k-marker character volume.
+const field=new HeightField();let ambient={n:0,time:0,p:new Float32Array(0),v:new Float32Array(0),foam:new Float32Array(0)},person=null,physicsMs=0,ambientMs=0,ambientDropped=0,maxParcelStepRms=0,bodyTime=0,breaker={z:8,y:0,strength:0},input={},waiting=false,pending=[],pool=null,seq=0;
+const requests=new Map(),background=new Worker(new URL('./ambient-worker.mjs',import.meta.url),{type:'module'});let readyResolve;const initialized=new Promise(resolve=>readyResolve=resolve);
 background.onerror=e=>{throw Error(e.message);};
-background.onmessage=e=>{const m=e.data;ambient.p.set(new Float32Array(m.p));ambient.v.set(new Float32Array(m.v));ambient.foam.set(new Float32Array(m.foam));ambient.time=m.time;maxParcelStepRms=m.maxParcelStepRms;ambientMs=m.stepMs;ambientDropped=m.dropped;if(m.id===0)readyResolve();if(m.id){ambientRequests.get(m.id)?.();ambientRequests.delete(m.id);}if(playing)snapshot();};
-function ambientCommand(type,args={}){const id=++ambientSeq;return new Promise(resolve=>{ambientRequests.set(id,resolve);background.postMessage({type,id,...args});});}
-function tick(auto=false){const t=performance.now();if(auto&&world.person)background.postMessage({type:'step',count:1});if(world.person)world.step(1/60,input);physicsMs=performance.now()-t;}
-function snapshot(){if(waiting||!pool)return;const f=world.fluid;pool.p.set(f.p.subarray(0,f.n*3));pool.foam.set(f.foam.subarray(0,f.n));pool.ap.set(ambient.p.subarray(0,ambient.n*3));pool.af.set(ambient.foam.subarray(0,ambient.n));const data={type:'state',ids:pending.splice(0),p:pool.p.buffer,foam:pool.foam.buffer,ap:pool.ap.buffer,af:pool.af.buffer,diagnostics:{...world.diagnostics(),time:ambient.time,ambientParticles:ambient.n,localActive:!!world.person,localTime:world.fluid.time,physicsMs,ambientMs,ambientDropped,backgroundMode:'live',maxParcelStepRms,phaseError:world.person?world.fluid.time-ambient.time:0,droppedTime:dropped}};waiting=true;pool=null;sendAt=ambient.time;postMessage(data,[data.p,data.foam,data.ap,data.af]);}
-let queue=Promise.resolve();onmessage=e=>{const m=e.data;if(m.type==='recycle'){pool={p:new Float32Array(m.p),foam:new Float32Array(m.foam),ap:new Float32Array(m.ap),af:new Float32Array(m.af)};waiting=false;if(pending.length)snapshot();return;}if(m.type==='input'){input=m.input;return;}queue=queue.then(async()=>{await initialized;if(m.type==='playing'){playing=m.value;last=performance.now();acc=0;await ambientCommand('playing',{value:playing&&!world.person});}if(m.type==='advance'){const advance=ambientCommand('advance',{count:m.count});for(let i=0;i<m.count;i++)tick();await advance;}if(m.type==='mount'){await ambientCommand('playing',{value:false});mount(m);}if(m.type==='leave'){world.person=null;await ambientCommand('playing',{value:playing});}if(m.type==='reset'){playing=false;world.reset();acc=0;dropped=0;await ambientCommand('reset');}if(m.id)pending.push(m.id);snapshot();}).catch(error=>{throw error;});};
-const pacer=new MessageChannel();pacer.port1.onmessage=()=>loop();
-function loop(){const now=performance.now();if(playing){acc+=Math.min(.1,(now-last)/1000);if(acc>=1/60){tick(true);acc-=1/60;}if(acc>.2){dropped+=acc-.2;acc=.2;}if(ambient.time-sendAt>=1/30-1e-6)snapshot();}last=now;setTimeout(()=>pacer.port2.postMessage(0),playing?Math.max(1,(1/60-acc)*1000-(performance.now()-now)):33);}initialized.then(()=>{snapshot();loop();}).catch(e=>{throw e;});
+background.onmessage=e=>{const m=e.data;ambient.n=m.n;ambient.time=m.time;ambient.p=new Float32Array(m.p);ambient.v=new Float32Array(m.v);ambient.foam=new Float32Array(m.foam);ambientMs=m.stepMs;ambientDropped=m.dropped;maxParcelStepRms=m.maxParcelStepRms;
+ const start=performance.now();field.update(ambient.p,ambient.v,ambient.foam,ambient.n);
+ let best=0;breaker.strength=0;for(let k=0;k<field.n;k++){const z=field.z0+k*field.dz;if(z<.5||z>14)continue;const strength=field.foam[k]*(.25+Math.max(0,-field.vy[k]));if(strength>best){best=strength;breaker.z=z;breaker.y=field.h[k];breaker.strength=strength;}}
+ if(person)while(bodyTime<ambient.time-1e-7){const dt=Math.min(1/120,ambient.time-bodyTime);person.step(dt,input,field);bodyTime+=dt;}else bodyTime=ambient.time;physicsMs=performance.now()-start;
+ if(!pool&&!waiting)pool={ap:new Float32Array(ambient.n*3),af:new Float32Array(ambient.n),height:new Float32Array(field.n)};
+ if(m.id===0)readyResolve();if(m.id){requests.get(m.id)?.();requests.delete(m.id);}snapshot();
+};
+function ambientCommand(type,args={}){const id=++seq;return new Promise(resolve=>{requests.set(id,resolve);background.postMessage({type,id,...args});});}
+function snapshot(){if(waiting||!pool)return;pool.ap.set(ambient.p);pool.af.set(ambient.foam);pool.height.set(field.h);const p=new ArrayBuffer(0),foam=new ArrayBuffer(0),data={type:'state',ids:pending.splice(0),p,foam,ap:pool.ap.buffer,af:pool.af.buffer,height:pool.height.buffer,diagnostics:{particles:0,ambientParticles:ambient.n,time:ambient.time,localTime:bodyTime,originX:0,rider:person?.diagnostics()||null,dryBeach:!!person?.dry,board:null,localActive:!!person,physicsMs,ambientMs,ambientDropped,backgroundMode:'live',characterModel:'particle-height-and-flow',breaker,oneWayCoupling:true,maxParcelStepRms,phaseError:person?bodyTime-ambient.time:0,droppedTime:ambientDropped}};waiting=true;pool=null;postMessage(data,[data.p,data.foam,data.ap,data.af,data.height]);}
+let queue=Promise.resolve();onmessage=e=>{const m=e.data;if(m.type==='recycle'){pool={ap:new Float32Array(m.ap),af:new Float32Array(m.af),height:new Float32Array(m.height)};waiting=false;if(pending.length)snapshot();return;}if(m.type==='input'){input=m.input;return;}
+ queue=queue.then(async()=>{await initialized;
+  if(m.type==='playing')await ambientCommand('playing',{value:m.value});
+  if(m.type==='advance')for(let i=0;i<m.count;i+=2)await ambientCommand('advance',{count:Math.min(2,m.count-i)});
+  if(m.type==='mount'){person=new HeightCharacter(m);bodyTime=ambient.time;}
+  if(m.type==='leave')person=null;
+  if(m.type==='reset'){person=null;await ambientCommand('reset');bodyTime=ambient.time;}
+  if(m.id)pending.push(m.id);snapshot();
+ }).catch(error=>{throw error;});};

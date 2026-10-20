@@ -1,0 +1,177 @@
+{
+  "rows": [
+    {
+      "time": 27.5,
+      "mount": false,
+      "before": {
+        "vertices": 5076,
+        "triangles": 9554,
+        "crestZ": 10.84,
+        "crestY": 0.29467814472524667,
+        "reconstructionMs": 5.199999928474426,
+        "widthMetres": 215,
+        "xColumns": 19,
+        "singleSurface": true,
+        "uploadBytes": 256776,
+        "allocatedUploadBytes": 5200000,
+        "meanUpdateMs": 8.539999985694886,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        }
+      },
+      "after": {
+        "vertices": 5076,
+        "triangles": 9554,
+        "crestZ": 10.84000015258789,
+        "crestY": 0.2946781516075134,
+        "reconstructionMs": 3.399999976158142,
+        "widthMetres": 215,
+        "xColumns": 19,
+        "singleSurface": true,
+        "profileCount": 282,
+        "reusedCells": 5076,
+        "activeCells": 5076,
+        "uploadBytes": 256776,
+        "allocatedUploadBytes": 5200000,
+        "meanUpdateMs": 3.6,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        }
+      },
+      "maxPositionDelta": 0.000003814697265625,
+      "indexDifferences": 0
+    },
+    {
+      "time": 28,
+      "mount": true,
+      "before": {
+        "vertices": 16394,
+        "triangles": 32118,
+        "crestZ": 6.204373012730904,
+        "crestY": 2.0419404783735193,
+        "reconstructionMs": 19.299999952316284,
+        "widthMetres": 215,
+        "xColumns": 41,
+        "singleSurface": true,
+        "uploadBytes": 844448,
+        "allocatedUploadBytes": 5200000,
+        "meanUpdateMs": 23.62000000476837,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 69
+        }
+      },
+      "after": {
+        "vertices": 16394,
+        "triangles": 32118,
+        "crestZ": 6.204373012730904,
+        "crestY": 2.0419404783735193,
+        "reconstructionMs": 16.5,
+        "widthMetres": 215,
+        "xColumns": 41,
+        "singleSurface": true,
+        "profileCount": 330,
+        "reusedCells": 6930,
+        "activeCells": 16394,
+        "uploadBytes": 844448,
+        "allocatedUploadBytes": 5200000,
+        "meanUpdateMs": 22.719999980926513,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 69
+        }
+      },
+      "maxPositionDelta": 0.000003814697265625,
+      "indexDifferences": 0
+    },
+    {
+      "time": 30,
+      "mount": true,
+      "before": {
+        "vertices": 12940,
+        "triangles": 25274,
+        "crestZ": 4.12,
+        "crestY": 0.8134060616270635,
+        "reconstructionMs": 17.699999928474426,
+        "widthMetres": 215,
+        "xColumns": 41,
+        "singleSurface": true,
+        "uploadBytes": 665608,
+        "allocatedUploadBytes": 5200000,
+        "meanUpdateMs": 17.839999985694885,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 53
+        }
+      },
+      "after": {
+        "vertices": 12940,
+        "triangles": 25274,
+        "crestZ": 4.12,
+        "crestY": 0.8134060616270635,
+        "reconstructionMs": 15.199999928474426,
+        "widthMetres": 215,
+        "xColumns": 41,
+        "singleSurface": true,
+        "profileCount": 281,
+        "reusedCells": 5901,
+        "activeCells": 12940,
+        "uploadBytes": 665608,
+        "allocatedUploadBytes": 5200000,
+        "meanUpdateMs": 15.339999985694885,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 53
+        }
+      },
+      "maxPositionDelta": 0.000003814697265625,
+      "indexDifferences": 0
+    },
+    {
+      "time": 33,
+      "mount": false,
+      "before": {
+        "vertices": 5688,
+        "triangles": 10710,
+        "crestZ": 4.920000000000001,
+        "crestY": 0.2756735289768222,
+        "reconstructionMs": 3.200000047683716,
+        "widthMetres": 215,
+        "xColumns": 19,
+        "singleSurface": true,
+        "uploadBytes": 287784,
+        "allocatedUploadBytes": 5200000,
+        "meanUpdateMs": 3.2200000047683717,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        }
+      },
+      "after": {
+        "vertices": 5688,
+        "triangles": 10710,
+        "crestZ": 4.920000076293945,
+        "crestY": 0.2756735384464264,
+        "reconstructionMs": 1.100000023841858,
+        "widthMetres": 215,
+        "xColumns": 19,
+        "singleSurface": true,
+        "profileCount": 316,
+        "reusedCells": 5688,
+        "activeCells": 5688,
+        "uploadBytes": 287784,
+        "allocatedUploadBytes": 5200000,
+        "meanUpdateMs": 1.1200000047683716,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        }
+      },
+      "maxPositionDelta": 0.000003814697265625,
+      "indexDifferences": 0
+    }
+  ],
+  "errors": []
+}

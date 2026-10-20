@@ -1,12 +1,19 @@
+import {waterTier} from './coast/quality.mjs';
 import * as THREE from 'three';
 import { createOcean } from './coast/beach-ocean.mjs';
-import { createRider, stepRider, bed, shore, world, SCALE, resetSurf, setSurfPlaying } from './coast/beach-bridge.mjs';
+import { createRider, stepRider, bed, shore, world, SCALE, resetSurf, setSurfPlaying, sampleWater } from './coast/beach-bridge.mjs';
 import { createSurfBodies } from './surf-bodies.js';
 import { Sky } from 'Sky';
 import { PointerLockControls } from 'PointerLockControls';
 import { GLTFLoader } from 'https://unpkg.com/three@0.155.0/examples/jsm/loaders/GLTFLoader.js';
 import { FBXLoader } from 'https://unpkg.com/three@0.155.0/examples/jsm/loaders/FBXLoader.js';
 import * as SkeletonUtils from 'https://unpkg.com/three@0.155.0/examples/jsm/utils/SkeletonUtils.js';
+
+// Automated browsers must never capture or confine the desktop pointer.
+const automatedTest = navigator.webdriver === true || new URLSearchParams(location.search).get('automation') === '1';
+function lockGamePointer() {
+  if (!automatedTest && controls && !controls.isLocked) controls.lock();
+}
 
 // === CONSTANTS ===
 const MAP_SIZE = 10000;
@@ -32,10 +39,11 @@ const DUNE_END = -BORDER_LENGTH_Z - DUNE_WIDTH * 2;
 
 const MAX_ACTIVE_SPARKS = 30;
 const sparkPool = [];
+const sparkWater=new Float64Array(2);
 const trailPool = [];
 
 // === GLOBALS ===
-let scene, camera, renderer, character, controls;
+let scene, camera, renderer, character, controls;let surfTier;
 let gamePaused = false;
 let borders = [];
 let wand, wandLight, wandIsAnimating = false, wandAnimTimer = 0;
@@ -384,7 +392,7 @@ function initScene() {
   camera = new THREE.PerspectiveCamera(55, window.innerWidth / window.innerHeight, 1, 20000);
   character.add(camera);
 
-  renderer = new THREE.WebGLRenderer();
+  renderer = new THREE.WebGLRenderer();surfTier=waterTier(renderer);
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = .7;
   renderer.setSize(window.innerWidth, window.innerHeight);
   document.body.appendChild(renderer.domElement);
@@ -407,9 +415,7 @@ function initScene() {
   });
 
   renderer.domElement.addEventListener('click', () => {
-    if (!controls.isLocked) {
-      controls.lock();
-    }
+    lockGamePointer();
   });
 }
 
@@ -419,7 +425,7 @@ function initSkyAndLights() {
   scene.add(sky);
   const skyUniforms = sky.material.uniforms;
   skyUniforms['turbidity'].value = 8;
-  skyUniforms['rayleigh'].value = 3;
+  skyUniforms['rayleigh'].value = 1.25;
   skyUniforms['mieCoefficient'].value = 0.005;
   skyUniforms['mieDirectionalG'].value = 0.7;
   const sun = new THREE.Vector3();
@@ -435,7 +441,7 @@ function initSkyAndLights() {
 }
 
 function createWater() {
-  ocean = createOcean(scene); ocean.update(oceanTime);
+  ocean = createOcean(scene,surfTier); ocean.update(oceanTime,spectator?externalCamera:camera);
   surfBodies = createSurfBodies(scene);
   externalCamera = new THREE.PerspectiveCamera(55, innerWidth/innerHeight, .25, 20000);
 }
@@ -563,6 +569,7 @@ function setupInput() {
   window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
   document.addEventListener('keydown', (event) => {
     const key = event.key.toLowerCase();
+    if(automatedTest && key === 'escape' && gameActive && playerAlive){gamePaused=true;showMenu('pauseMenu',true);}
     if(!event.repeat && key === 'v') spectator = !spectator;
     if(!event.repeat && key === 'b' && gameActive) resetSurf(rider,true);
     if (key === " " || key === "space") keys.space = true;
@@ -575,21 +582,22 @@ function setupInput() {
   });
 }
 
+const moveForward=new THREE.Vector3(),moveLeft=new THREE.Vector3(),moveDir=new THREE.Vector3(),surfInput={x:0,z:0,skim:false,jump:false};
 function updateMovement(dt) {
   if(world.loading) return;
   if (!rider) rider = createRider(character.position.x, character.position.z);
-  const forward = new THREE.Vector3();
+  const forward = moveForward;
   camera.getWorldDirection(forward); forward.y = 0; forward.normalize();
-  const left = new THREE.Vector3().crossVectors(camera.up, forward).normalize();
-  const dir = new THREE.Vector3();
+  const left = moveLeft.crossVectors(camera.up, forward).normalize();
+  const dir = moveDir.set(0,0,0);
   if (keys.w) dir.add(forward); if (keys.s) dir.sub(forward);
   if (keys.a) dir.add(left); if (keys.d) dir.sub(left);
   if (dir.lengthSq() > 0) dir.normalize();
-  stepRider(rider, {x:dir.x,z:dir.z,skim:keys.shift,jump:keys.space}, dt, oceanTime);
+  surfInput.x=dir.x;surfInput.z=dir.z;surfInput.skim=keys.shift;surfInput.jump=keys.space;stepRider(rider,surfInput,dt,oceanTime);
   character.position.set(rider.x,rider.y,rider.z);
   isJumping = !rider.grounded;
   surfBodies.update(spectator);
-  camera.rotation.z = world.person && !world.attached ? Math.max(-.55,Math.min(.55,world.person.q[2]*2)) : 0;
+  camera.rotation.z = 0; // Water never rolls or pitches the view.
   if(spectator){externalCamera.position.set(rider.x-30,rider.y+15,rider.z-40);externalCamera.lookAt(rider.x,rider.y-4,rider.z+10);}
   const hud = document.getElementById('surfStatus');
   if (hud) hud.textContent = `${rider.mode} · ${(Math.hypot(rider.vx,rider.vz)/SCALE).toFixed(1)} m/s | Space: hop · V: view · B: reset surf · Esc: pause`;
@@ -633,7 +641,7 @@ function setupWand() {
 
 function shootSpark() {
   if (!wand) return;
-  const dir = new THREE.Vector3();
+  const dir = moveDir.set(0,0,0);
   camera.getWorldDirection(dir);
   const wandTip = new THREE.Vector3();
   wand.localToWorld(wandTip.set(0, 0, -2.5));
@@ -1090,7 +1098,7 @@ function boot() {
     if (!scene) main();
     if(!surfStart) spawnNPCs();
     // Automatically lock pointer on start
-    if (controls && !controls.isLocked) controls.lock();
+    lockGamePointer();
   };
 
   document.getElementById('startButton').onclick = () => { surfStart = false; spectator = false; beginGame(); };
@@ -1104,7 +1112,7 @@ function boot() {
     showMenu('endMenu', false);
     if(!surfStart) spawnNPCs();
     // Automatically lock pointer on restart
-    if (controls && !controls.isLocked) controls.lock();
+    lockGamePointer();
   };
 
   document.getElementById('exitButton').onclick = () => {
@@ -1115,9 +1123,11 @@ function boot() {
   };
 
   document.getElementById('resumeButton').onclick = () => {
-    if (controls && !controls.isLocked) {
-      controls.lock();
+    if (automatedTest) {
+      gamePaused = false;
+      showMenu('pauseMenu', false);
     }
+    lockGamePointer();
   };
 
   document.getElementById('backToMenuButton').onclick = () => {
@@ -1152,14 +1162,17 @@ function animate() {
       accumulator = Math.min(accumulator + delta, 3/90);
       while (accumulator >= 1/90) { oceanTime += 1/90; updateMovement(1/90); accumulator -= 1/90; }
     }
-    ocean.update(oceanTime);
+    ocean.update(oceanTime,spectator?externalCamera:camera);
+    for(let i=0;i<npcs.length;i++)ocean.wade(npcs[i].mesh);
 
     // Animate sparks
     for (let i = sparks.length - 1; i >= 0; i--) {
       const spark = sparks[i];
-      const move = spark.direction.clone().multiplyScalar(SPARK_SPEED * delta);
-      spark.mesh.position.add(move);
-      spark.distance += move.length();
+      const previousY=spark.mesh.position.y;
+      spark.mesh.position.addScaledVector(spark.direction,SPARK_SPEED*delta);
+      spark.distance += SPARK_SPEED*delta;
+      const water=sampleWater(spark.mesh.position.x,spark.mesh.position.z,sparkWater);
+      if(water[1]>.25&&previousY>water[0]&&spark.mesh.position.y<=water[0]){ocean.splash(spark.mesh.position.x,water[0],spark.mesh.position.z);spark.distance=SPARK_MAX_DIST+1;}
 
       if (spark.enableTrail) {
         if (!spark.lastTrailPos || spark.mesh.position.distanceTo(spark.lastTrailPos) > 4) {
@@ -1331,4 +1344,4 @@ function main() {
 window.addEventListener('resize', () => { if (!renderer) return; camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); if(externalCamera){externalCamera.aspect=innerWidth/innerHeight;externalCamera.updateProjectionMatrix();} renderer.setSize(innerWidth,innerHeight); });
 
 
-window.beachGame={diagnostics:()=>({active:gameActive,paused:gamePaused,renderFrames:renderer.info.render.frame,rider,ocean:ocean?.diagnostics()}),startSurf:()=>document.getElementById('surfStartButton').click()};
+window.beachGame={diagnostics:()=>({active:gameActive,paused:gamePaused,input:{automatedTest,pointerLocked:!!document.pointerLockElement,cameraRoll:camera?.rotation.z||0},renderFrames:renderer.info.render.frame,rider,tier:surfTier,draws:renderer.info.render,geometries:renderer.info.memory.geometries,ocean:ocean?.diagnostics()}),startSurf:()=>document.getElementById('surfStartButton').click()};

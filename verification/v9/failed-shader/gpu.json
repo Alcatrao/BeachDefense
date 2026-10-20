@@ -1,0 +1,186 @@
+{
+  "mode": "gpu",
+  "gpu": {
+    "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "timer": true,
+    "width": 1920,
+    "height": 1080
+  },
+  "errors": [
+    "THREE.WebGLProgram: Shader Error 0 - VALIDATE_STATUS false\n\nProgram Info Log: Vertex shader is not compiled.\nVERTEX\n\nERROR: 0:69: 'uv' : redefinition\nERROR: 0:70: 'assign' : l-value required (can't modify an input \"uv\")\n\n  64: \tattribute vec4 skinWeight;\n  65: #endif\n  66: \n  67: \n  68:  attribute vec3 instanceOrigin,instanceVelocity;attribute float instanceBirth,instanceLife,instanceSize,instanceKind,instanceSeed;\n> 69:  uniform float time,pixelHeight;varying vec2 uv;varying float alpha,kind,seed;\n  70:  void main(){float age=time-instanceBirth,t=age/max(.01,instanceLife);uv=position.xy;kind=instanceKind;seed=instanceSeed;alpha=step(0.,age)*step(t,1.)*pow(max(0.,1.-t),1.2)*smoothstep(0.,.08,t);\n  71:  vec3 p=instanceOrigin+instanceVelocity*max(0.,age);float size=instanceSize;\n  72:  if(kind<.5){p.y-=18.*age*age;vec4 q=modelViewMatrix*vec4(p,1.);float maxWorld=36.*max(.1,-q.z)/(projectionMatrix[1][1]*pixelHeight);size=min(size*(1.+t*.6),maxWorld);q.xy+=position.xy*size;gl_Position=projectionMatrix*q;}\n  73:  else {size*=1.+t*1.8;p.xz+=position.xy*size;gl_Position=projectionMatrix*modelViewMatrix*vec4(p,1.);}\n  74:  if(alpha<.002)gl_Position=vec4(2.,2.,2.,1.);}\n"
+  ],
+  "failed": [],
+  "screenshotMs": 273,
+  "frames": 301,
+  "cpuFrameMs": 1.1293333359559377,
+  "frameIntervalMs": 16.680333333333333,
+  "p95FrameIntervalMs": 16.800000000000182,
+  "draws": {
+    "scene": {
+      "callsPerFrame": 11.993355481727574,
+      "indexReferencesPerFrame": 251270.91029900333,
+      "cpuSubmitMsPerFrame": 0.010631229394298058
+    },
+    "water": {
+      "callsPerFrame": 2,
+      "indexReferencesPerFrame": 88898.67109634551,
+      "cpuSubmitMsPerFrame": 0.0026578075465965903
+    },
+    "foam": {
+      "callsPerFrame": 1,
+      "indexReferencesPerFrame": 2309.102990033223,
+      "cpuSubmitMsPerFrame": 0.002990033143382532
+    }
+  },
+  "timers": {
+    "available": true,
+    "disjoint": false,
+    "sums": {
+      "scene": {
+        "ns": 69472800,
+        "draws": 2000
+      },
+      "water": {
+        "ns": 15274336,
+        "draws": 334
+      },
+      "foam": {
+        "ns": 5535008,
+        "draws": 166
+      }
+    }
+  },
+  "diagnostic": {
+    "game": {
+      "active": true,
+      "paused": false,
+      "input": {
+        "automatedTest": true,
+        "pointerLocked": false,
+        "cameraRoll": 0
+      },
+      "renderFrames": 431,
+      "rider": {
+        "x": 0,
+        "y": 10.879221936735819,
+        "z": -87.46182888425035,
+        "vx": 0,
+        "vy": 0,
+        "vz": -0.8238976068544485,
+        "mode": "swimming",
+        "grounded": false
+      },
+      "tier": {
+        "name": "hardware",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "pixelRatio": 1,
+        "columns": 48,
+        "farX": 48,
+        "farZ": 24,
+        "particles": 640,
+        "anisotropy": 1
+      },
+      "draws": {
+        "frame": 431,
+        "calls": 15,
+        "triangles": 116964,
+        "points": 0,
+        "lines": 0
+      },
+      "geometries": 15,
+      "ocean": {
+        "coast": {
+          "vertices": 15604,
+          "triangles": 30452,
+          "crestZ": 5.079999923706055,
+          "crestY": 0.37087175250053406,
+          "reconstructionMs": 1.5,
+          "widthMetres": 215,
+          "xColumns": 48,
+          "singleSurface": true,
+          "profileCount": 332,
+          "reusedCells": 15604,
+          "activeCells": 15604,
+          "uploadBytes": 802336,
+          "allocatedUploadBytes": 5200000
+        },
+        "local": {
+          "foamPoints": 118
+        },
+        "effects": {
+          "capacity": 640,
+          "live": 118,
+          "drawSlots": 220,
+          "totalBorn": 1220,
+          "vertices": 4,
+          "trianglesPerInstance": 2,
+          "gpuAnimated": true
+        },
+        "revision": 218
+      }
+    },
+    "fluid": {
+      "particles": 0,
+      "ambientParticles": 15056,
+      "time": 32.46666666666611,
+      "localTime": 32.46666666666611,
+      "originX": 0,
+      "rider": {
+        "position": [
+          0,
+          1.1132036561226366,
+          -1.4622425340146488
+        ],
+        "velocity": [
+          0,
+          0,
+          -0.13731626780907474
+        ],
+        "quaternion": [
+          -0.0030421711535710337,
+          0,
+          0,
+          0.9999953725866297
+        ],
+        "angularVelocity": [
+          -0.06478990785799063,
+          0,
+          0
+        ],
+        "tiltDegrees": 0.34860767302956547,
+        "contacts": 2,
+        "totalImpulse": 2930.6342097949187,
+        "waterForceZ": 2.714166300385253,
+        "waterHeight": 0.7433834447568524,
+        "waterDepth": 0.48038889970194515,
+        "flowZ": 0.19459028487096663,
+        "skimming": false,
+        "wiped": false
+      },
+      "dryBeach": false,
+      "board": null,
+      "localActive": true,
+      "physicsMs": 0.2999999523162842,
+      "ambientMs": 9.899999976158142,
+      "ambientDropped": 0,
+      "backgroundMode": "live",
+      "characterModel": "particle-height-and-flow",
+      "breaker": {
+        "z": 5.438823529411763,
+        "y": 0.2576938569545746,
+        "strength": 0.32779431737492715
+      },
+      "oneWayCoupling": true,
+      "maxParcelStepRms": 0.0431335189782511,
+      "phaseError": 0,
+      "droppedTime": 0,
+      "revision": 218
+    },
+    "pointerLockAttempts": 0
+  },
+  "gpuPerDrawMs": {
+    "scene": 0.0347364,
+    "water": 0.04573154491017964,
+    "foam": 0.03334342168674699
+  }
+}
