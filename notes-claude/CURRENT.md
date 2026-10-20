@@ -410,6 +410,58 @@ spread and fall back. All changes are in js/surf.js.
   helpers_r9c.js).
 - Sources: https://iquilezles.org/articles/texturerepetition/
 
+## Round 10 (20 Oct 2026, owner: sky as before, polished plumes, no roll-back, push without camera roll, patterning)
+Owner, on Round 9: the sky and sun had changed (yes: Round 8's aom look moved them) and they preferred the old
+sky; the plumes "could be a bit more polished"; waves "still roll back a little just before breaking" and should
+keep speed or accelerate down; the hit should only push the character back, without rolling the camera; the
+water is still sometimes "patterned". Mid-round they also asked for a prompt to steer Codex (AoM look, its
+compute cost); given in chat, summary below.
+- Sky and sun: LOOKS.aom is back on Round 7's sky (sun [15, 0]; turbidity 8, rayleigh 3, mie 0.005 / 0.7; Round
+  8-9 had [35, -45] and 2.5 / 0.5 / 0.003 / 0.8). The plume haze follows it: hazeCol [0.58, 0.82, 0.90] (was
+  [0.45, 0.78, 0.92]), hazeK 0.25 (was 0.2). The cyan water and glare stay.
+- Roll-back: surgeOf(w, keep, shrink, L) in crestState (mirrored in GLSL surfPos) is how far the lip tip has
+  reached past where the turned-over, shrinking roller would put it; evalSurf moves the wave forward by that D
+  near its crest only (s += D (1 - sstep(0.1, 0.45, |psi|))), so the tip keeps its furthest reach. keep = sAp
+  clamp((dc + 15) / 60) lets it go over crest d 45 -> -15, so the bore still meets the swash at the shoreline;
+  D <= 0.2 L. lipTip, the lip-hit test and plume kinds 1 and 2 subtract D. GPU vs CPU parity <= 0.3 mm over 15
+  cases. Front speed / crest speed, the minimum over p 0.5-2.4 (Round 9 -> 10): fn 49 at x 0 0.39 (p 1.59) ->
+  0.58; fn 49 at x -400 0.28 (p 1.55) -> 0.58; fn 44 at x 0 (a closeout breaking ~25 m from the sand) 0.85 ->
+  0.51-0.58 at p 1.05. In absolute terms no front ever moves seaward, in either round. The fn 44 dip is the
+  front reaching the waterline ~0.5 s earlier (D builds from p 0.2) and slowing to ~6 m/s over z 3 -> 1.5 before
+  the collapse; its roller is already gone there (sigS), and letting keep go later (dc + 35) or holding it by
+  stage made it no better (0.50, 0.45), so it stays as a limit. (The ratio is muddied there: D moves the crest
+  itself.)
+- Physics harness (fresh page): wipeouts 2/2/1 unchanged; max heights 18.1/16.5/17.7 (Round 9 18.2/14.9/17.7),
+  water 14.4/13.0/13.7 (14.4/10.5/13.7): the z -64 rise is D carrying the wave further up near the waterline
+  (z -78.7 at x 0). Rogue lift 32.8 at z 430, water 40.8 (unchanged).
+- Push: a lip hit no longer rolls or pitches the camera (the rotation.x/z tumble is gone). It sets sea.push =
+  -(1.6 + 0.14 H), which sea.vz approaches over ~0.25 s (vz += (push - vz) 0.3), so the character is shoved
+  shoreward; lift only for kind 'lip' (0.12 + 0.006 H); tumble 0.8 + 0.03 H s (was 1.2 + 0.04 H); the veil is
+  lighter and gone in 0.6 s.
+- Plumes: shaded in display space, after the tone curve (through it they saturated to flat white).
+  plumeAtlas windows its density (sstep(0.5, 0.3, |X|), sstep(0.98, 0.74, Y)) so no tile edge is hard; billboards
+  1.15x wider, PlaneGeometry(2, 1, 4, 2), bowed towards the camera (0.12 w (1 - q.x^2)) with a rounded normal for
+  sun shading (vLit) and an up term (vNy). Variant A, chosen on side-by-side shots: dense cores shaded by the
+  atlas's B channel plus vLit, thin edges lit from behind (back glow), the foot thinned by grain into the water,
+  distance haze 1 - exp(-0.00024 dist) times hazeK.
+- Patterning: on the non-soft tiers the ripple layers get amplitude patches (0.4 + 1.2 smoothstep(0.15, 0.85,
+  vnoise(...))) and a 9 m domain warp (two more vnoise), on top of Round 9's de-tiling. Cost below noise on the RTX
+  5070 Ti (< ~0.05 ms of a 0.35-0.8 ms frame at 1280x720). The soft tier skips it.
+- Not done, offered: holes in the swash foam ("leopard spots") as a further pattern breaker.
+- SwiftShader (swprobe, now with r9 = 1220921; runs r9a wipa wipb r9b; soft tier, 640x400 at pixel ratio 0.5):
+  water mean 160 / 121 / 161 / 220 ms, frame median 108 / 132 / 199 / 296 ms. The governor was throttling Claude
+  (scale 0.22) during the runs, so they are about twice Round 9's 93 / 107 and only show no regression against
+  Round 9 run alongside; every run reached the game frames.
+- Codex prompt (in chat 20 Oct): the AoM look targets (cyan water, glare, embossed wavelets, white foam collars and
+  splash rings, splash bursts along the break, no tiling, no roll-back, push without camera roll, hazy sky,
+  techniques only from the installed AoM, never its assets or the owner's screenshots); performance budgets
+  (under ~2 ms GPU at 1080p on the RTX 5070 Ti; under ~150 ms per frame under SwiftShader for the 90 s smoke
+  test); how (measure first, one wave evaluation per vertex with analytic or derivative normals, a view-fitted
+  grid, a software tier, instanced particles, textures baked at start-up, no per-frame allocation or readback,
+  cheap CPU physics); process (own branch, aiwork.py, notes, ask before each push, not reading this branch).
+- Limits: the fn 44 closeout above; plumes are still flat pictures; not hand-play-tested.
+- Shots: reference/r10-shots (git-ignored). Page helpers: reference/helpers_r10p.js (plume A/B).
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
@@ -431,8 +483,12 @@ The software-WebGL tier that fixes it, 635ef93, pushed 19 Oct 2026 (owner reques
 39326681529 passed, main's publisher run 39326703937 passed the smoke test (original, codex, claude with surf) and
 deployed at 21:24:50Z. Checked by HTTP the same evening: live versions.json pins claude 635ef93, and live
 /claude/index.html, js/main.js and js/surf.js match 635ef93 (SHA-256). Round 8's look is live at /claude/.
-Round 9 (de-tiled ripples, whiter foam, splash plumes) committed 20 Oct 2026, not pushed: push only on the owner's
-OK (each push is a public deploy).
+Round 9 1220921 (de-tiled ripples, whiter foam, splash plumes) pushed 20 Oct 2026 at 08:07Z (owner request,
+635ef93..1220921): hook run 39391182418 passed; main's publisher run 39391202032 (main 116c998) passed "Test
+original and both subfolder versions before publishing" and deployed at 08:10:48Z. Checked by HTTP at 08:11Z: live
+versions.json pins claude 1220921, and live /claude/index.html, js/main.js and js/surf.js match 1220921 (SHA-256;
+index.html and main.js are unchanged since 635ef93). Round 9's look is live at /claude/.
+Round 10 committed locally 20 Oct 2026; not pushed (waiting for the owner).
 
 ## Round 8 publish failure and the software-WebGL tier (19 Oct 2026)
 Round 8 did not go live. Main's publisher run 39318742626 failed in Codex's tooling/pages/smoke.cjs (origin/main

@@ -51,7 +51,7 @@ const keys = { w: false, a: false, s: false, d: false, space: false, shift: fals
 let surf = null;
 let softGL = false; // WebGL without a GPU: see softwareGL()
 // player-in-water state (velocities in units per frame, like the rest of the movement code)
-const sea = { vx: 0, vz: 0, tumble: 0, tumbleDur: 1.6, inWater: false, skimming: false, overlay: null, lastHit: -1 };
+const sea = { vx: 0, vz: 0, push: 0, tumble: 0, tumbleDur: 1.6, inWater: false, skimming: false, overlay: null, lastHit: -1 };
 const sparks = [];
 const SPARK_SPEED = 1000, SPARK_MAX_DIST = 1500;
 
@@ -656,16 +656,16 @@ function updateMovement() {
     if (sea.skimming) sea.vz -= w.dydz * 0.09;
     sea.vx *= 0.97;
     sea.vz *= 0.99;
-    // broken wave / landing lip: wipeout
+    // broken wave / landing lip: pushed back towards the beach (no tumble of the view, hardly any lift)
     if (w.lipHit && !tumbling && w.lipHit.fn !== sea.lastHit && pos.y < w.lipHit.yTop + 10) {
       const H = Math.min(w.lipHit.H, 40);
       sea.lastHit = w.lipHit.fn;
-      sea.tumble = sea.tumbleDur = 1.2 + H * 0.04;
-      sea.vz = -(1.6 + H * 0.14);              // thrown towards the beach
-      sea.vx = (Math.random() - 0.5) * 1.2;
-      velocityY = w.lipHit.kind === 'lip' ? 0.35 + H * 0.03 : 0.2;
-      isJumping = true;
+      sea.tumble = sea.tumbleDur = 0.8 + H * 0.03;
+      sea.push = -(1.6 + H * 0.14);
+      if (w.lipHit.kind === 'lip') { velocityY = 0.12 + H * 0.006; isJumping = true; }
     }
+    // the push builds over the first quarter second instead of snapping the view back
+    if (tumbling && sea.tumbleDur - sea.tumble < 0.25) sea.vz += (sea.push - sea.vz) * 0.3;
   } else {
     sea.vx *= 0.85; sea.vz *= 0.85; // sand friction
   }
@@ -713,26 +713,19 @@ function updateMovement() {
     pos.y = restEye;
   }
 
-  // --- wipeout tumble ---
-  if (sea.tumble > 0) {
-    sea.tumble -= 1 / 60;
-    const prog = 1 - Math.max(sea.tumble, 0) / sea.tumbleDur;
-    const ease = Math.sin(prog * Math.PI);
-    camera.rotation.x = -prog * Math.PI * 2 * 1.5;   // head over heels
-    camera.rotation.z = ease * 0.9;
-    pos.y = Math.min(pos.y, restEye + 4 * ease);
-    if (sea.tumble <= 0) { camera.rotation.x = 0; camera.rotation.z = 0; }
-  }
+  // --- wave push: the controls come back when it ends ---
+  if (sea.tumble > 0) sea.tumble -= 1 / 60;
 
   // underwater / whitewash overlay
   if (w) {
     const ov = seaOverlay();
     const camY = pos.y;
     const under = camY < w.y + 0.5;
-    if (sea.tumble > 0) {
-      const prog = 1 - sea.tumble / sea.tumbleDur;
-      ov.style.background = 'radial-gradient(circle, rgba(235,245,242,0.92), rgba(170,215,210,0.97))';
-      ov.style.opacity = String(Math.min(1, (1 - prog) * 2.5));
+    const hit = sea.tumbleDur - sea.tumble; // seconds since the wave hit
+    if (sea.tumble > 0 && hit < 0.6) {
+      // a light, brief veil of spray, clearest in the middle of the view
+      ov.style.background = 'radial-gradient(circle, rgba(240,250,248,0.25), rgba(215,238,234,0.85))';
+      ov.style.opacity = String(0.75 * (1 - hit / 0.6) ** 1.5);
     } else if (under) {
       ov.style.background = 'linear-gradient(rgba(40,110,110,0.55), rgba(10,50,60,0.8))';
       ov.style.opacity = '1';

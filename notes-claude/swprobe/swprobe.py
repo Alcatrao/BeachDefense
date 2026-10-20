@@ -1,6 +1,6 @@
 """SwiftShader probe for the Pages smoke timeout (19 Oct 2026, Claude).
 
-Serves r7 (c1d874e), r8 (7b14b70), s8 (635ef93, the software-WebGL tier) and wip (the working tree) on 127.0.0.1
+Serves r7 (c1d874e), r8 (7b14b70), s8 (635ef93, the software-WebGL tier), r9 (1220921) and wip (the working tree) on 127.0.0.1
 and opens each in headless Edge with software WebGL on 4 CPUs (like the CI runner); probe.html logs its timings to
 logs/<tag>.jsonl.
 Usage: python -I swprobe.py <tag>=<variant>[:<prof 0|1>[:<extra query>]] ...
@@ -13,8 +13,8 @@ from urllib.parse import quote, unquote
 W = r'E:\AI_Workspaces\BeachDefense\branches\claude'
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOGS = os.path.join(HERE, 'logs')
-COMMITS = {'r7': 'c1d874e', 'r8': '7b14b70', 's8': '635ef93'}
-VARIANTS = ('r7', 'r8', 's8', 'wip')
+COMMITS = {'r7': 'c1d874e', 'r8': '7b14b70', 's8': '635ef93', 'r9': '1220921'}
+VARIANTS = ('r7', 'r8', 's8', 'r9', 'wip')
 EDGE = r'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe'
 MIME = {'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css',
         '.json': 'application/json', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.png': 'image/png',

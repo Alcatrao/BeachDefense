@@ -165,12 +165,27 @@ function crestState(fn, x, dc, o) {
   o.thetaMax = cur.thetaMax;
   // once the lip has landed the tube collapses: the roller shrinks to a small one riding the bore front
   // (p 1.0 -> 1.9), and shrinks away before reaching the sand
-  o.sig = (sA > 0 ? sA : 1) * sstep(15, 45, dc) * (1 - 0.6 * sstep(1.0, 1.9, cur.p));
+  const sAp = sA > 0 ? sA : 1, sigS = sstep(15, 45, dc), sigP = 1 - 0.6 * sstep(1.0, 1.9, cur.p);
+  o.sig = sAp * sigS * sigP;
   o.imp = m(impOf(A.p), impOf(B.p));
   // and the tube's air pocket closes (p 1.05 -> 1.5): the roller becomes one solid tumbling mass (see evalSurf)
   o.fill = sstep(1.05, 1.5, cur.p);
   o.pC = cur.p; // the stage of the curl in charge
+  o.D = surgeOf(o, sAp * Math.min(Math.max((dc + 15) / 60, 0), 1), sigS * sigP, TAU / kOf(dc));
   return o;
+}
+// How far the wave is carried forward while it breaks (mirrored in GLSL). Rotating past its turn-over angle
+// (atan2(Y, X) from straight back) and the roller shrinking (sigS sigP) would pull the lip tip back towards the
+// crest, which reads as the breaking wave rolling backwards: the wave moves forward by that much instead (evalSurf
+// shifts it by D), so the tip keeps its furthest reach and the front never slows below the crest's own speed.
+// keep: how much of that reach is kept; it is let go evenly over crest d 45 -> -15, much slower than the crest
+// moves, so the bore still meets the swash at the shoreline. The outer roller's own fade (sA) is not carried.
+function surgeOf(w, keep, shrink, L) {
+  const sh = Math.max(w.steep, w.bore), Hc = w.Hc;
+  const wc = Math.min(L * (0.13 - 0.095 * sh), 0.32 * Hc);
+  const X = 0.5 * wc + 0.12 * Hc * w.pc, Y = 0.62 * Hc; // the lip tip from the pivot, before it turns
+  const th = Math.max(w.thetaMax, Math.PI - Math.atan2(Y, X));
+  return Math.min(keep * (shrink * (-X * (1 - Math.cos(th)) - Y * Math.sin(th)) + X + Math.hypot(X, Y)), 0.2 * L);
 }
 // impact whitewater of one stage: from the moment the lip lands (p ~ 0.9) until the bore has taken over
 function impOf(p) { return sstep(0.9, 1.2, p) * (1 - sstep(3, 5, p)); }
@@ -198,11 +213,14 @@ export function evalSurf(x, z, t, curl, out = {}) {
   const d = z - zs;
   const phi = phaseAt(x, d, t);
   const fn = Math.floor(phi / TAU + 0.5);
-  const psi = phi / TAU - fn;
+  let psi = phi / TAU - fn;
   const L = TAU / kOf(d);
-  const s = psi * L;
-  const dc = d - s;
+  let s = psi * L;
+  let dc = d - s;
   const w = crestState(fn, x, dc, _ws);
+  // the breaking wave carried forward by D (see surgeOf); only near its crest, so the next wave keeps its place
+  s += w.D * (1 - sstep(0.1, 0.45, Math.abs(psi)));
+  psi = s / L; dc = d - s;
   const H = w.H, p = w.p, bore = w.bore;
   const sh = Math.max(w.steep, bore);
   let s2 = s;
@@ -346,7 +364,7 @@ function lipTip(w, dc) {
   const c = Math.cos(th), sn = Math.sin(th);
   // the crest point carried by a roller of size sig, squashed from Hc to H like the surface
   const y = topY + w.sig * (pivY + (-X * sn + Y * c) - topY);
-  return { d: dc + w.sig * (dp - (X * c + Y * sn) - dc), y: -0.2 * H + (y + 0.2 * Hc) * (H / Hc), wf };
+  return { d: dc - w.D + w.sig * (dp - (X * c + Y * sn) - dc), y: -0.2 * H + (y + 0.2 * Hc) * (H / Hc), wf };
 }
 
 // ---------- GLSL ----------
@@ -485,12 +503,21 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
   float sA = A.p > 0.0 ? sstep(REF1 - 1.0, REF0 - 2.0, dc) : 0.0;
   float thetaMax = sA > 0.0 ? A.th : B.th;
   float pC = sA > 0.0 ? A.p : B.p; // the stage of the curl in charge
-  float sig = (sA > 0.0 ? sA : 1.0) * sstep(15.0, 45.0, dc) * (1.0 - 0.6 * sstep(1.0, 1.9, pC)); // collapsing tube
+  float sAp = sA > 0.0 ? sA : 1.0, sigS = sstep(15.0, 45.0, dc), sigP = 1.0 - 0.6 * sstep(1.0, 1.9, pC);
+  float sig = sAp * sigS * sigP; // collapsing tube
   float fillT = sstep(1.05, 1.5, pC); // ... whose air pocket closes into a solid roller
   float pc = mix(A.pc, B.pc, wB);
   float lip1 = mix(A.l1, B.l1, wB), lip2 = mix(A.l2, B.l2, wB), capP = mix(A.cap, B.cap, wB), chopP = mix(A.chop, B.chop, wB);
   float dbz = outer ? mix(dbA, db0, wB) : db0;
   float sh = max(steep, bore);
+  { // the breaking wave carried forward by D, near its crest (surgeOf / evalSurf in JS)
+    float Ls = TAU / kOf(dc), wcD = min(Ls * mix(0.13, 0.035, sh), 0.32 * Hc);
+    float X = 0.5 * wcD + 0.12 * Hc * pc, Y = 0.62 * Hc, th = max(thetaMax, atan(Y, -X));
+    float keep = sAp * clamp((dc + 15.0) / 60.0, 0.0, 1.0);
+    float D = min(keep * (sigS * sigP * (-X * (1.0 - cos(th)) - Y * sin(th)) + X + length(vec2(X, Y))), 0.2 * Ls);
+    s += D * (1.0 - sstep(0.1, 0.45, abs(psi)));
+    psi = s / L; dc = d - s;
+  }
 
   float ah = min(QQ * (0.6 + 0.4 * sh) * L / TAU, 1.5 * H);
   float s2 = gFlat ? s : s - ah * sin(TAU * psi);
@@ -843,9 +870,18 @@ void main() {
   // out before they would shimmer.
   float rk = uRipple * (0.45 + 0.9 * paw) * (1.0 - smoothstep(150.0, 1100.0, dist));
   if (rk > 0.0) {
+    // stronger and weaker in patches a few tens of units across, and their lines bent by a gentle warp, so that
+    // the sets do not lie over the whole sea as one even, parallel weave (not on the software tier, which has the
+    // tiled map anyway)
+#ifdef SOFT
+    vec2 wv = uv;
+#else
+    rk *= 0.4 + 1.2 * smoothstep(0.15, 0.85, vnoise(ROT * uv * 0.035 + 1.7));
+    vec2 wv = uv + 9.0 * vec2(vnoise(uv * 0.021 + 3.3), vnoise(ROT * uv * 0.021 + 8.1));
+#endif
     mat2 MA = mat2(0.035, 0.0, 0.0, 0.13) * RIPA, MB = mat2(0.03, 0.0, 0.0, 0.11) * RIPB; // turned, then stretched
-    vec3 q1 = normNT(MA * uv + vec2(0.0, 0.05) * uTime, MA * ux, MA * uy, 7.1);
-    vec3 q2 = normNT(MB * uv + vec2(0.31, 0.04) * uTime, MB * ux, MB * uy, 1.9);
+    vec3 q1 = normNT(MA * wv + vec2(0.0, 0.05) * uTime, MA * ux, MA * uy, 7.1);
+    vec3 q2 = normNT(MB * wv + vec2(0.31, 0.04) * uTime, MB * ux, MB * uy, 1.9);
     vec2 g = vec2(q1.x * 0.27, q1.y) * RIPA + vec2(q2.x * 0.27, q2.y) * RIPB;
     dN += vec3(g.x, 0.0, g.y) * rk;
   }
@@ -1379,15 +1415,18 @@ function plumeAtlas(N) {
           const len = 0.55 + 0.5 * vn(th * 9 + sx + 17.3, sy + 7.1);
           fan = (0.45 + 0.55 * sstep(0.36, 0.66, band)) * sstep(len, 0.55 * len, v) * sstep(0.95, 0.65, Math.abs(th)) * (1 - 0.3 * v);
         }
-        const D = Math.max(mass, fan);
+        // thinned towards the sides and the top of the tile before the grain is applied, so that the grain tears it
+        // open there (the mass and the fan reach past the tile, whose edge would cut them in straight lines)
+        const D = Math.max(mass, fan) * sstep(0.5, 0.3, Math.abs(X)) * sstep(0.98, 0.74, Y);
         const edge = sstep(0.5, 0.45, Math.abs(X)) * sstep(1.0, 0.9, Y) * sstep(0.0, 0.08, Y);
         // mottled all through: the grain eats holes into the thin parts and thins the core in patches
-        const a = Math.max(sstep(0.12, 0.9, D * (0.1 + 0.6 * gm + 0.5 * gf + 0.35 * thick)), Dd[py * N + px]) * edge;
+        // (the core nearly solid, so the face behind does not tint it)
+        const a = Math.max(sstep(0.12, 0.9, D * (0.2 + 0.5 * gm + 0.45 * gf + 0.5 * thick)), Dd[py * N + px]) * edge;
         // the order it dissolves in: thin spray first, the core last, grain by grain
         const dis = Math.min(Math.max(0.1 + 0.3 * gf + 0.2 * gm + 0.3 * thick + 0.08 * (1 - Y), 0), 1);
-        // its shading, mottled in broad patches and by the grain: white on the dense clumps, a blue-grey in the thin
-        // and shaded parts
-        const lit = Math.min(Math.max(0.52 + 0.3 * thick + 1.0 * (gb - 0.5) + 0.8 * (gm - 0.5) + 0.5 * (gf - 0.5) + 0.15 * (Y - 0.5), 0), 1);
+        // its shading by the grain and, more gently, in broad patches: white on the dense clumps, a blue-grey in the
+        // thin parts (the light and shade across the whole plume come from its rounded normal in the shader)
+        const lit = Math.min(Math.max(0.55 + 0.3 * thick + 0.5 * (gb - 0.5) + 0.8 * (gm - 0.5) + 0.5 * (gf - 0.5), 0), 1);
         const o = ((oy + py) * S + ox + px) * 4;
         out[o] = Math.round(a * 255); out[o + 1] = Math.round(dis * 255); out[o + 2] = Math.round(lit * 255); out[o + 3] = 255;
       }
@@ -1407,7 +1446,7 @@ attribute vec4 aB; // full width, full height, life, alpha
 attribute vec4 aC; // variant 0..3, flip (+-1), lean (top thrown shoreward, per unit height), drift (z units per s)
 attribute vec2 aD; // the crest's horizontal normal (x, z), seaward
 varying vec2 vUv;
-varying float vP, vAlpha, vBack;
+varying float vP, vAlpha, vBack, vLit, vNy, vQy, vDist;
 void main() {
   float age = uTime - aA.w, p = age / aB.z;
   if (p < 0.0 || p > 1.0) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); return; } // dead: beyond the far plane
@@ -1415,7 +1454,7 @@ void main() {
   // water as it dissolves, so it never hangs over the water the wave has left behind
   float rise = 1.0 - (1.0 - min(p * 2.5, 1.0)) * (1.0 - min(p * 2.5, 1.0));
   float h = aB.y * (0.3 + 0.7 * rise) * (1.0 - 0.4 * smoothstep(0.4, 1.0, p));
-  float w = aB.x * (0.55 + 0.45 * sqrt(p)) * (1.0 + 0.15 * p);
+  float w = 1.15 * aB.x * (0.55 + 0.45 * sqrt(p)) * (1.0 + 0.15 * p); // (its atlas tile thins out towards its sides)
   vec3 base = aA.xyz + vec3(0.0, -0.35 * aB.y * p * p, aC.w * age);
   // upright, and turned from the camera most of the way round to stand along its crest: turned square to the
   // camera, it would cross the breaking face behind it at a slant towards the sides of the view (more so where the
@@ -1429,9 +1468,18 @@ void main() {
   vec3 up = vec3(-hd.x * sin(b), cos(b), -hd.y * sin(b));
   vec3 right = vec3(hd.y, 0.0, -hd.x) * aC.y;
   vec2 q = position.xy; // x -1..1, y 0..1
-  vec3 P = base + right * (0.5 * w * q.x) + up * (h * q.y) - vec3(aD.x, 0.0, aD.y) * (aC.z * h * q.y * q.y);
+  // bowed out towards the camera in the middle, so that it has some depth as the view moves
+  vec3 fw = vec3(hd.x, 0.0, hd.y);
+  vec3 P = base + right * (0.5 * w * q.x) + up * (h * q.y) - vec3(aD.x, 0.0, aD.y) * (aC.z * h * q.y * q.y)
+    + fw * (0.12 * w * (1.0 - q.x * q.x));
   vUv = (vec2(0.5 + 0.5 * q.x, q.y) + vec2(mod(aC.x, 2.0), floor(aC.x * 0.5))) * 0.5;
   vBack = pow(max(dot(normalize(P - cameraPosition), uSunDir), 0.0), 3.0);
+  // lit as a rounded heap: a normal that bulges out of it towards the camera, up at its top and out at its sides
+  vec3 n = normalize(right * (0.9 * q.x) + up * (1.2 * q.y - 0.3) + fw * 0.7);
+  vLit = clamp(dot(n, uSunDir) * 0.6 + 0.4, 0.0, 1.0);
+  vNy = n.y;
+  vQy = q.y;
+  vDist = length(P - cameraPosition);
   vAlpha = aB.w * smoothstep(0.0, 0.06, p) * (1.0 - smoothstep(0.85, 1.0, p)) * (1.0 - smoothstep(2000.0, 3500.0, lh));
   vP = p;
   vec4 cp = projectionMatrix * viewMatrix * vec4(P, 1.0);
@@ -1445,19 +1493,27 @@ void main() {
 }`;
 const SPLASH_FRAG = /* glsl */`
 uniform sampler2D uPlume;
+uniform vec3 uHazeCol;
+uniform float uHazeK;
 varying vec2 vUv;
-varying float vP, vAlpha, vBack;
+varying float vP, vAlpha, vBack, vLit, vNy, vQy, vDist;
 void main() {
   vec4 t = texture2D(uPlume, vUv);
   // dissolves from the thin spray inwards over the later part of its life
   float T = 0.08 + 0.95 * smoothstep(0.35, 1.0, vP);
-  float a = t.r * smoothstep(T - 0.12, T + 0.06, t.g) * vAlpha;
+  // and its foot thins out grain by grain towards the water, which would otherwise cut it off in a straight line
+  float foot = smoothstep(0.0, 0.3, vQy + 0.15 * (t.g - 0.5));
+  float a = t.r * smoothstep(T - 0.12, T + 0.06, t.g) * vAlpha * foot;
   if (a < 0.01) discard;
-  // near-white, a pale blue-grey in the thin and shaded parts; against the sun the dense core dims a little and the
-  // thin spray glows
-  vec3 col = mix(vec3(0.80, 0.88, 0.94), vec3(1.0), t.b);
-  col = mix(col, col * vec3(0.92, 0.95, 0.97), vBack * smoothstep(0.4, 0.9, t.r)) + 0.3 * vBack * (1.0 - t.r);
-  gl_FragColor = vec4(min(col, vec3(1.0)), a);
+  // shaded in display colour, between white and a cool sea-grey, by the grain and the rounded normal (through the
+  // foam's tone curve every shade came out white and the plume flat); the thin spray against the sun glows, and it
+  // takes the water's haze
+  float dense = smoothstep(0.4, 0.9, t.r);
+  float sh = clamp(0.02 + 0.85 * t.b + 0.35 * vLit + 0.1 * vNy, 0.0, 1.0);
+  vec3 col = mix(vec3(0.6, 0.75, 0.81), vec3(1.0), sh);
+  col = min(col + vec3(1.0, 0.95, 0.85) * (0.3 * vBack * (1.0 - dense)), vec3(1.0));
+  vec3 hz = linearToOutputTexel(vec4(toneMapping(uHazeCol * 1.55), 1.0)).rgb;
+  gl_FragColor = vec4(mix(col, hz, (1.0 - exp(-vDist * 0.00024)) * uHazeK), a);
 }`;
 
 class Splashes {
@@ -1465,7 +1521,7 @@ class Splashes {
     this.count = count;
     this.hi = -1; // the highest slot in use: only slots 0..hi are drawn
     this.now = 0;
-    const plane = new THREE.PlaneGeometry(2, 1).translate(0, 0.5, 0);
+    const plane = new THREE.PlaneGeometry(2, 1, 4, 2).translate(0, 0.5, 0); // (divided for the bow and the shading)
     const g = new THREE.InstancedBufferGeometry();
     g.index = plane.index;
     g.setAttribute('position', plane.getAttribute('position'));
@@ -1480,7 +1536,7 @@ class Splashes {
     this.tex = plumeAtlas(texSize);
     this.mesh = new THREE.Mesh(g, new THREE.ShaderMaterial({
       vertexShader: SPLASH_VERT, fragmentShader: SPLASH_FRAG,
-      uniforms: { uTime: uniforms.uTime, uSunDir: uniforms.uSunDir, uPlume: { value: this.tex } },
+      uniforms: { uTime: uniforms.uTime, uSunDir: uniforms.uSunDir, uHazeCol: uniforms.uHazeCol, uHazeK: uniforms.uHazeK, uPlume: { value: this.tex } },
       transparent: true, depthWrite: false, side: THREE.DoubleSide, // (a flipped plume is wound the other way)
     }));
     this.mesh.frustumCulled = false;
@@ -1532,12 +1588,12 @@ export const LOOKS = {
     fresK: 1, fresMax: 1, glare: 0, ripple: 0, emboss: 0, wetDark: 0.6, vivid: 0,
   },
   aom: {
-    // the sun where the scene's directional light is; a thin, deep blue sky (a bright one tone-maps to white)
-    sun: [35, -45], sky: { turbidity: 2.5, rayleigh: 0.5, mieCoefficient: 0.003, mieDirectionalG: 0.8 },
+    // the owner's preferred hazy sky and low sun out to sea (Round 10; Round 8-9 had a thin deep blue sky, sun [35, -45])
+    sun: [15, 0], sky: { turbidity: 8, rayleigh: 3, mieCoefficient: 0.005, mieDirectionalG: 0.7 },
     // the reflected sky is tinted cyan, like AoM's shiny-water environment map
     horizon: [0.10, 0.75, 1.0], zenith: [0.05, 0.45, 0.9], deep: [0.0, 0.7, 1.05], shallow: [0.10, 0.80, 0.88],
     shore: [0.20, 0.55, 0.50], sss: [0.10, 0.85, 0.85], sigma: [0.55, 0.22, 0.20],
-    hazeCol: [0.45, 0.78, 0.92], hazeK: 0.2, dropCol: [0.35, 0.55, 0.55], drop: 1, specCol: [1, 1, 1],
+    hazeCol: [0.58, 0.82, 0.90], hazeK: 0.25, dropCol: [0.35, 0.55, 0.55], drop: 1, specCol: [1, 1, 1],
     fresK: 0.65, fresMax: 0.55, glare: 1, ripple: 0.8, emboss: 0.8, wetDark: 0.85, vivid: 1,
   },
 };
@@ -1621,8 +1677,8 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
       crestState(fn, x, dc, st);
       if (st.p > 0.55 && st.p < 1.6 && st.H > 4) {
         const tip = lipTip(st, dc);
-        if (r.d > tip.d - 4 && r.d < dc + 2) { r.lipHit = { fn, H: st.H, kind: 'lip', yTop: 0.8 * st.H }; break; }
-      } else if (st.p >= 1.6 && st.H > 4.5 && Math.abs(r.d - dc) < 5) {
+        if (r.d > tip.d - 4 && r.d < dc - st.D + 2) { r.lipHit = { fn, H: st.H, kind: 'lip', yTop: 0.8 * st.H }; break; }
+      } else if (st.p >= 1.6 && st.H > 4.5 && Math.abs(r.d - (dc - st.D)) < 5) {
         r.lipHit = { fn, H: st.H, kind: 'bore', yTop: 0.8 * st.H }; break;
       }
     }
@@ -1660,7 +1716,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
         if (splash) { const n = Math.min(18, st.H * 0.8 * (0.5 + Math.random())) * k; jobs.push(1, ex, zs + tip.d, 0, st.H, n); want += n * LIFE[1]; }
         // whitewash mist rising off the bore / landing lip
         if (st.p > 0.9 && st.p < 3.2 && st.H > 2) {
-          const n = Math.min(20, st.H * 0.4 * Math.random() + 0.1) * k; jobs.push(2, ex, zs + dc, 0, st.H, n); want += n * LIFE[2];
+          const n = Math.min(20, st.H * 0.4 * Math.random() + 0.1) * k; jobs.push(2, ex, zs + dc - st.D, 0, st.H, n); want += n * LIFE[2];
         }
         // a line of splash plumes where the lip lands; where a wave dumps on the shore before its lip can land
         // (the shallows shrink its curl away: the plumes cover the collapse); and smaller ones off the bore front
@@ -1693,11 +1749,11 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
           h = H * rnd(1.6, 2.1) * (0.7 + 0.3 * Math.min(_ps.sig, 1)); w = h * rnd(1.2, 1.6);
           life = rnd(1.5, 2.3); lean = rnd(0.15, 0.45); drift = -c * rnd(0.85, 1.0); alpha = rnd(0.85, 1);
         } else if (kind === 1) { // a shore dump: the whole front slams down just ahead of the crest
-          d = dcx - H * rnd(0.2, 0.5);
+          d = dcx - _ps.D - H * rnd(0.2, 0.5);
           h = H * rnd(1.0, 1.4); w = h * rnd(1.3, 1.8);
           life = rnd(1.3, 2.0); lean = rnd(0.1, 0.3); drift = -c * rnd(0.3, 0.55); alpha = rnd(0.85, 1);
         } else { // puffs off the tumbling bore front, riding with it
-          d = dcx - rnd(0, 2);
+          d = dcx - _ps.D - rnd(0, 2);
           h = H * rnd(0.55, 0.9); w = h * rnd(1.3, 1.9);
           life = rnd(1.0, 1.6); lean = rnd(0.2, 0.4); drift = -c * rnd(0.8, 1.0); alpha = rnd(0.6, 0.85);
         }
