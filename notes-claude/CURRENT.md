@@ -630,6 +630,37 @@ sometimes clips the wave.
   first finding), clamp the interpolated height/alpha, then a rounded bore face mirrored in evalSurf.
 - Page helpers: reference/helpers_r12.js gained __crop and __flick (Round 13 blocks).
 
+## Round 14 (21 Oct 2026, owner: the foam wave's top still flickers up and down very fast, all the way to the shore)
+- Measured, not guessed: __edges finds the bore's top edge (first white run under cyan) in five screen columns
+  (x 760-1160, player view, 1920x1080) every 1/60 s, in three matched variants (all; no plumes; water only), and
+  __jit2 scores the longest continuous run: mean |second difference|, RMS and peak of the residual from a 9-frame
+  mean. Before: mean |d2| 0.8-1.0 px, RMS ~0.9 px, peak ~2.9 px, the same with plumes and curtain hidden, so the
+  water mesh itself was jumping, at ~11 Hz and in step along x (slit-scans r14_slit_pv_b, r14_slit_pv_fix_a in
+  reference/r12-shots, git-ignored).
+- Two causes. (1) The bore plumes (kind 2, Round 13) burst up and fell back like the lip's; many at once, their
+  domes drew arches over the bore's top. Now a steady plume (alpha stored negative, `steady` in Splashes.add) only
+  swells 0.8 -> 1.0 and fades in/out slowly, with no fall; kind 2 plumes are all alike (h x 1.3-1.5) and live
+  1.8-2.6 s (PLIFE[2] 2.2) so their tops overlap into one ragged line. (2) The mesh rows stood still while the
+  crests crossed them: one crest per row every ds/OMEGA ~ 0.09 s, i.e. ~10-11 Hz, which matched the measured
+  frequency. Each crossing changed how the rows caught the bore's sharp top, so its edge jumped by a pixel or so.
+- Fix for (2): the rows travel with the crests. From d -125 to z 350 they are evenly spaced in phase (ds = 1.3 f
+  kOf(200), finer near the shore as before); each slides toward its shoreward neighbour by uRowF (the step is in
+  position.y; uRowF = (OMEGA t / ds) mod 1), so after one ds the mesh is the same as before, one row on. Rows
+  under the sand (d < -125) stand still, and a strip there shrinks to nothing; rows from z 350 to 600 slide too
+  (not exactly at crest speed: the swell is smooth there); past z 600 they stand still, and the first of those is
+  doubled so its moving copy opens a strip from nothing. Without the doubling one row popped in there each wrap: a
+  1-px, 10 Hz flicker along a big swell's top near the horizon (39 pixels at t 89).
+- Results (same procedure): mean |d2| 0.31-0.41 px, RMS 0.28-0.44 px, over runs of 263-339 frames (before, runs
+  broke into 40-80-frame pieces). 0.35 is the floor for a steadily sinking edge: a one-pixel step every ~5-6
+  frames. Peaks of 1.2-3.7 px are where the edge first enters the column. Zoomed slit-scan r14_slit_pv_fix_zoom:
+  the top now sinks as a monotonic staircase. Wrap check (__wrapDiff, uRowF 0 vs 1 at the same instant, water
+  only): 0 pixels over 8 in 15 of 16 instants, 1 pixel in one. Medium mesh 883 x 620 = 547460 vertices (was
+  883 x 602, +3.0%); all 10 programs compile. Not hand-play-tested; the soft tier (FACETS) was not run (same
+  vertex shader; degenerate strips are zero-area triangles); no SwiftShader timing this round.
+- Page helpers: reference/helpers_r14.js (git-ignored) as a module: await import('/reference/helpers_r14.js?' +
+  Date.now()) after Start Game; it pauses the game and defines __findBore, __slit, __edges, __seg, __jit2,
+  __wrapDiff.
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
@@ -668,6 +699,10 @@ Round 12 dbd6318 pushed 21 Oct 2026 at 11:59Z (owner request, 9fbcd0f..dbd6318):
 main's publisher run 39596055744 (main 116c998) passed "Test original and both subfolder versions before
 publishing" and deployed at 12:04:15Z. Checked by HTTP at 12:26Z: live versions.json pins claude dbd6318, and live
 /claude/index.html, js/main.js and js/surf.js match dbd6318 (SHA-256). Round 12 is live at /claude/.
+Round 13 47d97fc pushed 21 Oct 2026 at 13:07Z (owner request, dbd6318..47d97fc): hook run 39605284694 passed;
+main's publisher run 39605319606 (main 116c998) passed (build 13:10:49Z, deploy 13:11:03Z). Checked by HTTP at
+13:21Z: live versions.json pins claude 47d97fc (original 116c998, codex 8d436e9 unchanged), and live
+/claude/index.html, js/main.js and js/surf.js match 47d97fc (SHA-256). Round 13 is live at /claude/.
 
 ## Round 8 publish failure and the software-WebGL tier (19 Oct 2026)
 Round 8 did not go live. Main's publisher run 39318742626 failed in Codex's tooling/pages/smoke.cjs (origin/main

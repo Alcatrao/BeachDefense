@@ -730,9 +730,10 @@ varying float vLand;
 varying vec2 vRest;
 varying vec2 vCrest;
 varying vec3 vBrk;
+uniform float uRowF; // how far the rows have slid toward the next one shoreward (see buildGeometry)
 void main() {
   float f, th, wt, sw, ag, f1, t1, w1, s1, a1;
-  vec2 xz = position.xz;
+  vec2 xz = position.xz + vec2(0.0, uRowF * position.y);
   vec3 P = surfPos(xz, f, th, wt, sw, ag);
   float drift = gDrift;
   vCrest = gCrest;
@@ -1148,24 +1149,47 @@ function gridLines(min, max, fine0, fine1, base, grow) {
 // moved rest positions). The rows fade back to straight lines outside the play area (|x| 1000 -> 2000, and
 // from z 600 to 2000 offshore), so the far field and the mesh edges stay as they were; the near edge follows
 // row 0, which stays under the sand (d < -125, the swash reaches about -90).
+// The rows also travel with the crests. Standing still, they were crossed by every crest ~10 times a second, and
+// each crossing changed how the mesh caught a bore's sharp top: its edge jumped up and down by a pixel or so all
+// the way in. From d -125 to z 350 the rows are evenly spaced in phase, ds apart (the base spacing 200 out, finer
+// toward the shore, where the waves shorten), and each one slides toward the next row shoreward by uRowF of the
+// way (the step is kept in position.y), which goes 0 -> 1 as the waves advance by ds and starts over: the mesh
+// is then the same as it was, one row on, so the crests see the same rows all the time. The rows below stand
+// still (the strip next to them shrinks away to nothing), and so do those past z 600, where the swell is smooth;
+// the first of those is doubled and its moving copy opens a strip from nothing, so no row pops in at either end
+// (one did out there, a ten-a-second flicker along a big swell's top).
 function buildGeometry(quality) {
   const f = { high: 1.0, low: 1.8, soft: 2.2 }[quality] || 1.35;
   const xs = gridLines(-4950, 4950, -800, 800, 3.5 * f, 0.0075);
-  const zs = gridLines(-260, 4850, -260, 350, 1.3 * f, 0.0145);
+  const sh0 = shoreZ(0), ph0 = wobble(0);
+  const ds = 1.3 * f * kOf(200), zs = [];
+  const zB = sh0 - 125, nL = Math.ceil((zB + 260) / (3.9 * f)); // coarse rows under the sand
+  for (let j = 0; j < nL; j++) zs.push(-260 + (zB + 260) * j / nL);
+  const j0 = zs.length; // the lowest row that moves follows this one
+  for (let s = sOf(-125), d = -125; ; s += ds) {
+    for (let it = 0; it < 20; it++) d -= (sOf(d) - s) / kOf(d);
+    if (sh0 + d > 350) break;
+    zs.push(sh0 + d);
+  }
+  const zE = zs[zs.length - 1];
+  zs.push(...gridLines(zE, 4850, zE, zE, 1.3 * f, 0.0145).slice(1));
+  const jE = zs.findIndex(z => z > 600); // the first row that stands still again is doubled, and the first copy moves
+  zs.splice(jE, 0, zs[jE]);
   const nx = xs.length, nz = zs.length;
   const sh = new Float64Array(nx), ph = new Float64Array(nx), wx = new Float64Array(nx), dRow = new Float64Array(nx);
+  const zPrev = new Float64Array(nx);
   for (let i = 0; i < nx; i++) {
     sh[i] = shoreZ(xs[i]);
     ph[i] = SURF.kx * xs[i] + wobble(xs[i]);
     wx[i] = 1 - sstep(1000, 2000, Math.abs(xs[i]));
     dRow[i] = zs[0] - sh[i];
   }
-  const sh0 = shoreZ(0), ph0 = wobble(0);
   const pos = new Float32Array(nx * nz * 3);
   let k = 0;
   for (let j = 0; j < nz; j++) {
     const wz = 1 - sstep(600, 2000, zs[j]);
     const sg = sOf(zs[j] - sh0) + ph0;
+    const moves = j > j0 && j <= jE;
     for (let i = 0; i < nx; i++) {
       let z = zs[j];
       const w = wx[i] * wz;
@@ -1180,7 +1204,8 @@ function buildGeometry(quality) {
         dRow[i] = d;
         z += w * (sh[i] + d - z);
       }
-      pos[k++] = xs[i]; pos[k++] = 0; pos[k++] = z;
+      pos[k++] = xs[i]; pos[k++] = moves ? zPrev[i] - z : 0; pos[k++] = z;
+      zPrev[i] = z;
     }
   }
   const idx = new Uint32Array((nx - 1) * (nz - 1) * 6);
@@ -1194,7 +1219,7 @@ function buildGeometry(quality) {
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   g.setIndex(new THREE.BufferAttribute(idx, 1));
   g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 2300), 8000);
-  return { geometry: g, vertices: nx * nz };
+  return { geometry: g, vertices: nx * nz, ds };
 }
 
 // ---------- spray particles ----------
@@ -1751,7 +1776,7 @@ const SPLASH_VERT = /* glsl */`
 uniform float uTime;
 uniform vec3 uSunDir;
 attribute vec4 aA; // base x, y, z (at the water), birth time
-attribute vec4 aB; // full width, full height, life, alpha
+attribute vec4 aB; // full width, full height, life, alpha (negative: a steady one, riding a bore)
 attribute vec4 aC; // variant 0..3, flip (+-1), lean (top thrown shoreward, per unit height), drift (z units per s)
 attribute vec2 aD; // the crest's horizontal normal (x, z), seaward
 varying vec2 vUv, vM;
@@ -1761,11 +1786,15 @@ void main() {
   float age = uTime - aA.w, p = age / aB.z;
   if (p < 0.0 || p > 1.0) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); return; } // dead: beyond the far plane
   // bursts up to its full height by p 0.4 and keeps spreading; then its top falls back and it sinks into the
-  // water as it dissolves, so it never hangs over the water the wave has left behind
+  // water as it dissolves, so it never hangs over the water the wave has left behind. A steady one (the bore's,
+  // which ride its front all the way in, many at once) only swells a little and fades in and out slowly instead:
+  // bursting up and falling back, each drew an arch over the bore's top, and the overlapping arches made its top
+  // edge jump up and down
+  float st = step(aB.w, 0.0);
   float rise = 1.0 - (1.0 - min(p * 2.5, 1.0)) * (1.0 - min(p * 2.5, 1.0));
-  float h = aB.y * (0.3 + 0.7 * rise) * (1.0 - 0.4 * smoothstep(0.4, 1.0, p));
+  float h = aB.y * mix((0.3 + 0.7 * rise) * (1.0 - 0.4 * smoothstep(0.4, 1.0, p)), 0.8 + 0.2 * smoothstep(0.0, 0.7, p), st);
   float w = 1.15 * aB.x * (0.55 + 0.45 * sqrt(p)) * (1.0 + 0.15 * p); // (its atlas tile thins out towards its sides)
-  vec3 base = aA.xyz + vec3(0.0, -0.35 * aB.y * p * p, aC.w * age);
+  vec3 base = aA.xyz + vec3(0.0, -0.35 * aB.y * p * p * (1.0 - st), aC.w * age);
   // upright, and turned from the camera most of the way round to stand along its crest: turned square to the
   // camera, it would cross the breaking face behind it at a slant towards the sides of the view (more so where the
   // shore runs at an angle), and the face would cut it in slanting lines; it still never goes edge-on. Leant back
@@ -1790,9 +1819,11 @@ void main() {
   vM = vec2(0.6 * q.x, 0.8 * q.y - 0.2);
   vQy = q.y;
   vDist = length(P - cameraPosition);
-  vAlpha = aB.w * smoothstep(0.0, 0.06, p) * (1.0 - smoothstep(0.85, 1.0, p)) * (1.0 - smoothstep(2000.0, 3500.0, lh));
-  // it dissolves from the thin spray inwards over the later part of its life
-  vT = 0.08 + 0.95 * smoothstep(0.35, 1.0, p);
+  vAlpha = abs(aB.w) * mix(smoothstep(0.0, 0.06, p) * (1.0 - smoothstep(0.85, 1.0, p)),
+    smoothstep(0.0, 0.35, p) * (1.0 - smoothstep(0.6, 1.0, p)), st) * (1.0 - smoothstep(2000.0, 3500.0, lh));
+  // it dissolves from the thin spray inwards over the later part of its life (a steady one only a little: its
+  // ragged top would wear down too fast)
+  vT = 0.08 + mix(0.95 * smoothstep(0.35, 1.0, p), 0.35 * smoothstep(0.5, 1.0, p), st);
   vec4 cp = projectionMatrix * viewMatrix * vec4(P, 1.0);
   // its depth is taken a few units nearer the camera (less when looking down, where the water would stop hiding
   // its sunk foot): the breaking face it stands against leans past its plane here and there, and would cut it in
@@ -1937,7 +1968,7 @@ class Splashes {
     this.mesh.renderOrder = 3; // over the foam and the spray
     scene.add(this.mesh);
   }
-  add(x, y, z, w, h, birth, life, alpha, lean = 0, drift = 0, nx = 0, nz = 1) {
+  add(x, y, z, w, h, birth, life, alpha, lean = 0, drift = 0, nx = 0, nz = 1, steady = false) {
     // the lowest free slot (as in Decals); when the pool is full, the one ending soonest gives way
     const A = this.a.array, B = this.b.array, C = this.c.array, D = this.d.array;
     let i = -1, soonest = 0, end = Infinity;
@@ -1949,7 +1980,7 @@ class Splashes {
     if (i < 0) i = this.hi + 1 < this.count ? this.hi + 1 : soonest;
     if (i > this.hi) { this.hi = i; this.mesh.geometry.instanceCount = i + 1; }
     A[i * 4] = x; A[i * 4 + 1] = y; A[i * 4 + 2] = z; A[i * 4 + 3] = birth;
-    B[i * 4] = w; B[i * 4 + 1] = h; B[i * 4 + 2] = life; B[i * 4 + 3] = alpha;
+    B[i * 4] = w; B[i * 4 + 1] = h; B[i * 4 + 2] = life; B[i * 4 + 3] = steady ? -alpha : alpha;
     C[i * 4] = Math.floor(Math.random() * 4); C[i * 4 + 1] = Math.random() < 0.5 ? -1 : 1; C[i * 4 + 2] = lean; C[i * 4 + 3] = drift;
     D[i * 2] = nx; D[i * 2 + 1] = nz;
     this.a.needsUpdate = this.b.needsUpdate = this.c.needsUpdate = this.d.needsUpdate = true;
@@ -2127,9 +2158,10 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
   // here and keeps the de-tiled layers' doubled fetches cheap on GPUs short of texture throughput
   normTex.anisotropy = soft ? 1 : 4;
 
-  const { geometry, vertices } = buildGeometry(quality);
+  const { geometry, vertices, ds: rowDs } = buildGeometry(quality);
   const uniforms = {
     uTime: { value: 0 },
+    uRowF: { value: 0 },
     uSunDir: { value: (sunDir || new THREE.Vector3(0, 0.26, 0.97)).clone().normalize() },
     uNormTex: { value: normTex },
     uRogue: { value: new THREE.Vector3(-1e9, 0, 0) },
@@ -2201,7 +2233,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
   const LIFE = [0.95, 1.35, 1.6]; // mean particle life of each kind (lip spray, splash-up, mist), s
   // splash plumes found in one tick: kind (0 plunge, 1 shore dump, 2 bore), x, crest fn, wanted count
   const pjobs = [];
-  const PLIFE = [1.9, 1.65, 1.3]; // mean plume life of each kind, s
+  const PLIFE = [1.9, 1.65, 2.2]; // mean plume life of each kind, s
   // how many of each kind still come as separate plumes, over the foam curtain (the lip's and the shore dump's
   // are all in the curtain; the bore's keep billowing up off its face all the way in)
   const PACC = [0, 0, 1];
@@ -2272,15 +2304,16 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
           d = f.z - shoreZ(px) - rnd(0.3, 1.5);
           // (tall enough that the dome of its mass stands over the bore's top, tearing its line against the sea beyond;
           // any lower, and its squarish mass lay on the face as a block, its top along the bore's)
-          h = (f.top - f.yb + 0.1 * H) * rnd(1.25, 1.6); w = h * rnd(1.0, 1.4);
-          life = rnd(1.3, 2.0); lean = rnd(-0.05, 0.15); drift = -c * rnd(0.95, 1.05); alpha = rnd(0.7, 0.95);
+          // (all much alike, and long-lived, so that many overlap and their tops make one steady ragged line)
+          h = (f.top - f.yb + 0.1 * H) * rnd(1.3, 1.5); w = h * rnd(1.0, 1.4);
+          life = rnd(1.8, 2.6); lean = rnd(-0.05, 0.15); drift = -c * rnd(0.95, 1.05); alpha = rnd(0.7, 0.95);
         }
         const pz = shoreZ(px) + d;
         // it stands along the crest line here: slope dz/dx of z = shoreZ(x) + crestD(fn, x, t)
         const sl = (shoreZ(px + 1) - shoreZ(px - 1) - (wobble(px + 1) - wobble(px - 1)) / kOf(dcx)) / 2 - SURF.kx / kOf(dcx);
         const nl = 1 / Math.sqrt(1 + sl * sl);
         const py = kind === 2 ? _pf.yb - 0.1 * H : evalSurf(px, pz, time, false, _pw).y - 0.12 * H;
-        splashes.add(px, py, pz, w, h, time, life, alpha, lean, drift, -sl * nl, nl);
+        splashes.add(px, py, pz, w, h, time, life, alpha, lean, drift, -sl * nl, nl, kind === 2);
       }
     }
     // the particles alive at once (rate x life) must fit in the pool: busy moments such as closeouts
@@ -2390,6 +2423,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
     update(dt, cameraX = 0) {
       time += dt;
       material.uniforms.uTime.value = time;
+      material.uniforms.uRowF.value = (OMEGA * time / rowDs) % 1;
       if (time >= nextRogue) { spawnRogue(cameraX); nextRogue = time + rnd(SURF.rogueMin, SURF.rogueMax); }
       emitSpray(dt, cameraX);
       spray.update(dt);
