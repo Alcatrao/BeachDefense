@@ -26,15 +26,15 @@ export const SURF = {
   film: 1.4,          // swash film thickness over the sand
   flatSand: 100,      // must match main.js FLAT_SAND_WIDTH
   duneStart: -650,    // must match main.js DUNE_START
-  // two breaking zones: an outer bar (~60 m out) where the bigger set waves break
-  // first, then the waves reform over the trough and break again on the inner bar (~30 m)
+  // two breaking zones: an outer bar (~60 m out) where the bigger set waves break, their whitewater bores
+  // charging on across the trough to the shorebreak; the others break on the inner bar (~30 m)
   barOuter: 345,      // outer-bar break distance (the player is ~5.9 units per metre)
   outerGain: 1.5,     // outer-bar waves are this much bigger than the base wave
   outerMin: 1.0,      // only waves with Hn > outerMin * Hbase break on the outer bar
   innerGain: 1.15,
   innerMax: 185,      // inner-bar break distance cap
-  reform0: 228,       // crest distance where the outer whitewash starts reforming...
-  reform1: 200,       // ...into the inner-bar swell
+  reform0: 228,       // crest distance where a swell that did not break on the outer bar...
+  reform1: 200,       // ...takes on its inner-bar break
   rogueH: 60,         // rogue wave height (~10 m)
   rogueMin: 180,      // s between rogue waves (random in [rogueMin, rogueMax])
   rogueMax: 420,
@@ -127,7 +127,8 @@ function waveParams(fn, x, o) {
 function stageState(Hn, db, db0, boreK, dc, o) {
   const p = (db - dc) / SURF.breakSpan;
   const shoal = 0.55 + 0.45 * sstep(db0 + 420, db0, dc);
-  const Hpre = Hn * shoal * (1 + 0.12 * sstep(0, 1, p));
+  // and it peaks up as it nears its break, by 16 % (most of it before the lip starts to throw, at p 0)
+  const Hpre = Hn * shoal * (1 + 0.16 * sstep(-3.5, 1.0, p));
   const depthC = Math.max(SURF.slope * dc - 0.5, 0.3);
   const Hbore = Math.min(Hn, boreK * depthC + 0.8);
   o.p = p;
@@ -146,32 +147,30 @@ function stageState(Hn, db, db0, boreK, dc, o) {
   return o;
 }
 const _sa = {}, _sb = {};
-// Wave state for crest `fn` whose crest is at distance dc: the outer-bar stage
-// blended into the inner-bar stage over the trough.
+// Wave state for crest `fn` whose crest is at distance dc. A wave big enough to break on the outer bar stays that
+// stage all the way in: its whitewater bore charges on across the trough to the shorebreak. Any other blends into
+// its inner-bar stage over the trough.
 function crestState(fn, x, dc, o) {
   waveParams(fn, x, o);
   const A = stageState(o.HnA, o.dbA, SURF.barOuter, o.boreKA, dc, _sa);
   const B = stageState(o.Hn, o.db, o.db0, 0.55, dc, _sb);
-  const wB = sstep(SURF.reform0, SURF.reform1, dc);
+  const wB = o.outer ? 0 : sstep(SURF.reform0, SURF.reform1, dc);
   const m = (a, b) => a + (b - a) * wB;
   o.wB = wB;
   o.p = wB < 0.5 ? A.p : B.p;          // the stage in charge (for lip / spray events)
   o.H = m(A.H, B.H); o.Hc = Math.max(m(A.Hc, B.Hc), 1e-3); o.bore = m(A.bore, B.bore); o.steep = m(A.steep, B.steep);
   o.pc = m(A.pc, B.pc);
-  // the outer whitewater roller keeps rolling and shrinks away over the trough (sig = roller size, crest d 226 -> 199)
-  // before the inner bar's own curl can start (that needs dc < innerMax + 12 = 197)
-  const sA = A.p > 0 ? sstep(SURF.reform1 - 1, SURF.reform0 - 2, dc) : 0;
-  const cur = sA > 0 ? A : B; // the stage whose curl is in charge
+  const cur = o.outer ? A : B; // the stage whose curl is in charge
   o.thetaMax = cur.thetaMax;
   // once the lip has landed the tube collapses: the roller shrinks to a small one riding the bore front
-  // (p 1.0 -> 1.9), and shrinks away before reaching the sand
-  const sAp = sA > 0 ? sA : 1, sigS = sstep(15, 45, dc), sigP = 1 - 0.6 * sstep(1.0, 1.9, cur.p);
-  o.sig = sAp * sigS * sigP;
+  // (p 1.0 -> 1.9, sig = roller size), and shrinks away before reaching the sand
+  const sigS = sstep(15, 45, dc), sigP = 1 - 0.6 * sstep(1.0, 1.9, cur.p);
+  o.sig = sigS * sigP;
   o.imp = m(impOf(A.p), impOf(B.p));
   // and the tube's air pocket closes (p 1.05 -> 1.5): the roller becomes one solid tumbling mass (see evalSurf)
   o.fill = sstep(1.05, 1.5, cur.p);
   o.pC = cur.p; // the stage of the curl in charge
-  o.D = surgeOf(o, sAp * Math.min(Math.max((dc + 15) / 60, 0), 1), sigS * sigP, TAU / kOf(dc));
+  o.D = surgeOf(o, Math.min(Math.max((dc + 15) / 60, 0), 1), sigS * sigP, TAU / kOf(dc));
   return o;
 }
 // How far the wave is carried forward while it breaks (mirrored in GLSL). Rotating past its turn-over angle
@@ -179,7 +178,7 @@ function crestState(fn, x, dc, o) {
 // crest, which reads as the breaking wave rolling backwards: the wave moves forward by that much instead (evalSurf
 // shifts it by D), so the tip keeps its furthest reach and the front never slows below the crest's own speed.
 // keep: how much of that reach is kept; it is let go evenly over crest d 45 -> -15, much slower than the crest
-// moves, so the bore still meets the swash at the shoreline. The outer roller's own fade (sA) is not carried.
+// moves, so the bore still meets the swash at the shoreline.
 function surgeOf(w, keep, shrink, L) {
   const sh = Math.max(w.steep, w.bore), Hc = w.Hc;
   const wc = Math.min(L * (0.13 - 0.095 * sh), 0.32 * Hc);
@@ -435,12 +434,22 @@ float waveBaseHn(float fn) {
 }
 float rogueG(float fn, float x) { return abs(fn - uRogue.x) < 0.5 ? exp(-pow((x - uRogue.z) / 900.0, 2.0)) : 0.0; }
 float waveHn(float fn, float x) { float b = waveBaseHn(fn) * INGAIN; return b + (ROGUEH / 3.0 - b) * rogueG(fn, x); }
+// where crest fn starts to break at x: on the outer bar if it is big enough (surfPos's dbA), else its inner-bar
+// break distance (db0)
+float breakZone(float fn, float x) {
+  if (waveBaseHn(fn) > OUTMIN * HBASE || abs(fn - uRogue.x) < 0.5) {
+    uint h2 = hashU(hashU(uint(int(fn) + 100000)) ^ 0x9e3779b9u);
+    float ax = abs(x - (hash01(h2) * 2.0 - 1.0) * 900.0);
+    return max(BAROUT + 15.0 * sin(x * 0.009 + fn * 2.3) + 70.0 * rogueG(fn, x) - 0.1 * ax, BAROUT - 20.0);
+  }
+  return (waveHn(fn, x) / BRATIO + 0.5) / SLOPE;
+}
 struct WS { float H; float Hc; float p; float bore; float steep; float th; float pc; float l1; float l2; float cap; float chop; };
 WS stageS(float Hn, float db, float db0, float boreK, float dc) {
   WS w;
   float p = (db - dc) / BSPAN;
   float shoal = 0.55 + 0.45 * sstep(db0 + 420.0, db0, dc);
-  float Hpre = Hn * shoal * (1.0 + 0.12 * sstep(0.0, 1.0, p));
+  float Hpre = Hn * shoal * (1.0 + 0.16 * sstep(-3.5, 1.0, p)); // peaking up as it nears its break
   float depthC = max(SLOPE * dc - 0.5, 0.3);
   float Hbore = min(Hn, boreK * depthC + 0.8);
   w.p = p;
@@ -494,27 +503,25 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
   float db = max(min(db0, INMAX) - PEEL * ax + 12.0 * sin(x * 0.013 + fn * 1.7), MINBD);
   WS A = stageS(HnA, dbA, BAROUT, 0.55 + 0.6 * g, dc);
   WS B = stageS(Hn, db, db0, 0.55, dc);
-  float wB = sstep(REF0, REF1, dc);
+  float wB = outer ? 0.0 : sstep(REF0, REF1, dc); // an outer-bar wave's bore charges on to the shore (crestState)
   float p = wB < 0.5 ? A.p : B.p;
   float H = mix(A.H, B.H, wB);
   float Hc = max(mix(A.Hc, B.Hc, wB), 1e-3);
   float bore = mix(A.bore, B.bore, wB);
   float steep = mix(A.steep, B.steep, wB);
-  // the outer roller shrinks away over the trough without unrolling, then the inner bar's curl takes over
-  float sA = A.p > 0.0 ? sstep(REF1 - 1.0, REF0 - 2.0, dc) : 0.0;
-  float thetaMax = sA > 0.0 ? A.th : B.th;
-  float pC = sA > 0.0 ? A.p : B.p; // the stage of the curl in charge
-  float sAp = sA > 0.0 ? sA : 1.0, sigS = sstep(15.0, 45.0, dc), sigP = 1.0 - 0.6 * sstep(1.0, 1.9, pC);
-  float sig = sAp * sigS * sigP; // collapsing tube
+  float thetaMax = outer ? A.th : B.th;
+  float pC = outer ? A.p : B.p; // the stage of the curl in charge
+  float sigS = sstep(15.0, 45.0, dc), sigP = 1.0 - 0.6 * sstep(1.0, 1.9, pC);
+  float sig = sigS * sigP; // collapsing tube
   float fillT = sstep(1.05, 1.5, pC); // ... whose air pocket closes into a solid roller
   float pc = mix(A.pc, B.pc, wB);
   float lip1 = mix(A.l1, B.l1, wB), lip2 = mix(A.l2, B.l2, wB), capP = mix(A.cap, B.cap, wB), chopP = mix(A.chop, B.chop, wB);
-  float dbz = outer ? mix(dbA, db0, wB) : db0;
+  float dbz = outer ? dbA : db0;
   float sh = max(steep, bore);
   { // the breaking wave carried forward by D, near its crest (surgeOf / evalSurf in JS)
     float Ls = TAU / kOf(dc), wcD = min(Ls * mix(0.13, 0.035, sh), 0.32 * Hc);
     float X = 0.5 * wcD + 0.12 * Hc * pc, Y = 0.62 * Hc, th = max(thetaMax, atan(Y, -X));
-    float keep = sAp * clamp((dc + 15.0) / 60.0, 0.0, 1.0);
+    float keep = clamp((dc + 15.0) / 60.0, 0.0, 1.0);
     float D = min(keep * (sigS * sigP * (-X * (1.0 - cos(th)) - Y * sin(th)) + X + length(vec2(X, Y))), 0.2 * Ls);
     s += D * (1.0 - sstep(0.1, 0.45, abs(psi)));
     psi = s / L; dc = d - s;
@@ -660,11 +667,14 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
   float loss = 1.0 - sstep(15.0, 45.0, dc);
   float fCol = sstep(0.08, 0.35, loss) * sstep(0.05, 0.4, pC) * (1.0 - sstep(3.0, 5.0, pC))
     * max(1.5 * sstep(0.3, 0.65, sqrt(hw) * bw), s2 < 0.0 ? 1.3 * sstep(-(0.5 + 1.6 * loss) * wf - 3.0, -(0.5 + 1.6 * loss) * wf, s2) : 0.0);
-  float fZone = 0.22 * sstep(dbz + 30.0, dbz - 60.0, d) * (0.5 + 0.5 * sin(x * 0.013 + z * 0.021 + fn));
+  // the foam of the surf zone belongs to the crest that last passed: this one behind it, the one before it (fn - 1)
+  // ahead of it, so that it runs on across the edges between the crests' cells; it lies from where that one broke in
+  float fz = s2 < 0.0 ? fn - 1.0 : fn, dbzF = s2 < 0.0 ? breakZone(fz, x) : dbz;
+  float fZone = 0.22 * sstep(dbzF + 30.0, dbzF - 60.0, d) * (0.5 + 0.5 * sin(x * 0.013 + z * 0.021 + fz));
   float fCap = 0.25 * sstep(0.85, 1.0, bump) * capP;
   // residual foam left behind by broken waves: thins out as it ages (behind this crest, or the previous one)
   float ageB = s2 > 0.0 ? s2 / L : 1.0 + s2 / L;  // ~time since a crest passed, in wave periods
-  float zoneIn = max(sstep(dbz + 10.0, dbz - 50.0, d), 0.7 * sstep(BAROUT + 10.0, BAROUT - 50.0, d) * sstep(REF1 - 40.0, REF0, d));
+  float zoneIn = sstep(dbzF + 10.0, dbzF - 50.0, d);
   float broke = s2 > 0.0 ? max(bore, lip2) : 1.0;
   float fRes = zoneIn * broke * (0.14 + 0.6 * exp(-3.0 * ageB));
   foam = clamp(max(max(max(fLip, fFace), max(fBore, fZone)), max(max(fCap, fRes), max(fImp, fCol))) * filmP, 0.0, 1.6);
@@ -1555,6 +1565,171 @@ function plumeAtlas(N) {
   };
   return { tex: mk(out), rel: mk(rel) };
 }
+// The foam curtain's picture (see FoamCurtain), in the plume atlas's layout and style: one strip CURTAIN_ASP heights
+// across and one up that wraps round seamlessly across (its noise, lumps and drops all repeat), drawn in square
+// pixels. Soft white water as AoM draws it rather than a row of cauliflowers: a slab along its foot heaped up into
+// billows of all sizes, unevenly spaced, that run into one another without creases, feathered at its edges, under a
+// thin veil of spray rising out of it in wisps, with a few soft jets and loose drops in the veil.
+const CURTAIN_ASP = 3;
+function curtainTex(NV) {
+  const ASP = CURTAIN_ASP, NU = ASP * NV, NN = NU * NV;
+  const out = new Uint8Array(NN * 4), rel = new Uint8Array(NN * 4);
+  const lat = new Float32Array(1024 * 256), Dd = new Float32Array(NN);
+  const Hh = new Float32Array(NN), Bn = new Float32Array(NN), Bw = new Float32Array(NN), Bt = new Float32Array(NN);
+  const Ac = new Float32Array(NN), Gc = new Float32Array(NN), Lc = new Float32Array(NN);
+  let s = hashU(4241);
+  const r = () => hash01(s = hashU(s + 0x9e3779b9));
+  for (let i = 0; i < lat.length; i++) lat[i] = r();
+  const wrapI = (i, P) => ((i % P) + P) % P;
+  const vn = (x, y, P) => { // smooth value noise, repeating every P cells across (P <= 1024)
+    const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi;
+    const ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy);
+    const i0 = wrapI(xi, P), i1 = wrapI(xi + 1, P), j0 = (yi & 255) << 10, j1 = ((yi + 1) & 255) << 10;
+    const a = lat[j0 + i0], b = lat[j0 + i1], c = lat[j1 + i0], d = lat[j1 + i1];
+    return a + (b - a) * ux + (c - a) * uy + (a - b - c + d) * ux * uy;
+  };
+  // three octaves at (U 0..1 across the strip, Y up), P cells across it for the coarsest; o moves it up the lattice
+  // so that the different noises are unrelated
+  const fbm = (U, Y, P, o) => {
+    const y = Y * P / ASP + o;
+    return 0.5 * vn(U * P, y, P) + 0.3 * vn(2 * U * P, 2 * y + 13.7, 2 * P) + 0.2 * vn(4 * U * P, 4 * y + 29.3, 4 * P);
+  };
+  // a round drop at (X, Y) in heights, rad heights across (wrapped round across)
+  const drop = (X, Y, rad, amp) => {
+    const cx = X * NV, cy = Y * NV, R = rad * NV, k = 1 / (R * R);
+    for (let py = Math.max(0, Math.floor(cy - R)); py <= Math.min(NV - 1, Math.ceil(cy + R)); py++) {
+      const dy = py + 0.5 - cy;
+      for (let qx = Math.floor(cx - R); qx <= Math.ceil(cx + R); qx++) {
+        const dx = qx + 0.5 - cx, q = 1 - (dx * dx + dy * dy) * k;
+        if (q > 0) { const i = py * NU + wrapI(qx, NU); Dd[i] = Math.max(Dd[i], amp * Math.min(1, 3 * q)); }
+      }
+    }
+  };
+  // packed round lumps at (x, y) in heights on a jittered grid of n cells across the strip (as in plumeAtlas)
+  const lumps = (x, y, n, salt) => {
+    const c = ASP / n, gx = Math.floor(x / c), gy = Math.floor(y / c);
+    let m = 0;
+    for (let j = gy - 1; j <= gy + 1; j++) for (let i = gx - 1; i <= gx + 1; i++) {
+      const h = hashU(Math.imul(wrapI(i, n), 73856093) ^ Math.imul(j, 19349663) ^ salt), h2 = hashU(h);
+      const dx = x - (i + 0.15 + 0.7 * hash01(h)) * c, dy = y - (j + 0.15 + 0.7 * hash01(h2)) * c;
+      const R = c * (0.6 + 0.35 * hash01(hashU(h2))), q = 1 - (dx * dx + dy * dy) / (R * R);
+      if (q > 0) m = Math.max(m, Math.sqrt(q) * R / c);
+    }
+    return m;
+  };
+  // a box blur of src into dst, r pixels each way (wrapped round across, clamped at the foot and the top)
+  const blur = (src, dst, r) => {
+    const k = 1 / (2 * r + 1), cl = i => Math.min(Math.max(i, 0), NV - 1);
+    for (let py = 0; py < NV; py++) {
+      const row = py * NU;
+      let a = 0;
+      for (let j = -r; j <= r; j++) a += src[row + wrapI(j, NU)];
+      for (let px = 0; px < NU; px++) { Bt[row + px] = a * k; a += src[row + wrapI(px + r + 1, NU)] - src[row + wrapI(px - r, NU)]; }
+    }
+    for (let px = 0; px < NU; px++) {
+      let a = 0;
+      for (let j = -r; j <= r; j++) a += Bt[cl(j) * NU + px];
+      for (let py = 0; py < NV; py++) { dst[py * NU + px] = a * k; a += Bt[cl(py + r + 1) * NU + px] - Bt[cl(py - r) * NU + px]; }
+    }
+  };
+  // a smooth union of two signed distances and a smooth maximum of two heights, k wide
+  const smin = (a, b, k) => { const h = Math.max(k - Math.abs(a - b), 0) / k; return Math.min(a, b) - h * h * k / 4; };
+  const smax = (a, b, k) => -smin(-a, -b, k);
+  // the billows (x, y, radius, the height its relief starts from), in heights: big and small ones, unevenly spaced and
+  // overlapping along the top of the slab (the bigger the higher), a few crowned with a smaller one
+  const C = [], NB = 13, gap = [];
+  for (let i = 0; i < NB; i++) gap.push(0.4 + r());
+  const gs = gap.reduce((a, b) => a + b, 0);
+  for (let i = 0, X = 0; i < NB; X += ASP * gap[i++] / gs) {
+    const R = 0.11 + 0.2 * Math.pow(r(), 1.5), cy = 0.38 + R * (0.2 + 0.4 * r());
+    C.push(X, cy, R, 0);
+    if (r() < 0.4) {
+      const a = Math.PI * (0.3 + 0.4 * r());
+      C.push(X + 0.75 * R * Math.cos(a), cy + 0.75 * R * Math.sin(a), R * (0.4 + 0.15 * r()), 0.35 * R);
+    }
+  }
+  // soft jets of spray rising out of it: x, half-width at the slab, top, lean (heights across per height up)
+  const J = [];
+  for (let i = 0; i < 4; i++) J.push(ASP * (i + 0.2 + 0.6 * r()) / 4, 0.04 + 0.04 * r(), 0.8 + 0.15 * r(), 0.3 * (r() - 0.5));
+  for (let i = 0; i < 35; i++) drop(ASP * r(), 0.6 + 0.35 * r(), 0.003 + 0.004 * r(), 0.4 + 0.4 * r());
+  for (let j = 0; j < J.length; j += 4) for (let i = 0; i < 5; i++) {
+    const t = r(), y = J[j + 2] + 0.04 * (r() - 0.3);
+    drop(J[j] + J[j + 3] * (y - 0.45) + 3 * J[j + 1] * (t - 0.5), y, 0.003 + 0.004 * r(), 0.6);
+  }
+  const salt = hashU(s), salt2 = hashU(salt), sj = 1000 * r();
+  for (let py = 0; py < NV; py++) {
+    const Y = (py + 0.5) / NV;
+    for (let px = 0; px < NU; px++) {
+      const U = (px + 0.5) / NU, X = U * ASP;
+      // the grain: fine droplets, clumps of them and broad patches; and a warp that tears the outline
+      const gf = fbm(U, Y, 180, 0), gm = fbm(U, Y, 51, 61), gb = fbm(U, Y, 18, 122);
+      const Xw = X + 0.05 * (fbm(U, Y, 7, 151) - 0.5), Yw = Y + 0.05 * (fbm(U, Y, 7, 173) - 0.5);
+      const yb = 0.36 + 0.1 * fbm(U, 0, 7, 197);
+      // the mass's signed distance (in heights, negative inside): the slab and the billows run together, torn by the
+      // grain; and its heaped height
+      let dO = Yw - yb, hd = 0.08 * Math.sqrt(sstep(0.05, -0.25, Y - yb));
+      for (let c = 0; c < C.length; c += 4) {
+        let dx = Xw - C[c];
+        dx -= ASP * Math.round(dx / ASP);
+        const dy = Yw - C[c + 1], R = C[c + 2], q = R * R - dx * dx - dy * dy;
+        dO = smin(dO, Math.sqrt(dx * dx + dy * dy) - R, 0.1);
+        if (q > 0) hd = smax(hd, C[c + 3] + 0.6 * Math.sqrt(q), 0.06);
+      }
+      dO += 0.06 * (gb - 0.5) + 0.05 * (gm - 0.5) + 0.05 * (gf - 0.5);
+      const mass = sstep(0.1, -0.08, dO), thick = sstep(0, -0.2, dO);
+      // the veil: spray rising off the mass in wisps (streaks up the picture, bent a little), thinning out above it
+      const Uw = U + 0.012 * (fbm(U, Y, 5, 351) - 0.5);
+      const st = 0.6 * vn(60 * Uw, 2.5 * Y + 311, 60) + 0.4 * vn(21 * Uw, 1.2 * Y + 337, 21), wisp = sstep(0.35, 0.75, st);
+      const veil = sstep(0.42, 0, dO) * (0.2 + 0.5 * wisp) * sstep(1.0, 0.7, Y) * (0.8 + 0.4 * (gf - 0.5));
+      // the jets: widening as they rise and fading out well under their tops, streaked along their length
+      let jet = 0;
+      for (let j = 0; j < J.length; j += 4) {
+        const t = (Y - 0.45) / (J[j + 2] - 0.45);
+        if (t < 0 || t > 1) continue;
+        let dx = X - J[j] - J[j + 3] * (Y - 0.45);
+        dx -= ASP * Math.round(dx / ASP);
+        const w = J[j + 1] * (1 + 2 * t), e = Math.abs(dx) / w;
+        if (e >= 1) continue;
+        const stj = vn(3 * dx / w + sj + 7 * j, 25 * Y + sj, 1024);
+        jet = Math.max(jet, 0.7 * sstep(1, 0.4, e) * (0.4 + 0.6 * sstep(0.3, 0.7, stj)) * sstep(1, 0.6, t));
+      }
+      const i = py * NU + px;
+      // the mass nearly even (only faintly mottled) and the veil, jets and drops translucent; faded out under its top
+      Ac[i] = Math.max(mass * (0.85 + 0.15 * thick) * (0.92 + 0.16 * (gm - 0.5)), veil, jet, 0.8 * Dd[i]) * sstep(1.0, 0.94, Y);
+      // the order it dissolves in: the veil, jets and drops first, then the mass from its outline inwards, grain by
+      // grain (so that it shrinks as one and never breaks up into separate billows)
+      Gc[i] = Math.min(Math.max(0.45 - 1.6 * dO + 0.25 * (gf - 0.5) + 0.15 * (gm - 0.5), 0), 1);
+      Lc[i] = Math.min(Math.max(0.7 + 0.2 * thick + 0.3 * (gb - 0.5) + 0.3 * (gm - 0.5) + 0.2 * (gf - 0.5), 0), 1);
+      // its relief: the heaped billows with broad, low lumps on them, the jets raised a little and the drops as beads
+      const l2 = lumps(X, Y, 48, salt2);
+      Hh[i] = Math.max(hd + sstep(0.1, -0.1, dO) * (0.04 * lumps(X, Y, 16, salt) + 0.01 * l2) + 0.001 * (gf - 0.5),
+        jet * (0.02 + 0.01 * l2), 0.012 * Dd[i], 0);
+    }
+  }
+  blur(Hh, Bn, Math.max(1, Math.round(0.03 * NV)));
+  blur(Hh, Bw, Math.max(2, Math.round(0.09 * NV)));
+  for (let py = 0; py < NV; py++) for (let px = 0; px < NU; px++) {
+    const i = py * NU + px, o = i * 4;
+    // shut out of its hollows only a little: soft white water, not deep creases
+    const ao = Math.min(Math.max(1 - 6 * (0.6 * (Bn[i] - Hh[i]) + 0.4 * (Bw[i] - Hh[i])), 0.6), 1);
+    // the slope, per height across and up (a pixel is 1 / NV heights each way)
+    const hx = (Hh[py * NU + wrapI(px + 1, NU)] - Hh[py * NU + wrapI(px - 1, NU)]) * NV / 2;
+    const hy = (Hh[Math.min(py + 1, NV - 1) * NU + px] - Hh[Math.max(py - 1, 0) * NU + px]) * NV / 2;
+    const nl = 1 / Math.sqrt(hx * hx + hy * hy + 1);
+    out[o] = Math.round(Ac[i] * 255); out[o + 1] = Math.round(Gc[i] * 255); out[o + 2] = Math.round(ao * (0.8 + 0.2 * Lc[i]) * 255); out[o + 3] = 255;
+    rel[o] = Math.round((0.5 - 0.5 * hx * nl) * 255); rel[o + 1] = Math.round((0.5 - 0.5 * hy * nl) * 255);
+    rel[o + 2] = Math.round(Math.min(Hh[i] / 0.32, 1) * 255); rel[o + 3] = 255;
+  }
+  const mk = d => {
+    const tex = new THREE.DataTexture(d, NU, NV, THREE.RGBAFormat, THREE.UnsignedByteType);
+    tex.wrapS = THREE.RepeatWrapping; tex.wrapT = THREE.ClampToEdgeWrapping;
+    tex.generateMipmaps = true;
+    tex.minFilter = THREE.LinearMipmapLinearFilter; tex.magFilter = THREE.LinearFilter;
+    tex.needsUpdate = true;
+    return tex;
+  };
+  return { tex: mk(out), rel: mk(rel) };
+}
 const SPLASH_VERT = /* glsl */`
 uniform float uTime;
 uniform vec3 uSunDir;
@@ -1564,7 +1739,7 @@ attribute vec4 aC; // variant 0..3, flip (+-1), lean (top thrown shoreward, per 
 attribute vec2 aD; // the crest's horizontal normal (x, z), seaward
 varying vec2 vUv, vM;
 varying vec3 vL;
-varying float vP, vAlpha, vBack, vQy, vDist;
+varying float vT, vAlpha, vBack, vQy, vDist;
 void main() {
   float age = uTime - aA.w, p = age / aB.z;
   if (p < 0.0 || p > 1.0) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); return; } // dead: beyond the far plane
@@ -1599,7 +1774,8 @@ void main() {
   vQy = q.y;
   vDist = length(P - cameraPosition);
   vAlpha = aB.w * smoothstep(0.0, 0.06, p) * (1.0 - smoothstep(0.85, 1.0, p)) * (1.0 - smoothstep(2000.0, 3500.0, lh));
-  vP = p;
+  // it dissolves from the thin spray inwards over the later part of its life
+  vT = 0.08 + 0.95 * smoothstep(0.35, 1.0, p);
   vec4 cp = projectionMatrix * viewMatrix * vec4(P, 1.0);
   // its depth is taken a few units nearer the camera (less when looking down, where the water would stop hiding
   // its sunk foot): the breaking face it stands against leans past its plane here and there, and would cut it in
@@ -1609,45 +1785,108 @@ void main() {
   vec4 cb = projectionMatrix * viewMatrix * vec4(P - toP * (min(0.3 * aB.y, 0.5 * dP) * (1.0 - 0.75 * abs(toP.y) / dP) / dP), 1.0);
   gl_Position = vec4(cp.xy, cb.z / cb.w * cp.w, cp.w);
 }`;
+// (shared by the plumes and the foam curtain: vT is how far it has dissolved, uStep one shadow step across the
+// picture, 0.04 of its height)
 const SPLASH_FRAG = /* glsl */`
 uniform sampler2D uPlume, uPlumeR;
 uniform vec3 uHazeCol;
 uniform float uHazeK;
+uniform vec2 uStep;
 varying vec2 vUv, vM;
 varying vec3 vL;
-varying float vP, vAlpha, vBack, vQy, vDist;
+varying float vT, vAlpha, vBack, vQy, vDist;
 void main() {
   vec4 t = texture2D(uPlume, vUv);
-  // dissolves from the thin spray inwards over the later part of its life
-  float T = 0.08 + 0.95 * smoothstep(0.35, 1.0, vP);
-  // and its foot thins out grain by grain towards the water, which would otherwise cut it off in a straight line
+  // dissolved from the thin spray inwards up to vT, and its foot thinned out grain by grain towards the water,
+  // which would otherwise cut it off in a straight line
   float foot = smoothstep(0.0, 0.3, vQy + 0.15 * (t.g - 0.5));
-  float a = t.r * smoothstep(T - 0.12, T + 0.06, t.g) * vAlpha * foot;
+  float a = t.r * smoothstep(vT - 0.12, vT + 0.06, t.g) * vAlpha * foot;
   if (a < 0.01) discard;
   // lit as the heap of lumps in its relief, bent round by its rounded shape: the sun wrapped a little round into the
   // side turned away from it, the sky from above, both shut out of the creases. Shaded in display colour, between
-  // white and a cool sea-grey (through the foam's tone curve every shade came out white and the plume flat)
+  // white and a pale sea-cyan (through the foam's tone curve every shade came out white and the plume flat), and kept
+  // light even on its shadowed side, as AoM's foam is
   vec4 rl = texture2D(uPlumeR, vUv);
   vec2 sl = rl.xy * 2.0 - 1.0;
   vec3 n = normalize(vec3(sl + vM, sqrt(max(1.0 - dot(sl, sl), 0.04))));
   vec3 L = normalize(vL);
   float dif = clamp(dot(n, L) * 0.65 + 0.35, 0.0, 1.0);
 #ifndef SOFT
-  // and shadowed by the lumps between it and the sun: one step towards it across the picture (0.04 heights; a
-  // tile is half the atlas, 1.5 heights across), against how far the sunbeam has risen out of the picture by then
+  // and shadowed by the lumps between it and the sun: one step towards it across the picture, against how far the
+  // sunbeam has risen out of the picture by then
   float lxy = max(length(L.xy), 0.25);
-  float hs = texture2D(uPlumeR, vUv + L.xy / lxy * vec2(0.0133, 0.02)).b;
+  float hs = texture2D(uPlumeR, vUv + L.xy / lxy * uStep).b;
   dif *= 1.0 - 0.6 * smoothstep(0.0, 0.03, (hs - rl.b) * 0.32 - 0.04 * L.z / lxy);
 #endif
-  float lit = (0.72 + 0.2 * n.y + 0.6 * dif) * t.b;
-  vec3 col = mix(vec3(0.58, 0.72, 0.8), vec3(1.0), clamp(lit - 0.1, 0.0, 1.0));
-  // against the sun its thin spray, the thin low parts of its relief and the rims of its lumps on the sun's side
-  // glow; and it takes the water's haze
+  float lit = (0.8 + 0.12 * n.y + 0.45 * dif) * t.b;
+  vec3 col = mix(vec3(0.7, 0.84, 0.9), vec3(1.0), clamp(lit - 0.1, 0.0, 1.0));
+  // against the sun all of it glows a little with the light scattered through it, and its thin spray, the thin low
+  // parts of its relief and the rims of its lumps on the sun's side more; and it takes the water's haze
   float dense = smoothstep(0.4, 0.9, t.r);
   float rim = smoothstep(0.25, 0.85, 1.0 - n.z) * clamp(dot(n.xy, L.xy) * 4.0, 0.0, 1.0);
-  col = min(col + vec3(1.0, 0.95, 0.85) * vBack * (0.35 * (1.0 - dense) + 0.25 * (1.0 - rl.b) + 0.45 * rim), vec3(1.0));
+  col = min(col + vec3(1.0, 0.95, 0.85) * vBack * (0.2 + 0.3 * (1.0 - dense) + 0.2 * (1.0 - rl.b) + 0.4 * rim), vec3(1.0));
   vec3 hz = linearToOutputTexel(vec4(toneMapping(uHazeCol * 1.55), 1.0)).rgb;
   gl_FragColor = vec4(mix(col, hz, (1.0 - exp(-vDist * 0.00024)) * uHazeK), a);
+}`;
+// The foam curtain (see FoamCurtain): one strip per crest slot and layer, position = (column, 0..1 up, slot + NS
+// layer). Each column's state is read from uCur (NC columns; rows 2 slot: z, y of its foot, height, dissolve; 2 slot
+// + 1: lean, alpha, strips per unit x, picture offset) and run smoothly through the columns (Catmull-Rom).
+const CURTAIN_VERT = /* glsl */`
+uniform float uTime, uX0, uDX;
+uniform vec3 uSunDir;
+uniform sampler2D uCur;
+varying vec2 vUv, vM;
+varying vec3 vL;
+varying float vT, vAlpha, vBack, vQy, vDist;
+vec4 tapC(int i, int r) { return texelFetch(uCur, ivec2(clamp(i, 0, NC - 1), r), 0); }
+vec4 crom(vec4 a, vec4 b, vec4 c, vec4 d, float t) {
+  return b + 0.5 * t * ((c - a) + t * ((2.0 * a - 5.0 * b + 4.0 * c - d) + t * (3.0 * (b - c) + d - a)));
+}
+vec4 cromD(vec4 a, vec4 b, vec4 c, vec4 d, float t) {
+  return 0.5 * ((c - a) + 2.0 * t * (2.0 * a - 5.0 * b + 4.0 * c - d) + 3.0 * t * t * (3.0 * (b - c) + d - a));
+}
+void main() {
+  float cc = position.x, v = position.y;
+  int sl = int(position.z + 0.5), layer = sl / NS;
+  sl -= layer * NS;
+  int j = min(int(cc), NC - 2);
+  float f = cc - float(j);
+  vec4 a = tapC(j - 1, 2 * sl), b = tapC(j, 2 * sl), c = tapC(j + 1, 2 * sl), d = tapC(j + 2, 2 * sl);
+  vec4 S = crom(a, b, c, d, f);
+  float dzdx = cromD(a, b, c, d, f).x / uDX;
+  vec4 Q = crom(tapC(j - 1, 2 * sl + 1), tapC(j, 2 * sl + 1), tapC(j + 1, 2 * sl + 1), tapC(j + 2, 2 * sl + 1), f);
+  // the crest line's horizontal normal (seaward) and tangent
+  vec2 N = normalize(vec2(-dzdx, 1.0));
+  vec3 N3 = vec3(N.x, 0.0, N.y), T3 = vec3(N.y, 0.0, -N.x);
+  float x = uX0 + cc * uDX, h = S.z, side = 1.0, uO = Q.w;
+  vec3 base = vec3(x, S.y, S.x);
+  if (layer > 0) { h *= 0.85; side = -1.0; uO += 0.43; base += N3 * (0.3 * h); } // the back layer: mirrored, behind
+  // upright along the crest, turned to face the camera's side of it and leant back half-way towards a camera
+  // looking down (as the plumes)
+  vec3 toC = cameraPosition - base;
+  float lh = length(toC.xz);
+  vec2 hd = dot(toC.xz, N) < 0.0 ? -N : N;
+  float bb = 0.5 * atan(toC.y, lh);
+  vec3 up = vec3(-hd.x * sin(bb), cos(bb), -hd.y * sin(bb));
+  vec3 P = base + up * (h * v) - N3 * (Q.x * h * v * v);
+  // the picture runs along the crest, one strip per 1 / iTW units, and slides slowly (each layer its own way)
+  float u = side * (x * Q.z + uO) + side * 0.01 * uTime;
+  // (a low curtain shows the picture's upper part, squashed a little, down to the slab that joins its billows)
+  vUv = vec2(u, 1.0 - (1.0 - v) * clamp(h * Q.z * CASP, 0.7, 1.0));
+  vBack = pow(max(dot(normalize(P - cameraPosition), uSunDir), 0.0), 3.0);
+  vL = vec3(dot(uSunDir, T3 * side), dot(uSunDir, up), dot(uSunDir, vec3(hd.x * cos(bb), sin(bb), hd.y * cos(bb))));
+  vM = vec2(0.0, 0.7 * v - 0.2);
+  vQy = v;
+  vDist = length(P - cameraPosition);
+  vT = S.w;
+  vAlpha = Q.y * smoothstep(0.3, 2.0, h) * (1.0 - smoothstep(2000.0, 3500.0, lh));
+  vec4 cp = projectionMatrix * viewMatrix * vec4(P, 1.0);
+  // its depth taken nearer the camera, as the plumes', and further: the lumps of the white water rolling in under it
+  // would poke through it in grey islands, seen along the crest
+  vec3 toP = P - cameraPosition;
+  float dP = length(toP);
+  vec4 cb = projectionMatrix * viewMatrix * vec4(P - toP * (min(0.7 * h, 0.5 * dP) * (1.0 - 0.5 * abs(toP.y) / dP) / dP), 1.0);
+  gl_Position = vec4(cp.xy, cb.z / cb.w * cp.w, cp.w);
 }`;
 
 class Splashes {
@@ -1672,7 +1911,8 @@ class Splashes {
     this.mesh = new THREE.Mesh(g, new THREE.ShaderMaterial({
       vertexShader: SPLASH_VERT, fragmentShader: SPLASH_FRAG,
       uniforms: { uTime: uniforms.uTime, uSunDir: uniforms.uSunDir, uHazeCol: uniforms.uHazeCol, uHazeK: uniforms.uHazeK,
-        uPlume: { value: tex }, uPlumeR: { value: rel } },
+        // (0.04 heights; a tile is half the atlas, 1.5 heights across)
+        uPlume: { value: tex }, uPlumeR: { value: rel }, uStep: { value: new THREE.Vector2(0.0133, 0.02) } },
       defines: soft ? { SOFT: '' } : {},
       transparent: true, depthWrite: false, side: THREE.DoubleSide, // (a flipped plume is wound the other way)
     }));
@@ -1707,6 +1947,109 @@ class Splashes {
   dispose(scene) {
     scene.remove(this.mesh);
     this.mesh.geometry.dispose(); this.mesh.material.dispose(); this.tex.dispose(); this.rel.dispose();
+  }
+}
+
+// The white water a breaking wave throws up, as one unbroken curtain along each crest instead of separate plumes:
+// it bursts up where the lip lands, travelling along the crest with the break as it peels, then settles into a
+// lower band of tumbling foam riding the bore front all the way in to the shore. Each crest near the camera (up to
+// ns at once, in slots by fn mod ns) gets one strip of the curtain picture, sampled every DX units along x round the
+// camera and drawn through those samples, with a second, mirrored layer just behind it so that it has depth.
+const CURTAIN_DX = 40;
+class FoamCurtain {
+  constructor(scene, uniforms, { half, ns = 4, sub, rows, layers, texV, soft }) {
+    const nc = Math.round(2 * half / CURTAIN_DX) + 1;
+    this.half = half; this.nc = nc; this.ns = ns;
+    this.data = new Float32Array(nc * 2 * ns * 4);
+    this.cur = new THREE.DataTexture(this.data, nc, 2 * ns, THREE.RGBAFormat, THREE.FloatType);
+    this.cur.minFilter = this.cur.magFilter = THREE.NearestFilter;
+    this.cur.generateMipmaps = false;
+    this.cur.needsUpdate = true;
+    const { tex, rel } = curtainTex(texV);
+    this.tex = tex; this.rel = rel;
+    this.material = new THREE.ShaderMaterial({
+      vertexShader: CURTAIN_VERT, fragmentShader: SPLASH_FRAG,
+      uniforms: { uTime: uniforms.uTime, uSunDir: uniforms.uSunDir, uHazeCol: uniforms.uHazeCol, uHazeK: uniforms.uHazeK,
+        uPlume: { value: tex }, uPlumeR: { value: rel }, uStep: { value: new THREE.Vector2(0.04 / CURTAIN_ASP, 0.04) },
+        uCur: { value: this.cur }, uX0: { value: 0 }, uDX: { value: CURTAIN_DX } },
+      defines: Object.assign({ NC: String(nc), NS: String(ns), CASP: CURTAIN_ASP.toFixed(1) }, soft ? { SOFT: '' } : {}),
+      transparent: true, depthWrite: false, side: THREE.DoubleSide,
+    });
+    // one strip per slot and layer, so that they can be drawn far to near (see update)
+    const nu = (nc - 1) * sub + 1, idx = [];
+    for (let i = 0; i < nu - 1; i++) for (let k = 0; k < rows; k++) {
+      const a = i * (rows + 1) + k, b = a + rows + 1;
+      idx.push(a, b, a + 1, b, b + 1, a + 1);
+    }
+    const index = new THREE.BufferAttribute(new Uint16Array(idx), 1);
+    this.strips = [];
+    for (let l = 0; l < layers; l++) for (let s = 0; s < ns; s++) {
+      const pos = new Float32Array(nu * (rows + 1) * 3);
+      for (let i = 0, o = 0; i < nu; i++) for (let k = 0; k <= rows; k++, o += 3) {
+        pos[o] = i / sub; pos[o + 1] = k / rows; pos[o + 2] = s + ns * l;
+      }
+      const g = new THREE.BufferGeometry();
+      g.setIndex(index);
+      g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+      const m = new THREE.Mesh(g, this.material);
+      m.frustumCulled = false;
+      m.renderOrder = 3;
+      m.userData = { s, l };
+      scene.add(m);
+      this.strips.push(m);
+    }
+    this.st = {}; this.w = {};
+    this.far = new Float32Array(ns); // each slot's crest distance at the camera, for the drawing order
+  }
+  update(time, cx) {
+    const { nc, ns, data, st, w, half } = this, x0 = Math.round(cx / CURTAIN_DX) * CURTAIN_DX - half, row = nc * 4;
+    this.material.uniforms.uX0.value = x0;
+    const jc = Math.round((cx - x0) / CURTAIN_DX);
+    for (let j = 0; j < nc; j++) {
+      const x = x0 + j * CURTAIN_DX, zs = shoreZ(x);
+      const edge = 1 - sstep(half - 300, half - 20, Math.abs(x - cx));
+      const nLo = Math.ceil(phaseAt(x, -20, time) / TAU);
+      for (let s = 0; s < ns; s++) {
+        const fn = nLo + (((s - nLo) % ns) + ns) % ns, dc = crestD(fn, x, time);
+        const o = (2 * s * nc + j) * 4;
+        if (j === jc) this.far[s] = dc;
+        let z = zs + Math.min(Math.max(dc, -20), 470), y = 0, h = 0, T = 1, lean = 0, alpha = 0, iTW = 0.01, uO = 0;
+        if (dc >= -20 && dc <= 470) {
+          crestState(fn, x, dc, st);
+          const tip = lipTip(st, dc), H = Math.min(st.H, 40), pC = st.pC;
+          z = zs + tip.d;
+          y = evalSurf(x, z, time, false, w).y - 0.12 * H;
+          // it bursts up as the lip lands, to well over the crest (less where the shallows have shrunk the curl),
+          // then settles into the band riding the bore
+          const sigS = sstep(15, 45, dc), rise = sstep(0.8, 1.1, pC), burstW = rise * (1 - sstep(1.15, 2.1, pC));
+          const hk = 1.8 * (0.7 + 0.3 * sigS);
+          h = rise * H * (0.45 + (hk - 0.45) * (1 - sstep(1.15, 2.1, pC)));
+          // where a wave dumps on the shore before its lip can land, the whole front slams down at once
+          const dumpW = sstep(0.12, 0.35, pC) * (1 - sstep(1.0, 1.6, pC)) * sstep(0.15, 0.5, 1 - sigS);
+          h = Math.max(h, 1.0 * H * dumpW) * sstep(5, 25, dc) * sstep(1.5, 3, H);
+          const bw = Math.max(burstW, dumpW);
+          T = 0.45 - 0.37 * bw; // thinned to its dense parts once the burst is over
+          lean = 0.15 + 0.2 * burstW;
+          alpha = (0.75 + 0.25 * bw) * edge;
+          iTW = 1 / (4.2 * waveBaseHn(fn) * (st.outer ? SURF.outerGain : SURF.innerGain));
+          uO = hash01(hashU(fn + 7777));
+        }
+        data[o] = z; data[o + 1] = y; data[o + 2] = h; data[o + 3] = T;
+        data[o + row] = lean; data[o + row + 1] = alpha; data[o + row + 2] = iTW; data[o + row + 3] = uO;
+      }
+    }
+    this.cur.needsUpdate = true;
+    // far crests first, and each one's back layer before its front (they do not write depth)
+    for (const m of this.strips) {
+      const { s, l } = m.userData;
+      let rank = 0;
+      for (let k = 0; k < ns; k++) if (this.far[k] > this.far[s] || (this.far[k] === this.far[s] && k < s)) rank++;
+      m.renderOrder = 3 + 0.01 * (rank * 2 + (l > 0 ? 0 : 1));
+    }
+  }
+  dispose(scene) {
+    for (const m of this.strips) { scene.remove(m); m.geometry.dispose(); }
+    this.material.dispose(); this.cur.dispose(); this.tex.dispose(); this.rel.dispose();
   }
 }
 
@@ -1783,6 +2126,9 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
   const spray = new Spray(scene, 6000, uniforms.uSunDir);
   // the plumes along a breaking lip (fewer and smaller pictures on the software tier)
   const splashes = new Splashes(scene, uniforms, soft ? 128 : 1024, soft ? 128 : 256, soft);
+  // and the white water along the whole break (narrower, coarser and single-layered on the software tier)
+  const curtain = new FoamCurtain(scene, uniforms, soft ? { half: 800, sub: 2, rows: 4, layers: 1, texV: 128, soft }
+    : { half: 1600, sub: 4, rows: 6, layers: 2, texV: 256, soft });
   const st = {};
   let time = 0, emitAcc = 0;
   const rnd = (a, b) => a + Math.random() * (b - a);
@@ -1828,6 +2174,8 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
   // splash plumes found in one tick: kind (0 plunge, 1 shore dump, 2 bore), x, crest fn, wanted count
   const pjobs = [];
   const PLIFE = [1.9, 1.65, 1.3]; // mean plume life of each kind, s
+  // how many of each kind still come as separate plumes, over the foam curtain
+  const PACC = [0, 0, 0];
   const _ps = {}, _pw = {};
   function emitSpray(dt, cx) {
     emitAcc += dt;
@@ -1867,6 +2215,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
           } else if (st.p > 1.5 && st.p < 3) {
             kind = 2; rate = 1.5 * (1 - sstep(2.4, 3, st.p));
           }
+          if (kind >= 0) rate *= PACC[kind];
           if (rate > 0) { const n = rate * pk; pjobs.push(kind, ex, fn, n); pwant += n * PLIFE[kind]; }
         }
       }
@@ -2003,7 +2352,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
   }
 
   return {
-    mesh, material, vertices,
+    mesh, material, vertices, curtain,
     get time() { return time; },
     update(dt, cameraX = 0) {
       time += dt;
@@ -2013,6 +2362,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
       spray.update(dt);
       decals.update(time);
       splashes.update(time);
+      curtain.update(time, cameraX);
     },
     sample, waterY, splash, wake,
     // one foam decal: kind 0 ring, 1 puff (stretched along rot), 2 churned patch, 3 collar; size in units, life in s
@@ -2027,7 +2377,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
     // switch or tune the look: a LOOKS name, or an object with any of its fields
     setLook(L) { applyLook(material.uniforms, typeof L === 'string' ? LOOKS[L] : L); },
     dispose() {
-      scene.remove(mesh); scene.remove(spray.points); decals.dispose(scene); splashes.dispose(scene);
+      scene.remove(mesh); scene.remove(spray.points); decals.dispose(scene); splashes.dispose(scene); curtain.dispose(scene);
       geometry.dispose(); material.dispose();
       spray.points.geometry.dispose(); spray.points.material.dispose();
     },

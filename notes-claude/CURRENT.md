@@ -506,6 +506,60 @@ sub-sprites as further steps.
   __stripes), helpers_r11p.js (__mkR10 plume A/B, __mkV, __relSheet, __rebuild11, __srcShaders), flow_r11.js
   (__flow).
 
+## Round 12 (21 Oct 2026, owner: outer-bar foam charging to the shore, waves growing before the break, AoM-like foam)
+Owner, on Round 11: when a wave breaks farther out, let its foam charge all the way to the shorebreak instead of
+turning into another wave; let waves grow slightly as they near the break; make the 2D foam sprites more like AoM's
+(reusing or taking inspiration from its assets) and not "disjointed" from each other but a seamless foam explosion
+along the tube; and which games/projects use real breaking waves, and whether real physics is an option.
+- AoM: technique only, no assets. Nothing from the installed AoM (textures, sprites, particles) or the owner's
+  screenshots is used or committed: copyright, and every push is a public deploy. The curtain picture is drawn
+  procedurally at start-up (curtainTex).
+- Outer bores run to the shore: crestState and surfPos keep an outer-bar wave (o.outer / outer) on its outer stage
+  all the way in (wB = 0, cur = A, dbz = dbA), so its bore crosses the trough and meets the shorebreak; the old
+  sA roller fade over the trough (reform0 228 -> reform1 200) is gone. Smaller swells still blend into their
+  inner-bar break there. The surf-zone foam (fZone, zoneIn) now belongs to the crest that last passed (fn - 1
+  ahead of the crest, breakZone in GLSL gives where it broke), so it runs on across the crest-cell edges.
+- Growth: Hpre = Hn shoal (1 + 0.16 sstep(-3.5, 1.0, p)) (was 0.12 sstep(0, 1, p)): the wave peaks up by 16 %,
+  most of it before the lip starts to throw. JS and GLSL mirrors match.
+- Foam curtain (FoamCurtain, CURTAIN_VERT, curtainTex): one unbroken strip per crest slot (ns 4, fn mod ns) along
+  the whole break round the camera, sampled every CURTAIN_DX = 40 units of x into a float DataTexture (per column:
+  z and y of its foot, height, dissolve; lean, alpha, strips per unit x, picture offset) and joined with
+  Catmull-Rom in the vertex shader, so neighbouring parts can never come apart. Upright along the crest, turned to
+  the camera's side and leant back half-way towards a camera looking down; a second, mirrored layer 0.3 h behind it
+  for depth. It bursts as the lip lands (pC 0.8 -> 1.1) to 1.8 H (less where the shallows shrink the curl), travels
+  along the crest with the peel, then settles into a 0.45 H band of tumbling foam riding the bore to the shore;
+  on shore dumps (no landed lip) the whole front slams up at once (1.0 H dumpW). Drawn far crest first, back layer
+  before front (no depth write). The picture (CURTAIN_ASP 3 heights across, wraps seamlessly): a slab along the
+  foot heaped into billows of all sizes (smooth min/max, no creases), feathered edges, a spray veil in wisps, soft
+  jets and loose drops; relief atlas as the plumes'. Shares SPLASH_FRAG with the plumes (vT dissolve, uStep).
+  Built at half 1600 / 4 sub / 6 rows / 2 layers / 256 texels; soft tier 800 / 2 / 4 / 1 / 128.
+- SPLASH_FRAG (plumes and curtain) lighter, as AoM's foam: lit = (0.8 + 0.12 n.y + 0.45 dif) t.b, between white and
+  a pale sea-cyan (0.7, 0.84, 0.9), and a 0.2 base back glow against the sun.
+- Separate plumes are off (PACC = [0, 0, 0]): with the curtain they read as the "disjointed" sprites. The code stays.
+- Grey islands: grey blobs along the crest were the surf mesh's whitewater roll lumps poking through the curtain
+  (proven with no-curtain and no-water variants), not the curtain. Fixed by taking the curtain's depth nearer the
+  camera: min(0.7 h, 0.5 dist), times 1 - 0.5 |dir.y| (was 0.3 h and 0.75).
+- Seen, left alone: a near-oblique "cyan cliff" beside the break is the normal inner-bar peel shoulder (H 6 -> 16
+  over ~75 units of x), as before Round 12.
+- Verified on shots (reference/r12-shots, git-ignored; c07c_egg the final sequence): the burst is one continuous
+  white mass with mist over the tube, then a white roll riding to the shore; no separate sprites. Both tiers
+  compile with no errors. Not hand-play-tested.
+- Cost (RTX 5070 Ti, whole scene, 1080p, timer queries, mid-burst, q25 / median ms): fp curtain 0.812 / 0.841, none
+  0.789 / 0.805; near oblique 0.881 / 1.197 (noisy), none 0.877 / 0.881. So the curtain adds ~0.02-0.04 ms.
+- SwiftShader (swprobe, now with r11 = 9fbcd0f; runs r11c wipc wipd r11d, soft tier, 640x400 at pixel ratio 0.5,
+  governor scale 1.0): water mean 83.5 / 89.6 / 92.4 / 84.3 ms, game frame median 92 / 97 / 100 / 93 ms (p90 166 /
+  185 / 200 / 191). So Round 12 costs ~5-7 ms a frame there (~6 %): the water draw ~6-8 ms more (most likely
+  surfPos's extra breakZone), the four curtain strips ~0.5 ms a draw; well under the ~150 ms budget. Every run
+  reached the game frames.
+- Research (notes-claude/research-r12-breaking-waves.md, web only, 21 Oct): no shipped game simulates plunging
+  breakers live; games and films (True Surf, Fluid Flux, Moana, Surf's Up) use authored or analytic profiles, often
+  calibrated by an offline 2D sim. Options: (a) keep the analytic model (runtime and soft tier); (b) recommended
+  next: bake a small library of offline 2D cross-shore slice sims (e.g. Basilisk or DualSPHysics) into a texture
+  and blend them along the peel; (c) height field plus particles for bores and swash, later, desktop only; (d) live
+  3D particles: reject (too heavy for the budget and SwiftShader, and unpredictable).
+- Page helpers: reference/helpers_r12.js (__run, __cur, __until, __CAMS, __grid, __vars, __vis, __curM, __notCur,
+  __nextBurst). Surf time is internal to createSurf: setting uTime does not rewind it; use __nextBurst.
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
@@ -536,6 +590,10 @@ Round 10 f4823f8 pushed 20 Oct 2026 at 22:34Z (owner request, 1220921..f4823f8):
 main's publisher run 39509090645 (main 116c998) passed "Test original and both subfolder versions before
 publishing" and deployed at 22:38:57Z. Checked by HTTP at 22:40Z: live versions.json pins claude f4823f8, and live
 /claude/index.html, js/main.js and js/surf.js match f4823f8 (SHA-256). Round 10 is live at /claude/.
+Round 11 9fbcd0f pushed 21 Oct 2026 at 00:17Z (owner request, f4823f8..9fbcd0f): hook run 39520426301 passed;
+main's publisher run 39520438522 (main 116c998) passed "Test original and both subfolder versions before
+publishing" and deployed at 00:21:36Z. Checked by HTTP at 10:42Z: live versions.json pins claude 9fbcd0f, and live
+/claude/index.html, js/main.js and js/surf.js match 9fbcd0f (SHA-256). Round 11 is live at /claude/.
 
 ## Round 8 publish failure and the software-WebGL tier (19 Oct 2026)
 Round 8 did not go live. Main's publisher run 39318742626 failed in Codex's tooling/pages/smoke.cjs (origin/main
