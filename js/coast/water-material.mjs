@@ -28,7 +28,7 @@ export function createWaterMaterial(tier={}){return new T.ShaderMaterial({side:T
  vec4 a=vec4(churn),b=a;
  #else
  vec2 uv=U*.67+vec2(time*.012,time*.019)+vec2(churn,-churn)*.21;vec4 a=texture2D(detail,uv),b=texture2D(detail,mat2(.731,-.682,.682,.731)*uv*1.713+vec2(.373,.819));
- if(rippleStrength>0.){vec2 wavelet=(a.rg+b.gr-1.)*rippleStrength+(flowDetail.rg-.5)*.45;float rippleFade=1.-smoothstep(.06,.5,max(length(dFdx(uv)),length(dFdy(uv))));n=normalize(n+vec3(wavelet.x,0.,wavelet.y)*n.y*n.y*rippleFade*(1.-F));}
+ if(rippleStrength>0.){vec2 wavelet=(a.rg+b.gr-1.)*rippleStrength+(flowDetail.rg-.5)*1.8;float rippleFade=1.-smoothstep(.06,.5,max(length(dFdx(uv)),length(dFdy(uv))));n=normalize(n+vec3(wavelet.x,0.,wavelet.y)*n.y*n.y*rippleFade*(1.-F*.65));}
  #endif
  float fres=.0204+.9796*pow(1.-max(dot(n,v),0.),5.);vec3 reflected=reflect(-v,n);vec3 sky=mix(vec3(.75,.91,.93),vec3(.44,.79,.85),smoothstep(0.,.8,reflected.y));
  // sRGB art targets: open100/225/235, shallow175/250/250, bar150/208/193.
@@ -36,11 +36,14 @@ export function createWaterMaterial(tier={}){return new T.ShaderMaterial({side:T
  vec3 c=mix(shallow,open,smoothstep(.12,2.4,depth));float sandbar=exp(-pow((U.y-7.)/2.5,2.))*.30;c=mix(c,bar,sandbar);c*=.91+.09*max(n.y,0.);c=mix(c,sky,fres*.7);
  vec3 sun=normalize(vec3(-.32,.75,.57));float spec=max(dot(reflect(-sun,n),v),0.);
  #if SOFT_WATER == 1
- c+=vec3(1.)*pow(spec,28.)*.38;
+ // Turbulent water has a wider, dimmer lobe: small physical folds should not
+ // turn into beach-long white mirrors. Reuse the existing flow-noise lookup.
+ float rough=smoothstep(.12,.7,F);c+=vec3(1.)*pow(spec,18.)*(.20+.18*churn)*(1.-rough*.65);
  #else
- c+=vec3(1.)*(pow(spec,28.)*.23+pow(spec,110.)*.35);
+ float rough=smoothstep(.12,.7,F),glarePatch=.35+.65*churn;
+ c+=vec3(1.)*(pow(spec,18.)*.23+pow(spec,80.)*.24*(1.-rough))*glarePatch*(1.-rough*.65);
  #endif
  // Break up the boundary of whitewater alongshore, not just its interior.
  // All coverage still comes from the physical foam tracers; no timed crest mask.
- float turbulence=mix(a.b,b.b,.47)*.6+churn*.4;float coverage=smoothstep(.10,.65,F*(.60+turbulence*.80));float lace=smoothstep(.29,.70,turbulence+F*.20);float f=coverage*mix(lace,1.,smoothstep(.72,1.,F)*.85);vec3 white=vec3(.97,1.,1.)*(.96+.04*max(n.y,0.));c=mix(c,white,f);
+ float turbulence=mix(a.b,b.b,.47)*.6+churn*.4;float coverage=smoothstep(.10,.65,F*(.35+turbulence*1.1));float lace=smoothstep(.29,.70,turbulence+F*.12);float f=coverage*mix(lace,1.,smoothstep(.72,1.,F)*.45);vec3 white=vec3(.97,1.,1.)*(.96+.04*max(n.y,0.));c=mix(c,white,f);
  float haze=1.-exp(-length(cameraPosition-P)*.000055);gl_FragColor=vec4(mix(c,vec3(.78,.89,.91),haze),1.);}`});}

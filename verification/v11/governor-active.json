@@ -1,0 +1,49 @@
+{
+  "time": "2026-10-21 00:59:43",
+  "age_s": 1,
+  "mem_free_gb": 10.92,
+  "mem_level": "ok",
+  "last_kill": {
+    "time": "2026-10-17 15:35:57",
+    "id": "20261017T143557Z-d970903d",
+    "pid": 36124,
+    "name": "ChatGPT.exe",
+    "owner": "codex",
+    "size_mb": 1871,
+    "why": "largest assistant root/app process",
+    "reason": "memory CRITICAL 3.2 GB available (< 4 GB reserve)",
+    "free_gb": 3.21,
+    "confirmed": true,
+    "dry_run": false,
+    "job_id": null
+  },
+  "codex": {
+    "cpu_share": 40.5,
+    "ai_cpu": 5.5,
+    "active": true,
+    "recommended_workers": 5,
+    "processes": 153,
+    "mem_gb": 6.94,
+    "mem_cap_gb": 10.0,
+    "mem_cap_level": "ok",
+    "mem_cap_enforced": false
+  },
+  "own_v11_jobs": [
+    {
+      "pid": 250372,
+      "create_time": 1792540567.4335153,
+      "assistant": "codex",
+      "batch": false,
+      "disposable": true,
+      "slots": 2,
+      "reserve_mem_gb": 1.5,
+      "cmd": [
+        "C:\\Users\\joaoa\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\node\\bin\\node.exe",
+        "v11/final.cjs"
+      ],
+      "started": "2026-10-21 00:56:07",
+      "launcher_pid": 245600,
+      "job_id": "20261020T235607Z-2388402e"
+    }
+  ]
+}

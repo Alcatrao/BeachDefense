@@ -1,0 +1,449 @@
+{
+  "rows": [
+    {
+      "time": 28,
+      "before": {
+        "vertices": 15888,
+        "triangles": 31020,
+        "crestZ": 8.07119083404541,
+        "crestY": 1.869522213935852,
+        "reconstructionMs": 1.899999976158142,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 331,
+        "contour": {
+          "points": 331,
+          "segments": 330,
+          "ambiguousCells": 0,
+          "invalidDegree": 0,
+          "maxFairingDisplacement": 0.05571959835913374,
+          "fairingPasses": 16,
+          "method": "connected-marching-squares"
+        },
+        "uploadBytes": 880656,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 4.259999990463257,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 330,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 4.088220871346449,
+          "tangentNormalMismatchP95": 15.79976934025788,
+          "normalJumpMean": 7.684955820974678,
+          "normalJumpP95": 30.79796598658936
+        }
+      },
+      "after": {
+        "vertices": 15888,
+        "triangles": 31020,
+        "crestZ": 8.099762916564941,
+        "crestY": 1.8554023504257202,
+        "reconstructionMs": 3,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 331,
+        "contour": {
+          "points": 331,
+          "segments": 330,
+          "ambiguousCells": 0,
+          "invalidDegree": 0,
+          "resampledStrands": 2,
+          "maxFairingDisplacement": 0.04970287201356066,
+          "fairingPasses": 16,
+          "method": "arc-length-connected-marching-squares"
+        },
+        "uploadBytes": 880656,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 7.8,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 330,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 3.7756298252336,
+          "tangentNormalMismatchP95": 15.698675213921238,
+          "normalJumpMean": 7.184239938853299,
+          "normalJumpP95": 29.72239314729449
+        }
+      }
+    },
+    {
+      "time": 30,
+      "before": {
+        "vertices": 13584,
+        "triangles": 26508,
+        "crestZ": 4.047567367553711,
+        "crestY": 0.8301836252212524,
+        "reconstructionMs": 2.200000047683716,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 283,
+        "contour": {
+          "points": 283,
+          "segments": 282,
+          "ambiguousCells": 1,
+          "invalidDegree": 0,
+          "maxFairingDisplacement": 0.0671778432321666,
+          "fairingPasses": 16,
+          "method": "connected-marching-squares"
+        },
+        "uploadBytes": 752784,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 2.2799999952316283,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 282,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 3.7832540140018294,
+          "tangentNormalMismatchP95": 12.291876089402903,
+          "normalJumpMean": 7.171515352319396,
+          "normalJumpP95": 23.20023055886538
+        }
+      },
+      "after": {
+        "vertices": 13584,
+        "triangles": 26508,
+        "crestZ": 4.073455333709717,
+        "crestY": 0.8293929100036621,
+        "reconstructionMs": 1.7000000476837158,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 283,
+        "contour": {
+          "points": 283,
+          "segments": 282,
+          "ambiguousCells": 1,
+          "invalidDegree": 0,
+          "resampledStrands": 2,
+          "maxFairingDisplacement": 0.04690155870781284,
+          "fairingPasses": 16,
+          "method": "arc-length-connected-marching-squares"
+        },
+        "uploadBytes": 752784,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 1.9400000095367431,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 282,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 3.5879307129200897,
+          "tangentNormalMismatchP95": 13.604793469551362,
+          "normalJumpMean": 6.798605828517277,
+          "normalJumpP95": 21.449343875402338
+        }
+      }
+    },
+    {
+      "time": 31.5,
+      "before": {
+        "vertices": 13872,
+        "triangles": 27072,
+        "crestZ": 4.025501251220703,
+        "crestY": 0.6318151354789734,
+        "reconstructionMs": 1.5,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 289,
+        "contour": {
+          "points": 289,
+          "segments": 288,
+          "ambiguousCells": 0,
+          "invalidDegree": 0,
+          "maxFairingDisplacement": 0.061406171217875394,
+          "fairingPasses": 16,
+          "method": "connected-marching-squares"
+        },
+        "uploadBytes": 768768,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 1.5,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 288,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 3.1350210959216245,
+          "tangentNormalMismatchP95": 9.803758602266011,
+          "normalJumpMean": 5.904714994843505,
+          "normalJumpP95": 17.88002963348558
+        }
+      },
+      "after": {
+        "vertices": 13872,
+        "triangles": 27072,
+        "crestZ": 4.064189910888672,
+        "crestY": 0.6044856309890747,
+        "reconstructionMs": 1.5,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 289,
+        "contour": {
+          "points": 289,
+          "segments": 288,
+          "ambiguousCells": 0,
+          "invalidDegree": 0,
+          "resampledStrands": 1,
+          "maxFairingDisplacement": 0.03672851831503336,
+          "fairingPasses": 16,
+          "method": "arc-length-connected-marching-squares"
+        },
+        "uploadBytes": 768768,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 1.6,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 288,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 2.96713364547128,
+          "tangentNormalMismatchP95": 9.644769192708267,
+          "normalJumpMean": 5.6072447745469995,
+          "normalJumpP95": 19.002044740656594
+        }
+      }
+    },
+    {
+      "time": 33.5,
+      "before": {
+        "vertices": 13392,
+        "triangles": 26132,
+        "crestZ": 4.368244171142578,
+        "crestY": 0.304607629776001,
+        "reconstructionMs": 1.3000000715255737,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 279,
+        "contour": {
+          "points": 279,
+          "segments": 278,
+          "ambiguousCells": 0,
+          "invalidDegree": 0,
+          "maxFairingDisplacement": 0.06217235437753639,
+          "fairingPasses": 16,
+          "method": "connected-marching-squares"
+        },
+        "uploadBytes": 742128,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 1.4400000095367431,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 278,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 3.1484457172760525,
+          "tangentNormalMismatchP95": 10.624634432110671,
+          "normalJumpMean": 5.956528426563851,
+          "normalJumpP95": 20.044585802255284
+        }
+      },
+      "after": {
+        "vertices": 13392,
+        "triangles": 26132,
+        "crestZ": 4.281080722808838,
+        "crestY": 0.30578750371932983,
+        "reconstructionMs": 1.7999999523162842,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 279,
+        "contour": {
+          "points": 279,
+          "segments": 278,
+          "ambiguousCells": 0,
+          "invalidDegree": 0,
+          "resampledStrands": 2,
+          "maxFairingDisplacement": 0.038487811746835764,
+          "fairingPasses": 16,
+          "method": "arc-length-connected-marching-squares"
+        },
+        "uploadBytes": 742128,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 1.6799999952316285,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 278,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 2.922776207395457,
+          "tangentNormalMismatchP95": 10.791252910668643,
+          "normalJumpMean": 5.508546149212552,
+          "normalJumpP95": 20.254869851474872
+        }
+      }
+    },
+    {
+      "time": 36,
+      "before": {
+        "vertices": 14064,
+        "triangles": 27448,
+        "crestZ": 6.92453670501709,
+        "crestY": 0.7140177488327026,
+        "reconstructionMs": 1.5,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 293,
+        "contour": {
+          "points": 293,
+          "segments": 292,
+          "ambiguousCells": 0,
+          "invalidDegree": 0,
+          "maxFairingDisplacement": 0.0661087221314985,
+          "fairingPasses": 16,
+          "method": "connected-marching-squares"
+        },
+        "uploadBytes": 779424,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 1.4200000047683716,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 292,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 3.3599054895343947,
+          "tangentNormalMismatchP95": 9.53834999116969,
+          "normalJumpMean": 6.236299480860563,
+          "normalJumpP95": 17.928985075601258
+        }
+      },
+      "after": {
+        "vertices": 14064,
+        "triangles": 27448,
+        "crestZ": 7.0119805335998535,
+        "crestY": 0.7139126658439636,
+        "reconstructionMs": 1.5,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 293,
+        "contour": {
+          "points": 293,
+          "segments": 292,
+          "ambiguousCells": 0,
+          "invalidDegree": 0,
+          "resampledStrands": 1,
+          "maxFairingDisplacement": 0.05322546450507473,
+          "fairingPasses": 16,
+          "method": "arc-length-connected-marching-squares"
+        },
+        "uploadBytes": 779424,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 1.6,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 292,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 3.104948622727743,
+          "tangentNormalMismatchP95": 8.608113357247131,
+          "normalJumpMean": 5.739058038476875,
+          "normalJumpP95": 17.506267620056434
+        }
+      }
+    },
+    {
+      "time": 40,
+      "before": {
+        "vertices": 13776,
+        "triangles": 26884,
+        "crestZ": 11.418217658996582,
+        "crestY": 1.2589221000671387,
+        "reconstructionMs": 1.399999976158142,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 287,
+        "contour": {
+          "points": 287,
+          "segments": 286,
+          "ambiguousCells": 0,
+          "invalidDegree": 0,
+          "maxFairingDisplacement": 0.07000015065737601,
+          "fairingPasses": 16,
+          "method": "connected-marching-squares"
+        },
+        "uploadBytes": 763440,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 1.4799999952316285,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 286,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 2.771273453405325,
+          "tangentNormalMismatchP95": 8.912598905884636,
+          "normalJumpMean": 5.188923170323567,
+          "normalJumpP95": 17.62538524965261
+        }
+      },
+      "after": {
+        "vertices": 13776,
+        "triangles": 26884,
+        "crestZ": 11.429376602172852,
+        "crestY": 1.2636733055114746,
+        "reconstructionMs": 1.600000023841858,
+        "widthMetres": 215,
+        "xColumns": 48,
+        "singleSurface": true,
+        "profileCount": 287,
+        "contour": {
+          "points": 287,
+          "segments": 286,
+          "ambiguousCells": 0,
+          "invalidDegree": 0,
+          "resampledStrands": 1,
+          "maxFairingDisplacement": 0.05261088908653712,
+          "fairingPasses": 16,
+          "method": "arc-length-connected-marching-squares"
+        },
+        "uploadBytes": 763440,
+        "allocatedUploadBytes": 5600000,
+        "meanUpdateMs": 1.6399999856948853,
+        "topology": {
+          "interiorBoundaryEdges": 0,
+          "nonmanifoldEdges": 0
+        },
+        "quality": {
+          "sectionEdges": 286,
+          "branchVertices": 0,
+          "tangentNormalMismatchMean": 2.5847328775930385,
+          "tangentNormalMismatchP95": 8.648634330329886,
+          "normalJumpMean": 4.918873881835536,
+          "normalJumpP95": 17.390188189096456
+        }
+      }
+    }
+  ],
+  "errors": []
+}

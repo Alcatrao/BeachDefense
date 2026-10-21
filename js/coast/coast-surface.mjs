@@ -2,6 +2,7 @@ import * as T from 'three';
 import {createWaterMaterial} from './water-material.mjs';
 import {bottom} from './fluid.mjs';
 import {createSectionContour} from './section-contour.mjs';
+import {createCoastGrid} from './coast-grid.mjs';
 // A connected physical section is shared along the curved beach. Only its skin
 // is faired; the particle state and CPU character height/flow field are unchanged.
 export function createCoastSurface(scene,shore,tier={columns:48}){
@@ -11,7 +12,7 @@ export function createCoastSurface(scene,shore,tier={columns:48}){
  const pos=new Float32Array(300000),norm=new Float32Array(300000),foam=new Float32Array(100000),wetness=new Float32Array(100000),indices=new Uint32Array(600000),geo=new T.BufferGeometry();
  for(const[name,array,size]of[['position',pos,3],['normal',norm,3],['foam',foam,1],['wetness',wetness,1]])geo.setAttribute(name,new T.BufferAttribute(array,size).setUsage(T.DynamicDrawUsage));geo.setIndex(new T.BufferAttribute(indices,1).setUsage(T.DynamicDrawUsage));const attributes=Object.values(geo.attributes);
  const mat=createWaterMaterial(tier),mesh=new T.Mesh(geo,mat);mesh.scale.setScalar(6);mesh.frustumCulled=false;scene.add(mesh);
- const profile=createSectionContour(ny,nz,h,y0,z0),xs=new Float64Array(maxX);
+ const profile=createSectionContour(ny,nz,h,y0,z0),grid=createCoastGrid(shore,maxX),xs=grid.x;
  let vertices=0,triangles=0,ms=0,crestY=0,crestZ=12,nx=maxX;
  const smooth=t=>{t=Math.max(0,Math.min(1,t));return t*t*(3-2*t);};
  const filtered=(src,a)=>(4*src[a]+2*(src[a-1]+src[a+1]+src[a-ny]+src[a+ny])+src[a-ny-1]+src[a-ny+1]+src[a+ny-1]+src[a+ny+1])/16;
@@ -25,7 +26,7 @@ export function createCoastSurface(scene,shore,tier={columns:48}){
   while(head<tail){const a=queue[head++],j=a%ny,k=Math.floor(a/ny);for(let edge=0;edge<4;edge++){const b=edge===0?(j>0?a-1:-1):edge===1?(j<ny-1?a+1:-1):edge===2?(k>0?a-ny:-1):(k<nz-1?a+ny:-1);if(b>=0&&!labels[b]&&base[b]>=1.05){labels[b]=1;queue[tail++]=b;}}}
   for(let a=0;a<S;a++){bf[a]/=Math.max(.0001,base[a]);if(!labels[a])base[a]=Math.min(base[a],1.05*.99);base[a]/=1.05;const z=z0+Math.floor(a/ny)*h,y=y0+(a%ny)*h,offshore=smooth((z-22)/4);base[a]=base[a]*(1-offshore)+Math.max(0,Math.min(4,1-y/h*2))*offshore;bf[a]*=1-offshore;}
   profile.extract(base,bf,liquid);const n=profile.count;vertices=nx*n;if(vertices>100000)throw Error('Surface vertex capacity');
-  const center=Math.max(-100,Math.min(100,focusX));for(let c=0;c<nx;c++){const u=2*c/(nx-1)-1;xs[c]=center+Math.sign(u)*Math.pow(Math.abs(u),1.8)*(u<0?center+121:121-center);}
+  grid.update(focusX);
   crestY=-100;for(let i=0;i<n;i++)if(profile.z[i]>4&&profile.z[i]<12&&profile.y[i]>crestY){crestY=profile.y[i];crestZ=profile.z[i];}
   for(let c=0;c<nx;c++){const x=xs[c],offset=shore(x*6)/6,slope=shore(x*6+.5)-shore(x*6-.5);for(let i=0;i<n;i++){const v=c*n+i,b=v*3;pos[b]=x;pos[b+1]=profile.y[i];pos[b+2]=profile.z[i]+offset;norm[b]=-slope*profile.normalZ[i];norm[b+1]=profile.normalY[i];norm[b+2]=profile.normalZ[i];foam[v]=profile.foam[i];wetness[v]=profile.wetness[i];}}
   let count=0;for(let c=0;c<nx-1;c++)for(let i=0;i<profile.segments;i++){const a=c*n+profile.links[i*2],b=c*n+profile.links[i*2+1],d=a+n,e=b+n;if(count+6>indices.length)throw Error('Surface index capacity');indices[count++]=a;indices[count++]=b;indices[count++]=e;indices[count++]=a;indices[count++]=e;indices[count++]=d;}

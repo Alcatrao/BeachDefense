@@ -4,7 +4,19 @@
 export function createSectionContour(ny,nz,h,y0,z0){
  const size=ny*nz,capacity=2*size,edgeIds=new Int32Array(capacity),next=new Int32Array(capacity),prev=new Int32Array(capacity),degree=new Uint8Array(capacity);
  const y=new Float32Array(capacity),z=new Float32Array(capacity),rawY=new Float32Array(capacity),rawZ=new Float32Array(capacity),normalY=new Float32Array(capacity),normalZ=new Float32Array(capacity),referenceY=new Float32Array(capacity),referenceZ=new Float32Array(capacity),foam=new Float32Array(capacity),wetness=new Float32Array(capacity),dy=new Float32Array(capacity),dz=new Float32Array(capacity),links=new Uint32Array(capacity*2);
- let count=0,segments=0,ambiguous=0,maxDisplacement=0,invalidDegree=0,d,f,liquid;
+ const visited=new Uint8Array(capacity),order=new Int32Array(capacity),arc=new Float64Array(capacity+1),newFoam=new Float32Array(capacity),newWet=new Float32Array(capacity),newRefY=new Float32Array(capacity),newRefZ=new Float32Array(capacity);
+ let count=0,segments=0,ambiguous=0,maxDisplacement=0,invalidDegree=0,resampledStrands=0,d,f,liquid;
+ // Reparameterize each connected strand by physical arc length before fairing.
+ // Grid crossings can be arbitrarily close: index-space smoothing leaves those
+ // clusters stiff and makes long neighbouring spans appear folded. Resampling
+ // keeps the same point count and interpolates the original skin and tracers.
+ function resample(start){
+  let length=0,n=0,p=-1,q=start;
+  while(q>=0&&!visited[q]){visited[q]=1;order[n]=q;arc[n++]=length;const r=prev[q]===p?next[q]:prev[q];if(r<0)break;length+=Math.hypot(rawY[r]-rawY[q],rawZ[r]-rawZ[q]);p=q;q=r;}
+  const closed=q===start&&n>2;if(!closed)length=arc[n-1];arc[n]=length;if(n<4||length<1e-6)return;
+  let edge=0;for(let j=0;j<n;j++){const target=length*j/(closed?n:n-1);while(edge<n-1&&arc[edge+1]<target)edge++;const a=order[edge],b=order[(edge+1)%n],span=arc[edge+1]-arc[edge],t=span>1e-8?(target-arc[edge])/span:0,id=order[j];dy[id]=rawY[a]+t*(rawY[b]-rawY[a]);dz[id]=rawZ[a]+t*(rawZ[b]-rawZ[a]);newFoam[id]=foam[a]+t*(foam[b]-foam[a]);newWet[id]=wetness[a]+t*(wetness[b]-wetness[a]);newRefY[id]=referenceY[a]+t*(referenceY[b]-referenceY[a]);newRefZ[id]=referenceZ[a]+t*(referenceZ[b]-referenceZ[a]);}
+  for(let j=0;j<n;j++){const id=order[j];rawY[id]=y[id]=dy[id];rawZ[id]=z[id]=dz[id];foam[id]=newFoam[id];wetness[id]=newWet[id];referenceY[id]=newRefY[id];referenceZ[id]=newRefZ[id];}resampledStrands++;
+ }
   function point(edge){let id=edgeIds[edge];if(id>=0)return id;id=count++;edgeIds[edge]=id;next[id]=prev[id]=-1;degree[id]=0;
    const vertical=edge<size,a=vertical?edge:edge-size,b=a+(vertical?1:ny),t=(1-d[a])/(d[b]-d[a]),j=a%ny,k=Math.floor(a/ny);
    rawY[id]=y[id]=y0+(j+(vertical?t:0))*h;rawZ[id]=z[id]=z0+(k+(vertical?0:t))*h;
@@ -28,10 +40,11 @@ export function createSectionContour(ny,nz,h,y0,z0){
    if((v2>=0)!==(v3>=0)){if(first<0)first=e2;else{connect(first,e2);continue;}}
    if((v3>=0)!==(v0>=0)&&first>=0)connect(first,e3);
   }
+  visited.fill(0);resampledStrands=0;for(let i=0;i<count;i++)if(degree[i]===1&&!visited[i])resample(i);for(let i=0;i<count;i++)if(!visited[i])resample(i);
   // Fair each connected strand in the section, never across a tube's air gap.
-  // Eight Taubin pairs attenuate particle/grid-scale corrugation without
+  // Sixteen Taubin pairs attenuate particle/grid-scale corrugation without
   // shrinking the large curl; deviation from the physical skin stays <= 7 cm.
-  for(let pass=0;pass<16;pass++){
+  for(let pass=0;pass<32;pass++){
    const factor=pass%2===0?.5:-.53;
    for(let i=0;i<count;i++){dy[i]=dz[i]=0;if(degree[i]!==2||wetness[i]<.2)continue;const a=prev[i],b=next[i];dy[i]=factor*((y[a]+y[b])*.5-y[i]);dz[i]=factor*((z[a]+z[b])*.5-z[i]);}
    for(let i=0;i<count;i++){let yy=y[i]+dy[i],zz=z[i]+dz[i],oy=yy-rawY[i],oz=zz-rawZ[i],length=Math.hypot(oy,oz);if(length>.07){yy=rawY[i]+oy*.07/length;zz=rawZ[i]+oz*.07/length;}y[i]=yy;z[i]=zz;}
@@ -44,5 +57,5 @@ export function createSectionContour(ny,nz,h,y0,z0){
   }
   return api;
  }
- const api={extract,y,z,normalY,normalZ,foam,wetness,links,prev,next,degree,get count(){return count;},get segments(){return segments;},diagnostics:()=>({points:count,segments,ambiguousCells:ambiguous,invalidDegree,maxFairingDisplacement:maxDisplacement,fairingPasses:16,method:'connected-marching-squares'})};return api;
+ const api={extract,y,z,normalY,normalZ,foam,wetness,links,prev,next,degree,get count(){return count;},get segments(){return segments;},diagnostics:()=>({points:count,segments,ambiguousCells:ambiguous,invalidDegree,resampledStrands,maxFairingDisplacement:maxDisplacement,fairingPasses:32,method:'arc-length-connected-marching-squares'})};return api;
 }

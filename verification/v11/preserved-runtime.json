@@ -1,0 +1,55 @@
+{
+  "base": "9fbb1c3",
+  "unchanged": {
+    "js/main.js": {
+      "blob": "dd4046926650271eaef861dbd0edc8b16eb8c7bd",
+      "sha256": "e66ff491c7242baa939fc486c229d708bfebb5525069e3953bdb5c0c08f2717d"
+    },
+    "js/coast/fluid.mjs": {
+      "blob": "c1de2ac1140032c99fe507dfedfca01d03e85d16",
+      "sha256": "099e05aa77bb6153b7769a627c6bf8bf54974d4448ed27065913616248d69513"
+    },
+    "js/coast/ambient-worker.mjs": {
+      "blob": "fbf8db83448d12ec71574b9b89a5ceced9d8f989",
+      "sha256": "733534b501b2b8379dd284988f5c434cf11d1850ac2bbe9c7c14b2d19b228258"
+    },
+    "js/coast/beach-worker.mjs": {
+      "blob": "294b3ba7adf65e8d1439636cb42e802bd53238e9",
+      "sha256": "8af71177987b0e927ebdab4403b818e9f93e4b40c26dd7bd55abd17f05c00d51"
+    },
+    "js/coast/height-physics.mjs": {
+      "blob": "1bdbb357ebe420d7a53e616140e69f4bb380eac0",
+      "sha256": "6d7f1189537d2513546955d6d431b82de5c85ff2fda80cc48904be00ddf4eac5"
+    },
+    "js/coast/beach-bridge.mjs": {
+      "blob": "865f4163b9e356ed81daa5a3678e4c91b0abf18c",
+      "sha256": "03e4a60c8c200240e1ea2947af0949d37b19d9fe2c469f4eacad04efee1b77d0"
+    },
+    "js/coast/surf-effects.mjs": {
+      "blob": "dc9fa8b89de9855cae3f9356bcc25dffec2fcb9c",
+      "sha256": "0e59b31f6596516e25f01cba5118e742ad336c4bb4f1a71d0e32f524d64f8972"
+    },
+    "js/coast/quality.mjs": {
+      "blob": "1d97262c47e23c3bd20a1fbb979c70e7ec723f92",
+      "sha256": "09ca10932ba23c2e5e1c9347d1b8ea26ef2a0d130b7142e92bea43db41a60089"
+    },
+    "js/coast/initial-state.bin": {
+      "blob": "47e5c1d72ee47d46e192d265a4fcb6bfaa626d47",
+      "sha256": "671eb26d69773f10f365f2c0013e6fd93cd605491af5e59e339317d82788d20e"
+    },
+    "js/coast/beach-ocean.mjs": {
+      "blob": "d9755fca890a151b5b1ee05f77e7a30fd8f4ec0e",
+      "sha256": "b7d730259969671b1d9ad305754d51e129d62fa2e27c9e19af7d36b66472ab39"
+    },
+    "js/coast/beach-demo.mjs": {
+      "blob": "cc46a165296eabd53a8376004b20a285e890d927",
+      "sha256": "562f87ac2586fa2f90b72a6b77e3f42f3be0b97b58a3886b18c4355ca51c23fd"
+    }
+  },
+  "installed": {
+    "js\\coast\\coast-grid.mjs": "b5232f6b9c79aca6e24b9fe743c0f65309a42fabd5e43cc7405595fc4cf65160",
+    "js\\coast\\coast-surface.mjs": "5a902991fc66179c6cb01bfa4cc4a4f8bd6de2bed7eaf113ab2b81f4520e12ad",
+    "js\\coast\\section-contour.mjs": "948d8230bdcb16a7238cc3dc7ad1b988e37e87ae33f722f01cf01bc0ebc9215c",
+    "js\\coast\\water-material.mjs": "77f71cb4b1ed26b5380e84fd7d87a67ff40aa666b3f4bd450593c0deaf39f907"
+  }
+}

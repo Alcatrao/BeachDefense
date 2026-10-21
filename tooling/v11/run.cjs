@@ -1,0 +1,5 @@
+// Run this whole sequence through aiwork.py from the repository root.
+const {spawn}=require('child_process'),fs=require('fs'),path=require('path');
+const base=path.resolve(process.env.SURF_CHECK_OUT||'verification/v11/local-check');fs.mkdirSync(base,{recursive:true});
+const jobs=[['contour-test.mjs',[],{}],['spacing-test.mjs',[],{}],['grid-test.mjs',[],{}],['compare-refined.cjs',[],{SURF_COMPARE_OUT:base+'-comparison'}],['measure.cjs',[],{SURF_OUT:base}],['measure.cjs',['--software'],{SURF_OUT:base}],['smoke.cjs',[],{SURF_SMOKE_OUT:base+'-smoke-gpu'}],['smoke.cjs',['--software'],{SURF_SMOKE_OUT:base+'-smoke-software'}],['height-test.mjs',[],{}]];
+(async()=>{for(const[file,args,env]of jobs){console.log('BEGIN '+file+' '+args.join(' '));await new Promise((resolve,reject)=>{const child=spawn(process.execPath,[path.join(__dirname,file),...args],{stdio:'inherit',env:{...process.env,...env}});child.on('error',reject);child.on('exit',code=>code===0?resolve():reject(Error(file+' exit '+code)));});}})().catch(e=>{console.error(e);process.exitCode=1;});
