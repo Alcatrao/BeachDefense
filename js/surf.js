@@ -188,15 +188,16 @@ function surgeOf(w, keep, shrink, L) {
 }
 // impact whitewater of one stage: from the moment the lip lands (p ~ 0.9) until the bore has taken over
 function impOf(p) { return sstep(0.9, 1.2, p) * (1 - sstep(3, 5, p)); }
-// lumps of the tumbling whitewater mass, about -1..1 (mirrored in GLSL)
+// lumps of the tumbling whitewater mass, about -1..1 (mirrored in GLSL); slow, so the mass boils instead of trembling
 function rollerLumps(x, u, fn, t) {
-  return 0.5 * Math.sin(x * 0.043 + u * 0.12 + 2.2 * t + fn * 1.7) + 0.35 * Math.sin(-x * 0.079 + u * 0.19 + 3.1 * t + fn * 0.9)
-    + 0.25 * Math.sin(x * 0.131 - u * 0.09 + 4.3 * t) + 0.2 * Math.sin(x * 0.17 + u * 0.21 + 5.2 * t + fn);
+  return 0.5 * Math.sin(x * 0.043 + u * 0.12 + 0.7 * t + fn * 1.7) + 0.35 * Math.sin(-x * 0.079 + u * 0.19 + 1.0 * t + fn * 0.9)
+    + 0.25 * Math.sin(x * 0.131 - u * 0.09 + 1.3 * t) + 0.2 * Math.sin(x * 0.17 + u * 0.21 + 1.6 * t + fn);
 }
-// lumpy whitewater displacement (per unit wave height), mirrored in GLSL
-function boreLumps(x, z, t) {
-  return 0.035 * Math.sin(x * 0.11 + z * 0.07 + t * 2.3) + 0.03 * Math.sin(-x * 0.19 + z * 0.23 + t * 3.1)
-    + 0.02 * Math.sin(x * 0.37 - z * 0.29 + t * 4.7);
+// lumpy whitewater displacement (per unit wave height), mirrored in GLSL: on the crest-relative s2, so the lumps ride
+// the bore (and its mesh rows) and only boil slowly, instead of racing through it as travelling ripples
+function boreLumps(x, s2, t) {
+  return 0.035 * Math.sin(x * 0.11 + s2 * 0.07 + t * 0.6) + 0.03 * Math.sin(-x * 0.19 + s2 * 0.23 + t * 0.8)
+    + 0.02 * Math.sin(x * 0.37 - s2 * 0.29 + t * 1.1);
 }
 function nGauss(x, w, L) {
   const e = Math.exp(-((0.5 * L / w) ** 2));
@@ -312,7 +313,7 @@ export function evalSurf(x, z, t, curl, out = {}) {
 
   // turbulent, lumpy whitewater on the bore front and just behind it
   const turb = bore * (1 - sstep(0.15 * L, 0.45 * L, s2)) * sstep(-wf - 4, -0.3 * wf, s2);
-  if (turb > 0) y += turb * H * boreLumps(x, z, t);
+  if (turb > 0) y += turb * H * boreLumps(x, s2, t);
 
   // land clamp + swash
   const sand = 0.5 + landH(z);
@@ -485,12 +486,12 @@ float nGauss(float x, float w, float L) {
 }
 // impact whitewater of one stage: from the moment the lip lands (p ~ 0.9) until the bore has taken over
 float impOf(float p) { return sstep(0.9, 1.2, p) * (1.0 - sstep(3.0, 5.0, p)); }
-// lumps of the tumbling whitewater mass, about -1..1 (mirrored in JS): they roll forward over the roller and boil;
-// wavelengths of at least ~8 grid cells so the mesh can follow them
+// lumps of the tumbling whitewater mass, about -1..1 (mirrored in JS): they roll forward over the roller and boil,
+// slowly, so the mass does not tremble; wavelengths of at least ~8 grid cells so the mesh can follow them
 float rollerLumps(float x, float u, float fn) {
   float t = uTime;
-  return 0.5 * sin(x * 0.043 + u * 0.12 + 2.2 * t + fn * 1.7) + 0.35 * sin(-x * 0.079 + u * 0.19 + 3.1 * t + fn * 0.9)
-    + 0.25 * sin(x * 0.131 - u * 0.09 + 4.3 * t) + 0.2 * sin(x * 0.17 + u * 0.21 + 5.2 * t + fn);
+  return 0.5 * sin(x * 0.043 + u * 0.12 + 0.7 * t + fn * 1.7) + 0.35 * sin(-x * 0.079 + u * 0.19 + 1.0 * t + fn * 0.9)
+    + 0.25 * sin(x * 0.131 - u * 0.09 + 1.3 * t) + 0.2 * sin(x * 0.17 + u * 0.21 + 1.6 * t + fn);
 }
 // returns displaced position; foam/thin/wet via out params
 vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out float sandW, out float age) {
@@ -618,13 +619,19 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
     y = -0.2 * Ht + (yc + 0.2 * Htc) * (H / Hc);
   }
 
-  // small wind chop, kept off the lip and the swash
-  float chopK = (1.0 - hw * bw * chopP) * sstep(-10.0, 60.0, d);
-  y += chopK * (0.45 * sin(x * 0.071 + z * 0.052 - uTime * 1.9) + 0.3 * sin(-x * 0.047 + z * 0.093 - uTime * 2.6));
-  // turbulent, lumpy whitewater on the bore front and just behind it
+  // turbulent, lumpy whitewater on the bore front and just behind it (slow lumps riding the bore, see boreLumps in JS)
   float turb = bore * (1.0 - sstep(0.15 * L, 0.45 * L, s2)) * sstep(-wf - 4.0, -0.3 * wf, s2);
-  y += turb * H * (0.035 * sin(x * 0.11 + z * 0.07 + uTime * 2.3) + 0.03 * sin(-x * 0.19 + z * 0.23 + uTime * 3.1)
-    + 0.02 * sin(x * 0.37 - z * 0.29 + uTime * 4.7));
+  y += turb * H * (0.035 * sin(x * 0.11 + s2 * 0.07 + uTime * 0.6) + 0.03 * sin(-x * 0.19 + s2 * 0.23 + uTime * 0.8)
+    + 0.02 * sin(x * 0.37 - s2 * 0.29 + uTime * 1.1));
+  // the foam of the surf zone belongs to the crest that last passed: this one behind it, the one before it (fn - 1)
+  // ahead of it, so that it runs on across the edges between the crests' cells; it lies from where that one broke in
+  float fz = s2 < 0.0 ? fn - 1.0 : fn, dbzF = s2 < 0.0 ? breakZone(fz, x) : dbz;
+  float zoneIn = sstep(dbzF + 10.0, dbzF - 50.0, d);
+  // small wind chop, kept off the lip and the swash and damped over the surf zone's broken water: the bore's
+  // whitewater (where it ran through the white mass as a fast travelling tremble against the sea beyond) and the
+  // foam-streaked wash behind and ahead of it (whose lace it bobbed up and down: a shimmer along the lace's edges)
+  float chopK = (1.0 - hw * bw * chopP) * sstep(-10.0, 60.0, d) * (1.0 - 0.85 * max(turb, zoneIn));
+  y += chopK * (0.45 * sin(x * 0.071 + z * 0.052 - uTime * 1.9) + 0.3 * sin(-x * 0.047 + z * 0.093 - uTime * 2.6));
 
   float sand = 0.5 + landH(z);
   if (d < 0.0) y = min(y, sand - 1.6);
@@ -684,14 +691,10 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
   float loss = 1.0 - sstep(15.0, 45.0, dc);
   float fCol = sstep(0.08, 0.35, loss) * sstep(0.05, 0.4, pC) * (1.0 - sstep(3.0, 5.0, pC))
     * max(1.5 * sstep(0.3, 0.65, sqrt(hw) * bw), s2 < 0.0 ? 1.3 * sstep(-(0.5 + 1.6 * loss) * wf - 3.0, -(0.5 + 1.6 * loss) * wf, s2) : 0.0);
-  // the foam of the surf zone belongs to the crest that last passed: this one behind it, the one before it (fn - 1)
-  // ahead of it, so that it runs on across the edges between the crests' cells; it lies from where that one broke in
-  float fz = s2 < 0.0 ? fn - 1.0 : fn, dbzF = s2 < 0.0 ? breakZone(fz, x) : dbz;
-  float fZone = 0.22 * sstep(dbzF + 30.0, dbzF - 60.0, d) * (0.5 + 0.5 * sin(x * 0.013 + z * 0.021 + fz));
+  float fZone = 0.22 * sstep(dbzF + 30.0, dbzF - 60.0, d) * (0.5 + 0.5 * sin(x * 0.013 + z * 0.021 + fz)); // (fz, dbzF: see the chop)
   float fCap = 0.25 * sstep(0.85, 1.0, bump) * capP;
   // residual foam left behind by broken waves: thins out as it ages (behind this crest, or the previous one)
   float ageB = s2 > 0.0 ? s2 / L : 1.0 + s2 / L;  // ~time since a crest passed, in wave periods
-  float zoneIn = sstep(dbzF + 10.0, dbzF - 50.0, d);
   float broke = s2 > 0.0 ? max(bore, lip2) : 1.0;
   float fRes = zoneIn * broke * (0.14 + 0.6 * exp(-3.0 * ageB));
   foam = clamp(max(max(max(fLip, fFace), max(fBore, fZone)), max(max(fCap, fRes), max(fImp, fCol))) * filmP, 0.0, 1.6);
@@ -944,17 +947,23 @@ void main() {
   Tq *= min(1.0, 1.5 * inversesqrt(dot(Tq, Tq) + 1e-12));
   Bq *= min(1.0, 1.5 * inversesqrt(dot(Bq, Bq) + 1e-12));
 
+  // freshly broken water is full of bubbles (see the body colour below); the ripples and the detail normals are
+  // mostly smoothed out of it, so its white does not flicker with them
+  float aer = smoothstep(0.7, 1.3, vFoam) * (1.0 - vAge);
+  // and any foam film stills the ripples under it (a film of bubbles, like a slick, damps the capillary waves): the
+  // lace on the wash lies on smooth water, which otherwise shimmered through it and in its holes
+  float calm = max(aer, 0.9 * smoothstep(0.1, 0.5, vFoam));
   // detail normals
   vec2 uv = vWorld.xz, ux = dFdx(uv), uy = dFdy(uv);
   // cat's paws: the wind roughens the sea in large drifting patches, so the ripples are not one uniform weave
   float paw = smoothstep(0.2, 0.8, 0.6 * vnoise(ROT * uv * 0.0042 + vec2(0.0, 0.02) * uTime) + 0.4 * vnoise(uv * 0.0117 - vec2(0.015, 0.0) * uTime));
   vec2 dn = detailSlope(uv, ux, uy);
-  float detail = 0.32 * (0.7 + 0.6 * paw) * (1.0 - smoothstep(250.0, 3500.0, dist));
+  float detail = 0.32 * (0.7 + 0.6 * paw) * (1.0 - smoothstep(250.0, 3500.0, dist)) * (1.0 - calm); // bubbles kill the ripples
   vec3 dN = vec3(dn.x, 0.0, dn.y) * detail;
   if (wK > 0.0) { vec2 db = detailSlope(qb, qx, qy); dN = mix(dN, (Tq * db.x + Bq * db.y) * detail, wK); }
   vec3 Nb = normalize(N + dN); // the surface the ripples ride on: the emboss below shades them relative to it
   // the ripples, which fade out before they would shimmer
-  float rk = uRipple * (0.45 + 0.9 * paw) * (1.0 - smoothstep(150.0, 1100.0, dist));
+  float rk = uRipple * (0.45 + 0.9 * paw) * (1.0 - smoothstep(150.0, 1100.0, dist)) * (1.0 - calm);
   if (rk > 0.0) {
 #ifndef SOFT
     rk *= 0.4 + 1.2 * smoothstep(0.15, 0.85, vnoise(ROT * uv * 0.035 + 1.7)); // stronger and weaker in patches a few tens of units across
@@ -990,7 +999,6 @@ void main() {
   float back = pow(max(dot(-V, uSunDir), 0.0), 3.0);
   body += uSSS * vThin * (0.5 + 1.6 * back) * smoothstep(4.0, 14.0, vDepth); // no glow through a low bore front
   // freshly broken water is full of bubbles: milky pale turquoise and nearly opaque, even between the foam patches
-  float aer = smoothstep(0.7, 1.3, vFoam) * (1.0 - vAge);
   body = mix(body, vec3(0.44, 0.67, 0.71) * (0.7 + 0.45 * NdL), 0.8 * aer);
   F *= 1.0 - 0.6 * vThin; // a steep, thin breaking face shows its body colour more than the sky
 
@@ -1037,39 +1045,41 @@ void main() {
   float churnA = aer * vCrest.y, churn = 0.33; // (the mean, used far away)
   if (churnA > 0.01 && dist < 900.0) {
     float kf = 1.0 - smoothstep(300.0, 900.0, dist), k3 = 1.0 - smoothstep(120.0, 400.0, dist); // fine detail would shimmer far away
-    vec3 cp = vec3(vWorld.x, vWorld.y, vCrest.x) * 0.2;
-    float tum = 0.5 * uTime;
+    vec3 cp = vec3(vWorld.x, vWorld.y, vCrest.x) * 0.13;
+    float tum = 0.4 * uTime;
     float wz = Ng.z * Ng.z, wy = Ng.y * Ng.y, ws = wz + wy + 1e-3;
     float cF = billow(vec2(cp.x, cp.y - sign(Ng.z) * tum), uTime, k3);
     float cT = billow(vec2(cp.x, cp.z + sign(Ng.y) * tum) + 11.3, uTime, k3);
     churn = mix(0.33, (wz * cF + wy * cT) / ws, kf);
   }
-  // relief from the thickness and the churn (surface-gradient bump mapping), faded out with distance
-  float bumpK = 1.5 * (1.0 - smoothstep(60.0, 450.0, dist));
-  float hgt = (min(tau, 1.6) + 1.3 * churnA * churn) * bumpK;
+  // relief from the churn and a little from the thickness (surface-gradient bump mapping), faded out with distance:
+  // the lace streams down the face at VFALL, so relief from it flickered; the churn is broad and slow
+  float bumpK = 0.6 * (1.0 - smoothstep(60.0, 450.0, dist));
+  float hgt = (0.4 * min(tau, 1.6) + 1.2 * churnA * churn) * bumpK;
   float hx = dFdx(hgt), hy = dFdy(hgt);
-  vec3 r1 = cross(dpy, N), r2 = cross(N, dpx);
+  // (over the geometric normal: the ripple normals under the foam made its light flicker)
+  vec3 r1 = cross(dpy, Ng), r2 = cross(Ng, dpx);
   float det = dot(dpx, r1);
-  vec3 nb = abs(det) * N - sign(det) * (hx * r1 + hy * r2);
-  vec3 Nf = dot(nb, nb) > 1e-14 ? normalize(nb) : N;
+  vec3 nb = abs(det) * Ng - sign(det) * (hx * r1 + hy * r2);
+  vec3 Nf = dot(nb, nb) > 1e-14 ? normalize(nb) : Ng;
   float af = 1.0 - exp(-3.2 * tau);
-  float wrap = clamp(dot(Nf, uSunDir) * 0.6 + 0.4, 0.0, 1.0);
+  float wrap = clamp(dot(Nf, uSunDir) * 0.35 + 0.65, 0.0, 1.0);
   float thickL = smoothstep(0.05, 1.1, tau);
-  // bubbles scatter nearly all the light they get, so even the shaded side of the foam stays a bright white
-  vec3 foamCol = mix(vec3(0.80, 0.88, 0.94), vec3(1.0), thickL) * (0.98 + 0.8 * wrap + 0.3 * back + 0.3 * Nf.y) * (0.95 + 0.05 * ft);
+  // bubbles scatter nearly all the light they get: a matte white, nearly as bright on its shaded side and on a steep
+  // face, with no sheen (a sun sheen and deep blue-grey hollows made it look like glossy plastic). AoM's foam sits at
+  // the very top of the filmic curve: pinned white (its luminance hardly moves), and the only structure the eye reads
+  // in it is a pale cyan in the creases, never grey; so the white is pushed well past the curve's knee (at the old
+  // level the whole bore came out a flat light grey, 238 of 255) and the hollows between the lumps tint cyan
+  vec3 foamCol = mix(vec3(0.84, 0.91, 0.96), vec3(1.0), thickL) * (2.6 + 0.9 * wrap + 0.4 * back) * (0.95 + 0.05 * ft);
   foamCol = mix(mix(body * 1.6 + 0.3, foamCol, 0.6), foamCol, thickL); // thin films are translucent: they keep some water colour
-  // churn shading: lump tops catch the light, the hollows between the lumps in a light blue shadow
-  float ao = 0.8 + 0.28 * smoothstep(0.02, 0.62, churn);
-  foamCol *= mix(vec3(1.0), ao * mix(vec3(0.78, 0.87, 0.95), vec3(1.0), smoothstep(0.05, 0.5, churn)), churnA);
-  // foam is wet: its lumps catch the sun as a soft sheen, and fresh foam glitters with bubble glints (sparkle)
-  float sunF = max(dot(reflect(-V, Nf), uSunDir), 0.0);
-  float fresh = max(aer, 1.0 - vAge);
-  float glint = (pow(sunF, 20.0) * 0.5 + pow(sunF, 160.0) * 2.5) * (0.4 + 0.6 * fresh);
+  // churn shading: white lump tops, pale cyan hollows between them
+  float crease = 1.0 - smoothstep(0.08, 0.55, churn);
+  foamCol *= mix(vec3(1.0), mix(vec3(1.0), vec3(0.2, 0.72, 0.78), crease), churnA);
+  // older foam glitters a little with bubble glints (sparkle); fresh whitewater is matte
   float fwR = length(fwidth(vRest * 2.3)), fwB = 2.3 * length(abs(qx) + abs(qy));
   float spk = wK < 1.0 ? sparkle(vRest * 2.3, fwR) : 0.0;
   if (wK > 0.0) spk = mix(spk, sparkle(qb * 2.3, fwB), wK);
-  glint += spk * fresh * thickL * smoothstep(0.1, 0.5, wrap);
-  foamCol += vec3(1.0, 0.97, 0.9) * glint;
+  foamCol += vec3(1.0, 0.97, 0.9) * (0.5 * spk * (1.0 - aer) * thickL * smoothstep(0.1, 0.5, wrap));
   P = mix(P, foamCol, af);
   W *= 1.0 - af;
 
@@ -1848,7 +1858,7 @@ void main() {
   // dissolved from the thin spray inwards up to vT, and its foot thinned out grain by grain towards the water,
   // which would otherwise cut it off in a straight line
   float foot = smoothstep(0.0, 0.3, vQy + 0.15 * (t.g - 0.5));
-  float a = t.r * smoothstep(vT - 0.12, vT + 0.06, t.g) * vAlpha * foot;
+  float a = min(1.0, 1.25 * t.r) * smoothstep(vT - 0.12, vT + 0.06, t.g) * vAlpha * foot; // (its core solid white)
   if (a < 0.01) discard;
   // lit as the heap of lumps in its relief, bent round by its rounded shape: the sun wrapped a little round into the
   // side turned away from it, the sky from above, both shut out of the creases. Shaded in display colour, between
@@ -1858,16 +1868,18 @@ void main() {
   vec2 sl = rl.xy * 2.0 - 1.0;
   vec3 n = normalize(vec3(sl + vM, sqrt(max(1.0 - dot(sl, sl), 0.04))));
   vec3 L = normalize(vL);
-  float dif = clamp(dot(n, L) * 0.65 + 0.35, 0.0, 1.0);
+  float dif = clamp(dot(n, L) * 0.5 + 0.5, 0.0, 1.0);
 #ifndef SOFT
   // and shadowed by the lumps between it and the sun: one step towards it across the picture, against how far the
   // sunbeam has risen out of the picture by then
   float lxy = max(length(L.xy), 0.25);
   float hs = texture2D(uPlumeR, vUv + L.xy / lxy * uStep).b;
-  dif *= 1.0 - 0.6 * smoothstep(0.0, 0.03, (hs - rl.b) * 0.32 - 0.04 * L.z / lxy);
+  dif *= 1.0 - 0.35 * smoothstep(0.0, 0.03, (hs - rl.b) * 0.32 - 0.04 * L.z / lxy);
 #endif
-  float lit = (0.8 + 0.12 * n.y + 0.45 * dif) * t.b;
-  vec3 col = mix(vec3(0.7, 0.84, 0.9), vec3(1.0), clamp(lit - 0.1, 0.0, 1.0));
+  // bright: white over most of it, its creases and shaded side only a little toward the pale cyan (AoM's foam is
+  // pure white; shaded as before it came out a milky grey-cyan veil over the water)
+  float lit = (0.85 + 0.1 * n.y + 0.4 * dif) * mix(0.6, 1.0, t.b);
+  vec3 col = mix(vec3(0.76, 0.94, 0.97), vec3(1.0), clamp(lit - 0.05, 0.0, 1.0));
   // against the sun all of it glows a little with the light scattered through it, and its thin spray, the thin low
   // parts of its relief and the rims of its lumps on the sun's side more; and it takes the water's haze
   float dense = smoothstep(0.4, 0.9, t.r);
@@ -2088,7 +2100,7 @@ class FoamCurtain {
             const f = boreFace(x, zs, tip.d, H, time, this.bf);
             const hb = (1.18 * (f.top - f.yb) + 0.12 * H) * sstep(5, 25, dc);
             z += (f.z - 0.6 - z) * bT; y += (f.yb - 0.12 * H - y) * bT; h += (hb - h) * bT;
-            T += (0.3 - T) * bT; lean += (0.08 - lean) * bT; alpha += (0.85 * edge - alpha) * bT;
+            T += (0.3 - T) * bT; lean += (0.08 - lean) * bT; alpha += (0.92 * edge - alpha) * bT;
           }
           iTW = 1 / (4.2 * waveBaseHn(fn) * (st.outer ? SURF.outerGain : SURF.innerGain));
           uO = hash01(hashU(fn + 7777));

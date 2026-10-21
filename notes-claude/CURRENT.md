@@ -661,6 +661,55 @@ sometimes clips the wave.
   Date.now()) after Start Game; it pauses the game and defines __findBore, __slit, __edges, __seg, __jit2,
   __wrapDiff.
 
+## Round 15 (21 Oct 2026, owner: the broken waves' white foam still trembles; the foam looks plastic, not bright
+## white and dynamic; the 2D splash should be brighter and whiter, like the AoM screenshots)
+- Measured (reference/helpers_r15.js and helpers_r15b.js, git-ignored; player view 1920x1080, water only unless
+  said): __tdiff renders 24 frames at 1/60 s from t 12.0 inside a rect and scores, over the pixels at least 215
+  bright (or 215 red: only white has red, the cyan water is as luminous) in every frame, the mean |frame difference|
+  d1, the RMS residual from a 5-frame mean (hi: the fast part) and the mean |8-frame difference| d8, for the live
+  shader and for ablated clones of it that zero one animation source each (sparkle, relief, churn, lace holes, lace
+  streaming, bore lumps, chop, ripples and detail normals, or all of them). __stats/__rendStats/__imgStats give
+  luminance percentiles (5/25/50/75/95), mean RGB, 10th-percentile RGB and the share of pixels >= 245 of a render
+  rect or of a rect of an AoM screenshot served from /reference/.
+- Tremble before (band x 400-1500, y 540-700: the bore and its wash): d1 1.20, hi 1.46, d8 3.71; the bore's top edge
+  itself was already steady (Round 14, ~0.35 px RMS). What moved: the lumps of the whitewater mass (rollerLumps at
+  2.2-5.2 rad/s, boreLumps at 2.3-4.7 rad/s on world z, so they raced through the bore as travelling ripples); the
+  wind chop (1.9/2.6 rad/s) running through the white mass, the sea beyond showing through it; the foam relief from
+  the lace, which streams down the face at VFALL, so it flickered; the sun sheen and glints on the foam; and in the
+  wash, ripples, detail normals and chop seen through the thin foam and in its holes (ablations on the wash,
+  pixels R >= 215: no ripples 1.21 -> 0.64, no chop 1.21 -> 0.83, nothing moving 0.34).
+- Fixes: boreLumps on the crest-relative s2 at 0.6/0.8/1.1 rad/s (CPU and GLSL alike), rollerLumps 0.7-1.6 rad/s;
+  chop damped 85 % over the bore's whitewater (turb) and over the inner surf zone (zoneIn, now computed before the
+  chop; the foam block reuses it); ripples and detail normals faded by calm = max(aer, 0.9 smoothstep(0.1, 0.5,
+  vFoam)) (bubbles and a film of foam still capillary waves); the relief over the geometric normal, bumpK 1.5 -> 0.6
+  with the lace's share 0.4; churn at 0.13 scale, 0.4 uTime; the foam's specular (sunF, glint, fresh) gone, the
+  sparkle halved and only on older foam.
+- Foam colour, measured against the owner's screenshots: AoM's foam body (aom-03) has luminance percentiles
+  [243, 254, 255, 255, 255], 10th-percentile RGB (234, 254, 254), 94 % of pixels >= 245; its edge (198, 253, 252),
+  aom-07 (215, 254, 253) with 80 % white, the wash (aom-11) (233, 248, 251). G and B are pinned at ~254 and the only
+  structure is red dipping in cyan creases: never grey. Ours before: a flat light grey, median 238 (IQR 236-238,
+  8 % white, 10th-percentile 235/238/239). The water is tone-mapped by ACES after x1.55 (linear 2.0 -> 232,
+  3.1 -> 241, 6.2 -> 249 sRGB), so the old foam (~1.5-2) sat at the knee, and its sun sheen and blue-grey hollows
+  read as glossy plastic. Now foamCol = mix((0.84, 0.91, 0.96), 1, thickL) x (2.6 + 0.9 wrap + 0.4 back), wrap
+  0.35 dot + 0.65 (matte: nearly as bright on the shaded side), the hollows between the churn lumps tinted
+  (0.2, 0.72, 0.78) by crease = 1 - smoothstep(0.08, 0.55, churn), thin films still keeping water colour. Bore face
+  now: median 245-246 (25-75 pct 243-247), 62-73 % white, 10th-percentile (232, 243, 244); with the plumes and the
+  curtain 252-253 and 88-95 % white; the wash at its foot median 240-245, 10th-percentile ~(215, 235, 238).
+- Splash sprites (SPLASH_FRAG): alpha from min(1, 1.25 t.r) (a solid white core), dif = 0.5 dot + 0.5, the
+  lump shadow 0.35 (was 0.6), lit = (0.85 + 0.1 n.y + 0.4 dif) x mix(0.6, 1, t.b), shaded towards a pale cyan
+  (0.76, 0.94, 0.97) instead of grey-blue (before, the plumes were a milky grey-cyan veil over the bore); the bore
+  curtain's alpha 0.85 -> 0.92.
+- Results (same band, water only): d1 0.36, hi 0.70, d8 1.90 (with plumes and curtain 0.35/0.73/1.77). The bore
+  face alone (R >= 215, x 600-1320, y 500-595): 0.19/0.45/1.10; its wash (y 598-698): 0.44/0.63/2.18, from
+  1.21/1.52/4.40. With everything that moves ablated: 0.10/0.57 (face) and 0.37/0.66 (wash), i.e. what is left is
+  the bore's own travel and the slow churn. Difference montages r15f_face, r15f_foot (frame, |d1| x6, hi x6), crops
+  r15f_crop_bore(_w), still r15f_pv_all in reference/r12-shots (git-ignored). Colour stats were taken at t 9.9-13.5
+  on the first bore (__findBore: strip 2, z 198, h 15.3).
+- Limits: the lace on the wash lies on still water now (its holes still drift at 0.25-0.8 rad/s), which can read as
+  a net; the foam has no sun sheen at all, and at the top of the curve a low sun will not shade it; chop is nearly
+  gone from the whole inner surf zone, not just under foam; not hand-play-tested; the soft tier (SOFT/FACETS) was
+  not run.
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
