@@ -1241,12 +1241,25 @@ uniform vec3 uSunDir;
 attribute float aSize;
 attribute float aAlpha;
 attribute float aSeed;
+attribute vec3 aVel;
 varying float vAlpha;
 varying float vSeed;
 varying vec3 vSun;
+varying vec2 vDir;
+varying float vS;
+// a drop is drawn as a streak along its motion, vS times longer than wide (1.6x even when it comes straight at the
+// camera, up to 3.5x): a 0.15 s trace of its velocity across the screen (the view-space velocity less the part along
+// the line of sight, which only changes its size); the point is enlarged to hold the streak, and the fragment draws a
+// capsule in it
 void main() {
   vec4 mv = modelViewMatrix * vec4(position, 1.0);
-  gl_PointSize = aSize * (700.0 / max(-mv.z, 1.0));
+  float dz = max(-mv.z, 1.0);
+  vec3 vv = (viewMatrix * vec4(aVel, 0.0)).xyz;
+  vec2 sv = vv.xy + mv.xy * (vv.z / dz);
+  float ls = length(sv);
+  vS = clamp(1.6 + 0.15 * ls / max(aSize, 0.05), 1.6, 3.5);
+  vDir = ls > 1e-4 ? sv / ls : vec2(1.0, 0.0);
+  gl_PointSize = aSize * vS * (700.0 / dz);
   vAlpha = aAlpha;
   vSeed = aSeed;
   vSun = normalize((viewMatrix * vec4(uSunDir, 0.0)).xyz);
@@ -1256,26 +1269,40 @@ const SPRAY_FRAG = /* glsl */`
 varying float vAlpha;
 varying float vSeed;
 varying vec3 vSun;
+varying vec2 vDir;
+varying float vS;
 float h1(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 float vn(vec2 p) {
   vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f);
   return mix(mix(h1(i), h1(i + vec2(1.0, 0.0)), u.x), mix(h1(i + vec2(0.0, 1.0)), h1(i + 1.0), u.x), u.y);
 }
-// a ragged, soft-edged puff (each particle its own shape) rather than a round disc, lit as a little ball of
-// droplets: white on its sunward side, a pale blue-grey away from it, and its rim glowing when the sun is behind it
+// a soft capsule along the drop's motion (a ragged disc when it is slow), broken along its length by noise into
+// beads, full and bright at its head and thinning to its tail: a translucent streak of water, white where it is
+// thick or the sun catches it, the water's cyan showing through at its edges, a sharp glint where a ball of
+// water would mirror the sun to the eye, and its rim lit through when the sun is behind it (Round 17: AoM's
+// spray is a few painted streaks elongated along the motion over cyan, never round grey puffs)
 void main() {
-  vec2 c = gl_PointCoord - 0.5;
-  vec2 q = c * 4.0 + vSeed * 17.0;
-  float n = 0.6 * vn(q) + 0.4 * vn(q * 2.3 + 3.1);
-  float r = length(c) * 2.0;
-  float a = smoothstep(1.0, 0.15, r + 0.55 * (n - 0.5)) * vAlpha;
+  vec2 b = (gl_PointCoord - 0.5) * vec2(2.0, -2.0);   // across the point, y up like the view
+  float w = 1.0 / vS;                                   // the capsule's half-width; its length spans the point
+  float u = dot(b, vDir), v = dot(b, vec2(-vDir.y, vDir.x));
+  float t = clamp(u, w - 1.0, 1.0 - w);
+  vec2 off = (b - vDir * t) / w;                        // offset from the capsule's axis, in half-widths
+  float head = (u + 1.0) * 0.5;                         // 0 at the tail, 1 at the head
+  float thin = (1.0 - head) * (1.0 - w);                // a stretched drop narrows and fades towards its tail
+  float r = length(off) * (1.0 + 0.8 * thin);
+  vec2 nq = vec2(u * 2.0 * sqrt(vS), v * 2.0 * vS) + vSeed * 17.0;
+  float n = 0.6 * vn(nq) + 0.4 * vn(nq * 2.3 + 3.1);
+  float a = smoothstep(1.0, 0.15, r + 0.55 * (n - 0.5)) * vAlpha * (1.0 - 0.5 * thin);
   if (a < 0.01) discard;
-  vec2 b = vec2(c.x, -c.y) * 2.0;
-  vec3 nb = vec3(b, sqrt(max(1.0 - dot(b, b), 0.0)));
+  vec3 nb = vec3(off, sqrt(max(1.0 - dot(off, off), 0.0)));
   float dif = clamp(dot(nb, vSun) * 0.6 + 0.4, 0.0, 1.0);
-  vec3 col = mix(vec3(0.62, 0.75, 0.82), vec3(1.0), clamp(0.45 + 0.7 * dif + 0.2 * (n - 0.5), 0.0, 1.0));
-  float rim = clamp(-vSun.z, 0.0, 1.0) * (0.3 + 0.7 * smoothstep(0.3, 1.0, r) * clamp(dot(b, vSun.xy) * 3.0 + 0.3, 0.0, 1.0));
-  col = min(col + vec3(1.0, 0.95, 0.85) * 0.5 * rim, vec3(1.0));
+  float core = 1.0 - smoothstep(0.35, 1.0, r);
+  vec3 wht = mix(vec3(0.76, 0.94, 0.97), vec3(1.0), clamp(0.2 + 0.6 * dif + 0.3 * head, 0.0, 1.0));
+  vec3 col = mix(vec3(0.60, 0.87, 0.92), wht, clamp(0.55 + 0.9 * core + 0.2 * (n - 0.5), 0.0, 1.0));
+  vec3 hv = normalize(vSun + vec3(0.0, 0.0, 1.0));
+  float glint = pow(max(dot(nb, hv), 0.0), 48.0);
+  float rim = clamp(-vSun.z, 0.0, 1.0) * (0.3 + 0.7 * smoothstep(0.3, 1.0, length(off)) * clamp(dot(off, vSun.xy) * 3.0 + 0.3, 0.0, 1.0));
+  col = min(col + vec3(1.0, 0.97, 0.9) * (0.3 * glint + 0.35 * rim), vec3(1.0));
   gl_FragColor = vec4(col, a * (0.75 + 0.25 * n));
 }`;
 
@@ -1290,13 +1317,18 @@ class Spray {
     this.alpha = new Float32Array(count);
     this.drag = new Float32Array(count);
     this.alphaMul = new Float32Array(count);
+    this.grow = new Float32Array(count); // size growth per second (the old puffs swell 60 %/s; drops do not)
+    this.y0 = new Float32Array(count); // the height it was emitted at, and ...
+    this.fadeH = new Float32Array(count); // ... when > 0, it fades out over this height as it sinks below that
     this.seed = new Float32Array(count).map(() => Math.random());
     this.next = 0;
     const g = new THREE.BufferGeometry();
     this.posAttr = new THREE.BufferAttribute(this.pos, 3).setUsage(THREE.DynamicDrawUsage);
+    this.velAttr = new THREE.BufferAttribute(this.vel, 3).setUsage(THREE.DynamicDrawUsage);
     this.sizeAttr = new THREE.BufferAttribute(this.size, 1).setUsage(THREE.DynamicDrawUsage);
     this.alphaAttr = new THREE.BufferAttribute(this.alpha, 1).setUsage(THREE.DynamicDrawUsage);
     g.setAttribute('position', this.posAttr);
+    g.setAttribute('aVel', this.velAttr);
     g.setAttribute('aSize', this.sizeAttr);
     g.setAttribute('aAlpha', this.alphaAttr);
     g.setAttribute('aSeed', new THREE.BufferAttribute(this.seed, 1));
@@ -1310,11 +1342,14 @@ class Spray {
     this.points.renderOrder = 2;
     scene.add(this.points);
   }
-  emit(x, y, z, vx, vy, vz, life, size, drag, alpha = 0.9) {
+  // grow: size growth per second (negative shrinks); fadeH > 0: it also fades out as it sinks below the height it
+  // was emitted at, over fadeH units (a stand-in for a soft contact with the water, which has no depth read-back)
+  emit(x, y, z, vx, vy, vz, life, size, drag, alpha = 0.9, grow = 0.6, fadeH = 0) {
     const i = this.next; this.next = (this.next + 1) % this.count;
     this.pos[i * 3] = x; this.pos[i * 3 + 1] = y; this.pos[i * 3 + 2] = z;
     this.vel[i * 3] = vx; this.vel[i * 3 + 1] = vy; this.vel[i * 3 + 2] = vz;
     this.life[i] = life; this.maxLife[i] = life; this.size[i] = size; this.drag[i] = drag; this.alphaMul[i] = alpha;
+    this.grow[i] = grow; this.y0[i] = y; this.fadeH[i] = fadeH;
   }
   update(dt) {
     for (let i = 0; i < this.count; i++) {
@@ -1327,10 +1362,12 @@ class Spray {
       this.pos[i * 3 + 1] += this.vel[i * 3 + 1] * dt;
       this.pos[i * 3 + 2] += this.vel[i * 3 + 2] * dt;
       const a = this.life[i] / this.maxLife[i];
-      this.alpha[i] = Math.min(1, a * 1.6) * this.alphaMul[i];
-      this.size[i] *= 1 + 0.6 * dt;
+      let al = Math.min(1, a * 1.6) * this.alphaMul[i];
+      if (this.fadeH[i] > 0) al *= Math.max(0, Math.min(1, 1 - (this.y0[i] - this.pos[i * 3 + 1]) / this.fadeH[i]));
+      this.alpha[i] = al;
+      this.size[i] *= 1 + this.grow[i] * dt;
     }
-    this.posAttr.needsUpdate = this.sizeAttr.needsUpdate = this.alphaAttr.needsUpdate = true;
+    this.posAttr.needsUpdate = this.velAttr.needsUpdate = this.sizeAttr.needsUpdate = this.alphaAttr.needsUpdate = true;
   }
 }
 
@@ -2245,14 +2282,14 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
 
   // spray sources found in one emission tick: kind, x, z, y, H, wanted count (flat, reused)
   const jobs = [];
-  const LIFE = [0.95, 1.35, 1.6]; // mean particle life of each kind (lip spray, splash-up, mist), s
+  const LIFE = [0.6, 0.68, 0.52]; // mean particle life of each kind (lip spray, splash-up, bore-top sheet), s
   // splash plumes found in one tick: kind (0 plunge, 1 shore dump, 2 bore), x, crest fn, wanted count
   const pjobs = [];
   const PLIFE = [1.9, 1.65, 2.2]; // mean plume life of each kind, s
   // how many of each kind still come as separate plumes, over the foam curtain (the lip's and the shore dump's
   // are all in the curtain; the bore's keep billowing up off its face all the way in)
   const PACC = [0, 0, 1];
-  const _ps = {}, _pw = {}, _pf = {};
+  const _ps = {}, _pw = {}, _pf = {}, _sw = {};
   function emitSpray(dt, cx) {
     emitAcc += dt;
     if (emitAcc < 1 / 30) return;
@@ -2271,13 +2308,14 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
         crestState(fn, ex, dc, st);
         const lip = st.p > 0.35 && st.p < 1.35, splash = st.p > 0.95 && st.p < 1.7 && st.H > 3 && st.sig > 0.3;
         const tip = lip || splash ? lipTip(st, dc) : null;
-        // lip spray, thrown forward off the tip
-        if (lip) { const n = Math.min(30, st.H * 0.9 * (0.5 + Math.random())) * k; jobs.push(0, ex, zs + tip.d, tip.y, st.H, n); want += n * LIFE[0]; }
+        // lip spray, thrown forward off the tip (Round 17: half the drops at 1.5x the size, so the lip stack thins)
+        if (lip) { const n = Math.min(15, st.H * 0.45 * (0.5 + Math.random())) * k; jobs.push(0, ex, zs + tip.d, tip.y, st.H, n); want += n * LIFE[0]; }
         // splash-up: the landed lip throws a burst of white water up and forward from the plunge point
-        if (splash) { const n = Math.min(18, st.H * 0.8 * (0.5 + Math.random())) * k; jobs.push(1, ex, zs + tip.d, 0, st.H, n); want += n * LIFE[1]; }
-        // whitewash mist rising off the bore / landing lip
-        if (st.p > 0.9 && st.p < 3.2 && st.H > 2) {
-          const n = Math.min(20, st.H * 0.4 * Math.random() + 0.1) * k; jobs.push(2, ex, zs + dc - st.D, 0, st.H, n); want += n * LIFE[2];
+        if (splash) { const n = Math.min(9, st.H * 0.4 * (0.5 + Math.random())) * k; jobs.push(1, ex, zs + tip.d, 0, st.H, n); want += n * LIFE[1]; }
+        // a low sheet of spray skimming the bore's top (Round 17: in place of the mist that rose off the bore and the
+        // landing lip and swelled into vapour)
+        if (st.p > 1.2 && st.p < 3.2 && st.H > 2) {
+          const n = Math.min(16, st.H * 0.4 * Math.random() + 0.1) * k; jobs.push(2, ex, zs + dc - st.D, 0, st.H, n); want += n * LIFE[2];
         }
         // a line of splash plumes where the lip lands; where a wave dumps on the shore before its lip can land
         // (the shallows shrink its curl away: the plumes cover the collapse); and smaller ones off the bore front
@@ -2339,21 +2377,24 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
       const n = Math.floor(jobs[j + 5] * scale + Math.random());
       for (let i = 0; i < n; i++) {
         const px = ex + (Math.random() - 0.5) * 40;
+        // (Round 17: the drops are translucent streaks that shrink a little and are gone in under a second, not
+        // swelling puffs: see SPRAY_FRAG)
         if (kind === 0) {
           spray.emit(px, ey + Math.random() * 2, ez + (Math.random() - 0.5) * 3,
             (Math.random() - 0.5) * 6, 8 + Math.random() * 14, -14 - Math.random() * 18,
-            0.6 + Math.random() * 0.7, 1.2 + Math.random() * 1.6, 0.8);
+            0.4 + Math.random() * 0.4, 1.8 + Math.random() * 2.4, 0.8, 0.75, -0.2);
         } else if (kind === 1) {
           const Hs = Math.min(H, 40);
-          const vy = Math.sqrt(60 * Hs * (0.3 + 0.8 * Math.random())); // rises ~0.2-0.7 H (gravity 30, drag 1)
+          const vy = Math.sqrt(60 * Hs * (0.2 + 0.5 * Math.random())); // rises ~0.15-0.45 H (gravity 30, drag 1)
           const vz = Math.random() < 0.25 ? Math.random() * 7 : -6 - Math.random() * 18; // mostly shoreward
           spray.emit(px, Hs * (0.05 + 0.25 * Math.random()), ez + (Math.random() - 0.3) * 8,
             (Math.random() - 0.5) * 8, vy, vz,
-            0.9 + Math.random() * 0.9, (2 + 3 * Math.random()) * (0.6 + 0.4 * Hs / 14), 1.0, 0.85);
-        } else {
-          spray.emit(px, 0.5 * H + Math.random() * 2, ez - 4 + Math.random() * 8,
-            (Math.random() - 0.5) * 4, 3 + Math.random() * 6, -H * 0.8 - Math.random() * 6,
-            1.0 + Math.random() * 1.2, 3 + Math.random() * 4, 1.5, 0.4); // thin mist
+            0.45 + Math.random() * 0.45, (3 + 4.5 * Math.random()) * (0.6 + 0.4 * Hs / 14), 1.0, 0.75, -0.2);
+        } else { // a flat sheet just over the bore's top, riding with it: no rise, no growth, fading as it sinks
+          const pz = ez + (Math.random() - 0.5) * 0.6 * H;
+          const py = evalSurf(px, pz, time, false, _sw).y + 0.3 + Math.random();
+          spray.emit(px, py, pz, (Math.random() - 0.5) * 4, 1 + Math.random() * 3, -H * 0.8 - Math.random() * 6,
+            0.35 + Math.random() * 0.35, 3 + Math.random() * 3, 1.5, 0.45, 0, 1.5);
         }
       }
     }

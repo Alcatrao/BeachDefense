@@ -740,6 +740,162 @@ sometimes clips the wave.
 - Soft tier (?surf=soft): all programs compile, no shader errors. Not re-measured: the tremble scores of Round 15
   (the law only lowers H, which scales the lumps down with it); not hand-play-tested.
 
+## Round 17 (21 Oct 2026, owner: the foam sprites sometimes look like snow, or like vapour, rather than water
+## spray; check how AoM makes its spray look so good and watery)
+Implemented the same day on the owner's yes to the six points below, with one deviation (point 5: the far haze was
+measured, not cut). The implementation record follows the proposal. Committed with the code; nothing pushed.
+- AoM, the 20 shots re-read one by one (reference/aom-2026-10-19/, git-ignored, with the Round 8-9 README on how the
+  game draws its water, read from the owner's install): all 20 are classic AoM: The Titans (Ensemble's BANG engine;
+  the in-game shots carry the Titans watermark, aom-14..20 are the classic scenario editor) under the owner's water
+  mod and MenuArctic lighting; none is Retold, and the Retold update notes found on the web describe other water.
+  AoM's foam is a continuous near-pure-white field (G and B pinned at ~254, Round 15) blended over saturated cyan
+  water with the water's own embossed wavelet relief showing through it (white crests, thin cyan creases): that
+  relief is what makes it read wet. The shore wash is a wide soft white gradient (aom-02/08/17-19; cream over sand in
+  12/13); a breaking band is a cyan face topped by a soft pale band with a brighter zigzag edge; unit rings are soft
+  white discs with faint ripple texture; wakes (aom-11, 15) are long soft white tails elongated along the motion.
+  The only sprite spray (aom-07, 09, 15) is a few thin curved translucent white streaks or arcs, several times longer
+  than wide, elongated along the motion, in small clusters, with the cyan showing through them. No round puffs and
+  no discrete dots anywhere in the 20 shots. The only vapour-like sprite is the Water Elemental's pink-white cloud
+  (aom-16), a unit effect, not water.
+- AoM's technique (README): every effect is a billboard with one painted soft texture. The splash is a few big
+  billboards of one painted plume (a mottled white sheet over streaks fanning down, on transparent ground; .prt
+  files with white colours) that burst up, spread and fall back. The structure of the spray is in the picture
+  (streaks, broken edges), not in the particle count; the colour is white, never grey; the bright glare is
+  MenuArctic's white sun specular on the water, not on the sprites. Mist sprites exist but serve the elementals; the
+  waterline foam is animated sprites riding the shore and the wakes are decals on the water. No technical source for
+  AoM's foam exists on the web (only Bang-engine history pages); the shots and the install are the evidence.
+- Ours, measured (aom look, 1920x1080, paused loop stepped by hand, t 9.9-10.7; class Spray is one THREE.Points of
+  6000 camera-facing noise discs; the plumes and the curtain are class Splashes): 4727-4861 live; sizes at t 9.9:
+  <2: 625, 2-4: 2545, 4-7: 1039, >=7: 652 units; z 162-304, densest at z 270 (the lip); ymax 24. In the player
+  view 1921 are on screen: point sizes <4 px: 46, 4-8: 920, 8-16: 861, 16-32: 94, none larger (mean 8.6 px); alpha
+  >=0.8: 1712, 0.5-0.8: 916, 0.3-0.5: 1072, <0.3: 1027. The typical visible sprite is a 4-16 px disc at near-full
+  alpha, falling: a snowflake. Stills in reference/r12-shots/ (git-ignored): r17-pv with 1:1 crops r17-pv-c1/c2
+  (player view), r17-lip, r17-lip2, r17-lipb, r17-lipb2 (the lip from about 80 and 125 units), r17-mist, r17-boreb,
+  r17-boreb2 (the inner bore from about 70 and 105 units). They show (a) the break as a solid white wall with a soft
+  top, where spray, plumes, curtain and haze stack with no drop, streak or arc structure (only the plumes' faint
+  vertical streaks); (b) along the wall's top edge, against the sky, discrete pale-blue round tufts the size of
+  cotton balls (kinds 0 and 1: snow); (c) over the mid water in the player view, two or three large faint grey-white
+  soft blobs hanging in the air (kind 2 grown to 7-20 units: vapour); (d) the water itself (cyan, foam lace, wavelet
+  relief) already reads watery, like AoM's.
+- Why snow: kind 0 (lip: size 1.2-2.8, alpha 0.9, life 0.6-1.3 s, vy 8-22 then -30/s^2; emitSpray) and kind 1
+  (splash-up: size 2-5 x (0.6 + 0.4 Hs/14), alpha 0.85) are small, bright, near-opaque, round, camera-facing discs
+  that fall under gravity with no stretch along their velocity; hundreds at 4-16 px drifting down are snowfall. The
+  fragment (SPRAY_FRAG) lights each as a matte ball from a base tint (0.62, 0.75, 0.82), a grey-blue; where the sun is
+  not behind it the disc is pale grey-blue on a pale sky, a snowflake or cloud tone, never white-over-cyan.
+- Why vapour: kind 2 (mist: size 3-7 growing 60 %/s, alpha 0.4, life 1-2.2 s, rising 3-9/s, drag 1.5) is a large,
+  soft, structureless, low-alpha noise disc that rises and swells: a smoke sprite by construction. Every kind grows
+  60 %/s (Spray.update) and fades through a 2-octave noise edge, so all spray ends as fog. Within ~30 units of the lip
+  the point spray, the bore plumes, the curtain and the far haze all add white, so the lip saturates to a flat
+  white wall that hides the curtain's painted structure.
+- Research (recorded for the shared notes; the gist agrees with the AoM evidence): alpha-blended soft round sprites
+  read as smoke, additive ones glow; water spray wants streak-shaped sprites stretched along the velocity, a painted
+  texture with internal streaks and broken droplet edges, translucency with the background showing through (not a
+  grey tint), short lives with no growth for drops, depth softening only at the water contact (over-used it turns
+  spray into mist), small specular glints, and a few large sprites rather than many small ones.
+  https://polycount.com/discussion/comment/2337931 (and 2338118, 2338745, 2338736;
+  www.polycount.com/forum/showthread.php?p=2338221), https://fearian.artstation.com/projects/5WWazg,
+  https://www.fab.com/listings/a3a05ed3-2654-4730-8d1a-a143332c278c, https://www.sidefx.com/forum/topic/29954/,
+  https://developer.download.nvidia.com/whitepapers/2007/SDK10/SoftParticles_hi.pdf,
+  https://generalistprogrammer.com/tutorials/game-particle-effects-complete-vfx-programming-guide-2025,
+  https://www.trifox-game.com/splash/, https://community.khronos.org/t/good-blendmodes-for-particleeffects/33190,
+  https://diglib.eg.org/items/35b0df21-074c-47e6-a266-639d85b42bff/full (Bagar, Scherzer, Wimmer 2010: layered
+  particle water, foam by Weber number), https://www.cs.nthu.edu.tw/~chunfa/PG08_1227.pdf,
+  https://th.pathofexile.com/forum/view-thread/390, https://seamproof.itch.io/water-splash-vfx,
+  https://github.com/z4gon/fire-vfx-unity, https://github.com/DancingPhoenix88/particles-training,
+  https://superhivemarket.com/products/sprite-particles-for-realtime-vfx-with-geonodes,
+  https://discussions.unity.com/t/stylized-water-2-urp-desktop-mobile-consoles-vr/815355?page=3,
+  https://www.elephorm.com/formation/houdini-185-lightning-shading-et-rendu/activation-et-parametrage-des-white-water-dans-le-rendu-3d.
+  AoM engine and versions: https://ageofempires.fandom.com/wiki/Bang_Engine, https://en.wikipedia.org/wiki/Age_of_Mythology,
+  https://en.wikipedia.org/wiki/Age_of_Mythology:_The_Titans, https://en.wikipedia.org/wiki/Age_of_Mythology:_Retold,
+  https://www.thegameengine.org/age-of-mythology/age-of-mythology-square-fog-of-war-and-water-glitch/,
+  https://www.ageofempires.com/news/age-of-mythology-retold-update-19-5934/,
+  https://www.ageofempires.com/news/age-of-mythology-retold-update-19-12998/,
+  https://purexbox.com/reviews/xbox-series-x/age-of-mythology-retold,
+  https://steamcommunity.com/app/1934680/discussions/7/592897436326865972.
+- Proposal for Round 17 (shader and emission constants only, no new geometry; both looks share the spray shader):
+  1. Streaks, not discs: give each point its velocity (new attribute aVel, written at emit and in Spray.update); the
+     vertex shader projects it to a 2D screen direction and a stretch s = clamp(|v_screen| k, 1, 4), enlarges
+     gl_PointSize to hold the streak and passes dir and s to the fragment, which shapes the alpha as a soft capsule
+     along dir (length s, width 1/s) broken along its length by the existing noise (droplets), bright at the leading
+     end. Slow particles stay short ovals, so the plume feet and the wash do not change character.
+  2. Colour: drop the grey-blue base; col = mix(the water cyan behind, foam white (0.76, 0.94, 0.97) to white, core)
+     with a translucent body (peak alpha 0.6-0.7 for drops, white only at the head and where the sun is behind) and a
+     tiny sun glint (sharp pow on the ball normal, +0.3 white) so drops sparkle instead of glowing.
+  3. Drops do not grow: kinds 0 and 1 keep their size (or shrink 20 %/s), live 0.4-0.9 s and are emitted at half
+     the count with 1.5x the size (AoM: a few big billboards); the fade-out is a plain alpha ramp, not a swell.
+  4. Airborne mist goes: kind 2 is removed as a rising sprite; its budget becomes a low, flat spray sheet hugging the
+     bore's top (short life, no rise, alpha fading with the height above the surface recorded at emission, the cheap
+     stand-in for a soft-particle contact fade, since there is no depth read-back), and the thin-spray dissolve stage
+     keeps its surface foam wash on the water.
+  5. Thin the lip stack: emit lip spray only where the curtain is thin, or at half the count, and cut the far haze's
+     white on the lip band, so the curtain's painted structure and the water's relief stay visible.
+  6. Keep the plumes and the curtain as they are: they are already AoM's technique (painted billboards) and the owner
+     has accepted their look. Verify with the lip and bore cameras, the 1:1 crops and a play test for the motion.
+- Limits: no technical source on AoM's foam beyond the owner's install and shots; the stills come from a paused
+  loop stepped by hand, so the motion impression (snowfall) is inferred from sizes, alphas and velocities, not
+  seen; measured at one time (t 9.9-10.7) and one state; the classic look was not re-measured and the soft tier
+  not checked (nothing changed).
+- Implemented (js/surf.js: SPRAY_VERT, SPRAY_FRAG, class Spray and the three spray jobs in emitSpray; the unit splash()
+  and wake() callers are untouched and keep the old 60 %/s swell through emit's defaults; both looks and all tiers
+  share the spray shader, so the classic look and the soft tier got the change too):
+  1. Streaks: a per-particle velocity attribute aVel, written at emit and on every update. The vertex shader takes the
+     view-space velocity less its part along the line of sight (sv = vv.xy + mv.xy * vv.z / dz, a 0.15 s trace of
+     the drop's motion across the screen), stretches the point vS = clamp(1.6 + 0.15 |sv| / size, 1.6, 3.5) along it
+     and enlarges gl_PointSize by vS; the fragment draws a capsule of half-width 1/vS along the passed direction,
+     broken along its length into beads by the existing two-octave noise, narrowing and fading towards its tail
+     (alpha x (1 - 0.5 thin)) and brightest at its head. Slow particles stay ragged ovals, so the unit rings and
+     wakes keep their character.
+  2. Colour: the grey-blue base (0.62, 0.75, 0.82) is gone. col = mix(cyan (0.60, 0.87, 0.92), white, 0.55 + 0.9 core
+     + 0.2 (n - 0.5)) with core = 1 - smoothstep(0.35, 1, r) and white = mix((0.76, 0.94, 0.97), 1, 0.2 + 0.6 diffuse
+     + 0.3 head); a sun glint pow(dot(ball normal, half vector), 48) x 0.3 and a 0.35 rim when the sun is behind;
+     alpha a (0.75 + 0.25 n). The cyan shows only at the edges, the body is white-over-cyan, translucent.
+  3. Drops do not grow: emit() gained grow (size growth per second, default 0.6 so the unit callers are unchanged)
+     and fadeH. Lip drops (kind 0): half the count (cap 30 -> 15, H 0.9 -> H 0.45), 1.5x the size (1.8-4.2, was
+     1.2-2.8), life 0.4-0.8 s (was 0.6-1.3), alpha 0.75 (was 0.9), shrinking 20 %/s. Splash-up (kind 1): cap 18 -> 9,
+     H 0.8 -> H 0.4, size 3-7.5 x (0.6 + 0.4 Hs/14) (was 2-5), life 0.45-0.9 s (was 0.9-1.8), a lower rise (vy^2 =
+     60 Hs (0.2-0.7), was 0.3-1.1), alpha 0.75 (was 0.85), shrinking 20 %/s. LIFE (the budget's mean lives)
+     0.95/1.35/1.6 -> 0.6/0.68/0.52.
+  4. No airborne mist: kind 2 is a flat sheet just over the bore's top, riding with it: emitted 0.3-1.3 units above
+     the surface (one evalSurf per particle, over 0.6 H in z) at p 1.2-3.2 (was 0.9-3.2), no growth, rising 1-4/s
+     (was 3-9), life 0.35-0.7 s (was 1-2.2), size 3-6 (was 3-7), alpha 0.45 (was 0.4), and fading out over 1.5 units
+     as it sinks below its emission height (fadeH, the stand-in for a soft contact fade: there is no depth
+     read-back). Cap 20 -> 16.
+  5. Thinner lip stack: the lip count is halved and its alpha lowered (point 3). The far haze was measured, not cut:
+     its mix at the lip's distance from the player camera, (1 - exp(-336 x 0.00024)) uHazeK, is 6.6 % with the
+     classic look's hazeK 0.85 and 1.9 % with aom's 0.25, so it is not what whitens the lip (the curtain, the plumes
+     and the water's own foam are) and cutting it would change nothing visible. Deviation from the proposal.
+  6. Plumes and curtain untouched.
+- First pass and tuning. The first pass (stretch 1.0 + 0.12 |sv| / size, core from r 0.2, cyan (0.45, 0.80, 0.88)
+  with mix base 0.25, alphas 0.6 / 0.7 / 0.35) removed the tufts and the blobs but left the spray almost invisible.
+  Measured with the Points shown and hidden (a 2D-canvas getImageData diff; share10 = the share of pixels whose
+  largest RGB change exceeds 10 levels) at t 10.3: 0.34 % of the player view's break band [0,440,1920,280] (mean
+  |delta| 0.15 levels), 0 % of its wash [0,720,1920,360] (the small white ovals on the wash are not sprites), 0.01 %
+  of the lip view [0,300,1920,500], 0.52 % of the bore view. Two reasons: white streaks over the white wall vanish
+  whatever their colour, and the lip throws most drops straight at the shore cameras, where a physical stretch
+  foreshortens them into dots. Tuned: a stretch floor of 1.6 (0.15 |sv|) so a drop coming at the camera still reads
+  as a short streak (a painted-look choice: AoM paints arcs whatever the motion), a wider white core (from r 0.35)
+  with the cyan only at the rim (mix base 0.55), alphas 0.75 / 0.75 / 0.45. After: break band 0.61 % (mean 0.21) at
+  t 9.9 and 0.45 % at 10.3, lip view 0.11 % / 0.03 %, bore view 0.87 % / 1.00 %. Live sprites at t 10.3 (first
+  pass): 4666, mean size 4.2 at z >= 200 and 3.3 nearer, max 8.9; in the lip bin x 560-640: 270, densest at z
+  250-270 (92 / 137 / 40), highest y 16.2, mean speed 13.7 units/s with 6.2 across the view.
+- Stills (reference/r12-shots/, git-ignored, aom look, half scale unless a crop): after the first pass r17b-pv, -lip,
+  -lipb, -mist, -boreb (t 9.9), -lip2, -lipb2, -boreb2 (10.3), -pv2 (10.7), the crops r17b-*-c, and the diagnostics
+  r17b-spray-* (plumes and curtain hidden), r17b-only-* (water hidden too) and r17b-side* (a camera inside the wave,
+  unusable); after the tuning r17c-pv, -lipb, -boreb (9.9), r17c-lipb2 (10.3), the crops r17c-pv-c2, -boreb-c,
+  -lipb2-c, -boreb2-c, and r17c-only-lipb2 (the sprites alone); r17c-classic-pv and r17c-soft-pv (same time and
+  camera: the classic look and the soft tier both compile and render, with no console errors beyond the pointer-lock
+  ones from clicking Start in the preview tab). They show no tufts along the wall's top and no vapour blobs over the
+  mid water; above the bore's top edge a few fine pale streaks against the sky (r17c-boreb2-c); the sprites alone as
+  short streaks along their motion, cyan-edged white over the sand and faint pale blue against the sky
+  (r17c-only-lipb2); and the lip from 120 units still a soft white wall (the curtain, the plumes and the water's
+  foam, not the sprites). Sent to the owner: r17-pv / -boreb / -lipb against r17c-pv / -boreb / -lipb, r17c-boreb2-c,
+  r17c-only-lipb2 and r17c-classic-pv.
+- Limits of the implementation: the spray is subtle by design (AoM: a few streaks) and the measurements come from a
+  paused loop stepped by hand at two times and one state, so the streaks in flight were not seen; the wall's white is
+  set by the curtain, the plumes and the water's foam, which this round did not touch; the 1.6 stretch floor and the
+  colour constants are first values, to be judged in play; the soft tier was checked only for compiling and one
+  still; the haze figure is the shader's mix at one distance, not a pixel measurement.
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
