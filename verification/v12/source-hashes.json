@@ -1,0 +1,30 @@
+{
+  "js/coast/height-physics.mjs": {
+    "before": "6d7f1189537d2513546955d6d431b82de5c85ff2fda80cc48904be00ddf4eac5",
+    "testedAndInstalled": "e47ab3171b94e74dfb07447f7080f5bf177763473707a2d8552577cd47e9a62c"
+  },
+  "js/coast/beach-worker.mjs": {
+    "before": "8af71177987b0e927ebdab4403b818e9f93e4b40c26dd7bd55abd17f05c00d51",
+    "testedAndInstalled": "ae8912b8d83d09b36171ecf3029385933beefef5bdbb8f78e31b807c13a90289"
+  },
+  "js/coast/surf-effects.mjs": {
+    "before": "0e59b31f6596516e25f01cba5118e742ad336c4bb4f1a71d0e32f524d64f8972",
+    "testedAndInstalled": "d4014bfb20c8847d12557ff8fe9da5be7f80843a087ad7b80e954a46e3545c22"
+  },
+  "js/coast/beach-ocean.mjs": {
+    "before": "b7d730259969671b1d9ad305754d51e129d62fa2e27c9e19af7d36b66472ab39",
+    "testedAndInstalled": "87dc688900229be5da960eac75e0dd7a47849315732252e2cb474569308ba483"
+  },
+  "js/coast/fluid.mjs": {
+    "unchanged": "099e05aa77bb6153b7769a627c6bf8bf54974d4448ed27065913616248d69513"
+  },
+  "js/coast/coast-grid.mjs": {
+    "unchanged": "b5232f6b9c79aca6e24b9fe743c0f65309a42fabd5e43cc7405595fc4cf65160"
+  },
+  "js/coast/section-contour.mjs": {
+    "unchanged": "948d8230bdcb16a7238cc3dc7ad1b988e37e87ae33f722f01cf01bc0ebc9215c"
+  },
+  "js/coast/water-material.mjs": {
+    "unchanged": "77f71cb4b1ed26b5380e84fd7d87a67ff40aa666b3f4bd450593c0deaf39f907"
+  }
+}

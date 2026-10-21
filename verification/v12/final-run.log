@@ -1,0 +1,18 @@
+BEGIN contact-test.mjs
+{"tubeAir":{"envelopeImmersion":1,"actualImmersion":0,"forceZ":0},"headImmersion":0.2857142857142857,"syntheticUpdateAnd4BodyStepsMs":0.05820849999999998}
+{"file":"contact-test.mjs","args":[],"status":0,"signal":null}
+BEGIN height-test.mjs
+{"calmZ":6.5,"shorewardZ":4.893947735812745,"backwashZ":8.106052264187255,"live":{"position":[0,0.25,4.7877112692298835],"velocity":[0,0,0.2325665084475582],"quaternion":[-0.007929232807162841,0,0,0.9999685631394069],"angularVelocity":[0.008373667651750656,0,0],"tiltDegrees":0.9086326707936913,"contacts":2,"totalImpulse":3747.34786870635,"waterForceZ":38.38673836532381,"waterHeight":0.17961275833773718,"waterDepth":0.7796127583377371,"waterImmersion":0.452226644885658,"footWetness":1,"contactModel":"particle-volume-quadrature","flowZ":1.3104571577451942,"skimming":false,"wiped":false,"minForce":-332.36702435497074,"maxForce":141.32502533502208,"minSpeed":-1.3100856468545103,"seconds":6,"particleCount":15056,"oneWayCoupling":true}}
+{"file":"height-test.mjs","args":[],"status":0,"signal":null}
+BEGIN measure.cjs
+{"mode":"gpu","gpu":{"renderer":"ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)","timer":true,"width":1920,"height":1080},"cpuFrameMs":0.8499999999875824,"frameIntervalMs":16.680666666666667,"draws":{"scene":{"callsPerFrame":11.986710963455149,"indexReferencesPerFrame":251237.82059800666,"cpuSubmitMsPerFrame":0.008637873790044326},"water":{"callsPerFrame":2,"indexReferencesPerFrame":90923.64119601328,"cpuSubmitMsPerFrame":0.000664451824767249},"foam":{"callsPerFrame":1,"indexReferencesPerFrame":3011.9601328903655,"cpuSubmitMsPerFrame":0.001328903649534498}},"gpuPerDrawMs":{"scene":0.037753023999999996,"water":0.12567837125748504,"foam":0.09374226506024097},"screenshotMs":287,"errors":[]}
+{"file":"measure.cjs","args":[],"status":0,"signal":null}
+BEGIN measure.cjs --software
+{"mode":"software","gpu":{"renderer":"ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)","timer":true,"width":640,"height":400},"cpuFrameMs":0.946575342562713,"frameIntervalMs":22.77625570776256,"draws":{"scene":{"callsPerFrame":11.981818181818182,"indexReferencesPerFrame":251213.45454545456,"cpuSubmitMsPerFrame":0.010454545432532375},"water":{"callsPerFrame":2,"indexReferencesPerFrame":34879.74545454545,"cpuSubmitMsPerFrame":0.002727272734045982},"foam":{"callsPerFrame":1,"indexReferencesPerFrame":616.4181818181818,"cpuSubmitMsPerFrame":0.0009090909057042815}},"gpuPerDrawMs":{"scene":0.68352215,"water":3.5871973053892217,"foam":0.4408801204819277},"screenshotMs":121,"errors":[]}
+{"file":"measure.cjs","args":["--software"],"status":0,"signal":null}
+BEGIN smoke.cjs
+{"software":false,"shots":15,"maxScreenshotMs":270,"assets":30,"errors":[],"pointerCaptureAttempts":0,"character":"particle-volume-and-flow"}
+{"file":"smoke.cjs","args":[],"status":0,"signal":null}
+BEGIN smoke.cjs --software
+{"software":true,"shots":15,"maxScreenshotMs":268,"assets":30,"errors":[],"pointerCaptureAttempts":0,"character":"particle-volume-and-flow"}
+{"file":"smoke.cjs","args":["--software"],"status":0,"signal":null}

@@ -1,0 +1,183 @@
+{
+  "tubeAir": {
+    "envelopeImmersion": 1,
+    "actualImmersion": 0,
+    "forceZ": 0
+  },
+  "bulk-3": {
+    "position": [
+      0,
+      0.8299594982684284,
+      7.960003618184849
+    ],
+    "velocity": [
+      0,
+      0.537673737180858,
+      -0.6859344715306845
+    ],
+    "quaternion": [
+      0.017254581762500262,
+      0,
+      0,
+      0.9998511286227572
+    ],
+    "angularVelocity": [
+      0.5482451154449419,
+      0,
+      0
+    ],
+    "tiltDegrees": 1.977327547974985,
+    "contacts": 1,
+    "totalImpulse": 125.1173224355219,
+    "waterForceZ": -409.64396171134166,
+    "waterHeight": 2.865000009536743,
+    "waterDepth": 3.4650000095367433,
+    "waterImmersion": 0.9999999999999997,
+    "footWetness": 1,
+    "contactModel": "particle-volume-quadrature",
+    "flowZ": -3.0000000000000018,
+    "skimming": false,
+    "wiped": false
+  },
+  "bulk0": {
+    "position": [
+      0,
+      0.8316610706186114,
+      8
+    ],
+    "velocity": [
+      0,
+      0.5807975343025445,
+      0
+    ],
+    "quaternion": [
+      0,
+      0,
+      0,
+      1
+    ],
+    "angularVelocity": [
+      0,
+      0,
+      0
+    ],
+    "tiltDegrees": 0,
+    "contacts": 1,
+    "totalImpulse": 117.13481507269086,
+    "waterForceZ": 0,
+    "waterHeight": 2.865000009536743,
+    "waterDepth": 3.4650000095367433,
+    "waterImmersion": 0.9999999999999997,
+    "footWetness": 1,
+    "contactModel": "particle-volume-quadrature",
+    "flowZ": 0,
+    "skimming": false,
+    "wiped": false
+  },
+  "bulk3": {
+    "position": [
+      0,
+      0.8299594982684284,
+      8.039996381815154
+    ],
+    "velocity": [
+      0,
+      0.537673737180858,
+      0.6859344715306845
+    ],
+    "quaternion": [
+      -0.01725458176250026,
+      0,
+      0,
+      0.9998511286227572
+    ],
+    "angularVelocity": [
+      -0.5482451154449418,
+      0,
+      0
+    ],
+    "tiltDegrees": 1.9773275479749848,
+    "contacts": 1,
+    "totalImpulse": 125.1173224355219,
+    "waterForceZ": 409.64396171134166,
+    "waterHeight": 2.865000009536743,
+    "waterDepth": 3.4650000095367433,
+    "waterImmersion": 0.9999999999999997,
+    "footWetness": 1,
+    "contactModel": "particle-volume-quadrature",
+    "flowZ": 3.0000000000000018,
+    "skimming": false,
+    "wiped": false
+  },
+  "headImpact": {
+    "position": [
+      0,
+      0.7996301785714286,
+      7.999828571428571
+    ],
+    "velocity": [
+      0,
+      -0.04437857142857143,
+      -0.020571428571428567
+    ],
+    "quaternion": [
+      0.00008265306113038198,
+      0,
+      0,
+      0.9999999965842358
+    ],
+    "angularVelocity": [
+      0.019836734693877544,
+      0,
+      0
+    ],
+    "tiltDegrees": 0.00947134314399932,
+    "contacts": 1,
+    "totalImpulse": 3.199440002020761,
+    "waterForceZ": -185.14285714285708,
+    "waterHeight": 1.6649999618530273,
+    "waterDepth": 2.2649999618530274,
+    "waterImmersion": 0.2857142857142857,
+    "footWetness": 0,
+    "contactModel": "particle-volume-quadrature",
+    "flowZ": -2.9999999999999996,
+    "skimming": false,
+    "wiped": false
+  },
+  "underLipSkim": {
+    "position": [
+      0,
+      0.8495379563492064,
+      7.9668190476190475
+    ],
+    "velocity": [
+      0,
+      -0.055445238095238096,
+      -3.9817142857142858
+    ],
+    "quaternion": [
+      -0.0000734693876890071,
+      0,
+      0,
+      0.9999999973011245
+    ],
+    "angularVelocity": [
+      -0.017632653061224485,
+      0,
+      0
+    ],
+    "tiltDegrees": 0.008418971683554951,
+    "contacts": 1,
+    "totalImpulse": 2.402702984693085,
+    "waterForceZ": 164.57142857142856,
+    "waterHeight": 2.934999942779541,
+    "waterDepth": 3.534999942779541,
+    "waterImmersion": 0.14285714285714285,
+    "footWetness": 1,
+    "contactModel": "particle-volume-quadrature",
+    "flowZ": 0,
+    "skimming": true,
+    "wiped": false
+  },
+  "syntheticUpdateAnd4BodyStepsMs": 0.061277000000000005
+}

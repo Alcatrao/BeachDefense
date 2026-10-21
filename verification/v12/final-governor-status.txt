@@ -1,0 +1,7 @@
+governor: state 1 s old; pid 8756
+machine memory: 19.82 GB available, level ok (low below 9.0 GB; kills below 4.0 GB)
+codex memory: 4.27 GB; 10.0 GB warning threshold (not enforced) (ok); committed by running jobs 0.0 GB; CPU share 87.2%, recommended workers 12
+admission now: 12 more worker(s) (share 87.2% -> 12 workers, 0 slots held)
+conversation over: 1633 MB C:\Users\joaoa/.codex/sessions\2026\10\11\rollout-2026-10-11T21-33-23-01a12cab-8f15-7651-98dd-d8a8f709313c.jsonl
+conversation over: 513 MB C:\Users\joaoa/.codex/sessions\2026\10\14\rollout-2026-10-14T23-30-56-01a13c8a-40f5-7741-870f-f05844de874a.jsonl
+next: rotate the oversized conversation(s) via a handoff; archive finished ones (never delete)

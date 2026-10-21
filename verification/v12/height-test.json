@@ -1,0 +1,148 @@
+{
+  "0": {
+    "position": [
+      0,
+      0.25,
+      6.5
+    ],
+    "velocity": [
+      0,
+      0,
+      0
+    ],
+    "quaternion": [
+      0,
+      0,
+      0,
+      1
+    ],
+    "angularVelocity": [
+      0,
+      0,
+      0
+    ],
+    "tiltDegrees": 0,
+    "contacts": 2,
+    "totalImpulse": 943.3949999999965,
+    "waterForceZ": 0,
+    "waterHeight": 0,
+    "waterDepth": 0.6,
+    "waterImmersion": 0.39999999999999997,
+    "footWetness": 1,
+    "contactModel": "particle-volume-quadrature",
+    "flowZ": 0,
+    "skimming": false,
+    "wiped": false
+  },
+  "3": {
+    "position": [
+      0,
+      0.25,
+      8.106052264187255
+    ],
+    "velocity": [
+      0,
+      0,
+      0.9133356257234365
+    ],
+    "quaternion": [
+      -0.02521504306541067,
+      0,
+      0,
+      0.9996820502555848
+    ],
+    "angularVelocity": [
+      0.03829200419886481,
+      0,
+      0
+    ],
+    "tiltDegrees": 2.889737366021865,
+    "contacts": 2,
+    "totalImpulse": 987.0728228157799,
+    "waterForceZ": 125.40305023711971,
+    "waterHeight": 0,
+    "waterDepth": 0.6,
+    "waterImmersion": 0.39999999999999997,
+    "footWetness": 1,
+    "contactModel": "particle-volume-quadrature",
+    "flowZ": 3,
+    "skimming": false,
+    "wiped": false
+  },
+  "-3": {
+    "position": [
+      0,
+      0.25,
+      4.893947735812745
+    ],
+    "velocity": [
+      0,
+      0,
+      -0.9133356257234365
+    ],
+    "quaternion": [
+      0.02521504306541067,
+      0,
+      0,
+      0.9996820502555848
+    ],
+    "angularVelocity": [
+      -0.03829200419886481,
+      0,
+      0
+    ],
+    "tiltDegrees": 2.889737366021865,
+    "contacts": 2,
+    "totalImpulse": 987.0728228157799,
+    "waterForceZ": -125.40305023711971,
+    "waterHeight": 0,
+    "waterDepth": 0.6,
+    "waterImmersion": 0.39999999999999997,
+    "footWetness": 1,
+    "contactModel": "particle-volume-quadrature",
+    "flowZ": -3,
+    "skimming": false,
+    "wiped": false
+  },
+  "live": {
+    "position": [
+      0,
+      0.25,
+      4.7877112692298835
+    ],
+    "velocity": [
+      0,
+      0,
+      0.2325665084475582
+    ],
+    "quaternion": [
+      -0.007929232807162841,
+      0,
+      0,
+      0.9999685631394069
+    ],
+    "angularVelocity": [
+      0.008373667651750656,
+      0,
+      0
+    ],
+    "tiltDegrees": 0.9086326707936913,
+    "contacts": 2,
+    "totalImpulse": 3747.34786870635,
+    "waterForceZ": 38.38673836532381,
+    "waterHeight": 0.17961275833773718,
+    "waterDepth": 0.7796127583377371,
+    "waterImmersion": 0.452226644885658,
+    "footWetness": 1,
+    "contactModel": "particle-volume-quadrature",
+    "flowZ": 1.3104571577451942,
+    "skimming": false,
+    "wiped": false,
+    "minForce": -332.36702435497074,
+    "maxForce": 141.32502533502208,
+    "minSpeed": -1.3100856468545103,
+    "seconds": 6,
+    "particleCount": 15056,
+    "oneWayCoupling": true
+  }
+}
