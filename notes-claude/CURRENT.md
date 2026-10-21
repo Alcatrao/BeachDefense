@@ -560,6 +560,76 @@ along the tube; and which games/projects use real breaking waves, and whether re
 - Page helpers: reference/helpers_r12.js (__run, __cur, __until, __CAMS, __grid, __vars, __vis, __curM, __notCur,
   __nextBurst). Surf time is internal to createSurf: setting uTime does not rewind it; use __nextBurst.
 
+## Round 13 (21 Oct 2026, owner: research links; the bore's "plastic wall", its flickering top, foam clipping)
+Owner, on Round 12: research six links (80.lv Three.js Water Pro, a Babylon WebGPU ocean playground, a YouTube
+short, a Reddit post on a forgotten surfing game, Wave Race, a Unity "realistic breaking wave" thread) for anything
+that helps our water physics, look or performance, and feel free to talk to Codex. And: the rushing white water
+"looks like a plastic wall", its top seems to flicker, foam sprites could keep spawning to cover it, and the foam
+sometimes clips the wave.
+- Diagnosis (shots r13_* and r13b_*): the bore is the surf mesh's collapsed roller riding as a smooth solid step;
+  lit as water, its plain face and the sharp line of its top against the sea beyond read as plastic. The curtain's
+  bore band stood at the lip tip (lipTip d), which is behind the roller's front once it has collapsed, so the band
+  sat inside the white water and poked through it here and there: that is the clipping and most of the flicker at
+  the top. The old bore plumes (kind 2, off since Round 12) were short and squarish, so when on they lay on the
+  face as blocks; not a depth problem.
+- boreFace(x, zs, td, H, t, out): samples the curled surface (evalSurf, 10 points from 0.8 H ahead of to 1.6 H behind
+  the lip tip) and returns the face z (the furthest shoreward point above a third of the way up), yb (the water
+  1.5 H ahead) and top. CPU only, no GLSL change.
+- Curtain bore band: as the roller rides the bore (bT = sstep(1.4, 1.9, pC) sstep(1.5, 3, H)) the band moves to
+  0.6 units in front of the face, from 0.12 H under the water ahead of it to 1.18 x the bore's height (+0.12 H,
+  less in the last 5-25 units to the shore): a ragged foam edge over the top instead of the hard line. T 0.3,
+  lean 0.08, alpha 0.85.
+- Continuous bore plumes: PACC = [0, 0, 1] (the lip's and the shore dump's stay in the curtain). Gate H > 1.5 (was
+  2.5); kind 2 while pC > 1.5 and dc > 4, rate 1.6 sstep(1.5, 1.9, pC) sstep(4, 15, dc) sstep(1.5, 3, H), so they
+  keep billowing up off the face all the way in. Each stands 0.3-1.5 units in front of the face, foot at yb - 0.1 H,
+  height (top - yb + 0.1 H) x 1.25-1.6 (so its dome tears the top line), width 1.0-1.4 h, life 1.3-2.0 s, drift
+  with the bore (0.95-1.05 c).
+- Verified on shots (reference/r12-shots, git-ignored: r13c_fp, r13c_vars, r13c_vars2 the final first-person and
+  with/without-curtain/plume variants): a ragged, continuously renewed foam front with no block plumes and no
+  band poking through the face. Flicker map (__flick: mean |f(t+1) - 2 f(t) + f(t-1)| of luminance, fp camera,
+  1920x1080, rect [240, 420, 1440, 220], from t 125.85): mean 1.543, with only a faint line left at the top. No
+  old-code baseline at the same phase (surf time cannot be rewound), so this is not a measured before/after.
+  Not hand-play-tested.
+- Cost: SwiftShader swprobe (now with r12 = dbd6318; soft tier, 1280x800 CSS, 640x400 at pixel ratio 0.5, 4 CPUs,
+  alternating r12a wipe wipf r12b): water draw mean 115.9 / 87.9 / 83.9 / 81.3 ms (r12a is a warm-up outlier),
+  game frame median 123 / 94 / 99 / 92 ms, p90 311 / 157 / 188 / 186 ms. So no measurable regression; the medians
+  are under the ~150 ms aim, the p90s are over it (as in Round 12, a known tail, not new). CPU surf.update 1.27-1.54 ms in the preview (mixed phases, no Round 12 baseline). No RTX timer query
+  this round (the change adds draws only through plumes from the existing pool).
+- Research (notes-claude/research-r13-links.md): none of the links offers live breaking-wave physics. Water Pro
+  (paid, closed, WebGPU FFT) and the Babylon port of an MIT FFT ocean give ideas, not code: persistent decaying
+  crest foam, Jacobian turbulence accumulation, depth-difference contact foam. The YouTube short is an offline
+  FLIP Fluids render; its whitewater rules (emit by crest/turbulence and speed; foam / bubble / spray by depth
+  around the surface; lifespans) are what carries over. The Reddit game is most likely Kelly Slater's Pro Surfer
+  (2002, UNVERIFIED) and, with Wave Race, shows art direction (colour by thickness, rich spray over a cheap
+  surface, one height function for graphics and gameplay). The Unity thread confirms spline/analytic profiles and
+  warns of back faces when the lip collapses. Ranked for us: (1) foam sprites riding the bore front (done here);
+  (2) soft depth-fade contact foam (needs a depth pre-pass, GPU tier only); (3) an analytic foam-age trail behind
+  the bore; (4) a thickness colour ramp.
+- Codex second opinion (ask_codex round 1, read-only, before the fix; response in
+  reviews/codex_bridge/20261021T123946Z-8eef51657c5b/response.txt, git-ignored): keep the analytic model; the
+  links give ideas, not a replacement (Water Pro and the Babylon FFT have no shorebreak; it could not watch the
+  short). Its code findings, with what Round 13 did: (High) curtain columns derive their slot's crest fn each on
+  their own, so neighbouring columns can be joined across two different crests when nLo crosses a slot edge, and
+  Catmull-Rom can overshoot height/alpha at active edges: NOT done, the first flicker suspect left; (High) plastic
+  look from the straight toe-to-nose bore face plus strong narrow glints on dense foam: covered here by foam over
+  the face and top, the rounded face and softer foam glints NOT done; (High) foam anchored off the un-curled
+  surface (evalSurf false, decals gFlat) and hidden by depth offsets: the bore band and plumes now anchor on the
+  curled surface (boreFace), decals unchanged; (Medium) other flicker suspects to isolate: the curtain's
+  camera-side flip (hd), the 40-unit origin snap, slot sort by one column, sparkle; (Medium) bore plumes from
+  persistent per-(fn, cell) emitters: done as continuous kind 2 plumes, with random rather than persistent
+  emitters; (Medium) the soft tier's p90 is over 150 ms. Not reproduced by Codex; it ran nothing.
+- Codex cooperation (owner: Codex left a message at the owner's request so we can collaborate): bridge ask
+  20261021T124535192705Z-codex-ec027a9b. Read only pinned blobs of Codex's v11 8d436e9 (tooling/v11/RESULTS.md,
+  js/coast/fluid.mjs, js/coast/height-physics.mjs); nothing in Codex's tree checked out, edited or run. Reply:
+  notes-claude/cooperation/CLAUDE-TO-CODEX-20261021.md (goals, research, comments on Codex's extruded section,
+  coarse cells for 2 m tubes, one-way body coupling and software-tier solver load; proposed split: Codex the
+  physical section, peel by delayed section playback, two-way coupling; Claude the runtime look, soft-tier
+  performance and option (b) slices; shared cases V1-V6; next step: Codex exports ~30 Hz section contours for one
+  breaking cycle and Claude compares them with evalSurf). Sent through the bridge with this commit as its ref.
+- Next, if the owner wants more on the flicker: give each curtain strip one crest fn over its whole range (Codex's
+  first finding), clamp the interpolated height/alpha, then a rounded bore face mirrored in evalSurf.
+- Page helpers: reference/helpers_r12.js gained __crop and __flick (Round 13 blocks).
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
@@ -594,6 +664,10 @@ Round 11 9fbcd0f pushed 21 Oct 2026 at 00:17Z (owner request, f4823f8..9fbcd0f):
 main's publisher run 39520438522 (main 116c998) passed "Test original and both subfolder versions before
 publishing" and deployed at 00:21:36Z. Checked by HTTP at 10:42Z: live versions.json pins claude 9fbcd0f, and live
 /claude/index.html, js/main.js and js/surf.js match 9fbcd0f (SHA-256). Round 11 is live at /claude/.
+Round 12 dbd6318 pushed 21 Oct 2026 at 11:59Z (owner request, 9fbcd0f..dbd6318): hook run 39596037500 passed;
+main's publisher run 39596055744 (main 116c998) passed "Test original and both subfolder versions before
+publishing" and deployed at 12:04:15Z. Checked by HTTP at 12:26Z: live versions.json pins claude dbd6318, and live
+/claude/index.html, js/main.js and js/surf.js match dbd6318 (SHA-256). Round 12 is live at /claude/.
 
 ## Round 8 publish failure and the software-WebGL tier (19 Oct 2026)
 Round 8 did not go live. Main's publisher run 39318742626 failed in Codex's tooling/pages/smoke.cjs (origin/main

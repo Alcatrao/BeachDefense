@@ -365,6 +365,23 @@ function lipTip(w, dc) {
   const y = topY + w.sig * (pivY + (-X * sn + Y * c) - topY);
   return { d: dc - w.D + w.sig * (dp - (X * c + Y * sn) - dc), y: -0.2 * H + (y + 0.2 * Hc) * (H / Hc), wf };
 }
+// The front face and top of a bore at x, sampled off the surface itself (the collapsed roller's front pokes out
+// some way ahead of the lip tip td, and its top stands behind it). out: z = the face (the furthest shoreward point
+// above a third of the way up), yb = the water just ahead of it, top = the highest point
+const _bf = {}, _bfy = new Float32Array(10), _bfz = new Float32Array(10);
+function boreFace(x, zs, td, H, t, out) {
+  out.yb = evalSurf(x, zs + td - 1.5 * H, t, false, _bf).y;
+  let top = out.yb;
+  for (let i = 0; i < 10; i++) {
+    evalSurf(x, zs + td + H * (-0.8 + 0.27 * i), t, true, _bf);
+    _bfy[i] = _bf.y; _bfz[i] = _bf.z; top = Math.max(top, _bf.y);
+  }
+  const yc = out.yb + 0.33 * (top - out.yb);
+  let z = zs + td;
+  for (let i = 0; i < 10; i++) if (_bfy[i] > yc) z = Math.min(z, _bfz[i]);
+  out.z = z; out.top = top;
+  return out;
+}
 
 // ---------- GLSL ----------
 const GLSL_COMMON = /* glsl */`
@@ -1998,7 +2015,7 @@ class FoamCurtain {
       scene.add(m);
       this.strips.push(m);
     }
-    this.st = {}; this.w = {};
+    this.st = {}; this.w = {}; this.bf = {};
     this.far = new Float32Array(ns); // each slot's crest distance at the camera, for the drawing order
   }
   update(time, cx) {
@@ -2031,6 +2048,17 @@ class FoamCurtain {
           T = 0.45 - 0.37 * bw; // thinned to its dense parts once the burst is over
           lean = 0.15 + 0.2 * burstW;
           alpha = (0.75 + 0.25 * bw) * edge;
+          // once the roller rides the bore as a solid step the band stands just in front of its face (at the lip tip
+          // it stood inside the white water, hidden, and poked through it here and there), from under the water
+          // ahead of it to a little over its top: a ragged foam edge instead of the hard line the top drew against
+          // the sea beyond
+          const bT = sstep(1.4, 1.9, pC) * sstep(1.5, 3, H);
+          if (bT > 0 && h > 0) {
+            const f = boreFace(x, zs, tip.d, H, time, this.bf);
+            const hb = (1.18 * (f.top - f.yb) + 0.12 * H) * sstep(5, 25, dc);
+            z += (f.z - 0.6 - z) * bT; y += (f.yb - 0.12 * H - y) * bT; h += (hb - h) * bT;
+            T += (0.3 - T) * bT; lean += (0.08 - lean) * bT; alpha += (0.85 * edge - alpha) * bT;
+          }
           iTW = 1 / (4.2 * waveBaseHn(fn) * (st.outer ? SURF.outerGain : SURF.innerGain));
           uO = hash01(hashU(fn + 7777));
         }
@@ -2174,9 +2202,10 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
   // splash plumes found in one tick: kind (0 plunge, 1 shore dump, 2 bore), x, crest fn, wanted count
   const pjobs = [];
   const PLIFE = [1.9, 1.65, 1.3]; // mean plume life of each kind, s
-  // how many of each kind still come as separate plumes, over the foam curtain
-  const PACC = [0, 0, 0];
-  const _ps = {}, _pw = {};
+  // how many of each kind still come as separate plumes, over the foam curtain (the lip's and the shore dump's
+  // are all in the curtain; the bore's keep billowing up off its face all the way in)
+  const PACC = [0, 0, 1];
+  const _ps = {}, _pw = {}, _pf = {};
   function emitSpray(dt, cx) {
     emitAcc += dt;
     if (emitAcc < 1 / 30) return;
@@ -2205,15 +2234,15 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
         }
         // a line of splash plumes where the lip lands; where a wave dumps on the shore before its lip can land
         // (the shallows shrink its curl away: the plumes cover the collapse); and smaller ones off the bore front
-        if (pk > 0 && st.H > 2.5) {
+        if (pk > 0 && st.H > 1.5) {
           const loss = 1 - sstep(15, 45, dc); // how much of the curl the shallows have taken
           let kind = -1, rate = 0;
           if (st.p > 0.85 && st.p < 1.5 && st.H > 3 && st.sig > 0.25) {
             kind = 0; rate = 5 * sstep(0.85, 0.95, st.p) * (1 - sstep(1.25, 1.5, st.p));
           } else if (st.p > 0.12 && st.p < 1.3 && st.H > 3 && loss > 0.15) {
             kind = 1; rate = 6 * sstep(0.12, 0.35, st.p) * (1 - sstep(1.0, 1.3, st.p)) * sstep(0.15, 0.5, loss);
-          } else if (st.p > 1.5 && st.p < 3) {
-            kind = 2; rate = 1.5 * (1 - sstep(2.4, 3, st.p));
+          } else if (st.pC > 1.5 && dc > 4) {
+            kind = 2; rate = 1.6 * sstep(1.5, 1.9, st.pC) * sstep(4, 15, dc) * sstep(1.5, 3, st.H);
           }
           if (kind >= 0) rate *= PACC[kind];
           if (rate > 0) { const n = rate * pk; pjobs.push(kind, ex, fn, n); pwant += n * PLIFE[kind]; }
@@ -2238,16 +2267,20 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
           d = dcx - _ps.D - H * rnd(0.2, 0.5);
           h = H * rnd(1.0, 1.4); w = h * rnd(1.3, 1.8);
           life = rnd(1.3, 2.0); lean = rnd(0.1, 0.3); drift = -c * rnd(0.3, 0.55); alpha = rnd(0.85, 1);
-        } else { // puffs off the tumbling bore front, riding with it
-          d = dcx - _ps.D - rnd(0, 2);
-          h = H * rnd(0.55, 0.9); w = h * rnd(1.3, 1.9);
-          life = rnd(1.0, 1.6); lean = rnd(0.2, 0.4); drift = -c * rnd(0.8, 1.0); alpha = rnd(0.6, 0.85);
+        } else { // billowing up off the tumbling bore's face, riding with it, some over its top
+          const f = boreFace(px, shoreZ(px), lipTip(_ps, dcx).d, H, time, _pf);
+          d = f.z - shoreZ(px) - rnd(0.3, 1.5);
+          // (tall enough that the dome of its mass stands over the bore's top, tearing its line against the sea beyond;
+          // any lower, and its squarish mass lay on the face as a block, its top along the bore's)
+          h = (f.top - f.yb + 0.1 * H) * rnd(1.25, 1.6); w = h * rnd(1.0, 1.4);
+          life = rnd(1.3, 2.0); lean = rnd(-0.05, 0.15); drift = -c * rnd(0.95, 1.05); alpha = rnd(0.7, 0.95);
         }
         const pz = shoreZ(px) + d;
         // it stands along the crest line here: slope dz/dx of z = shoreZ(x) + crestD(fn, x, t)
         const sl = (shoreZ(px + 1) - shoreZ(px - 1) - (wobble(px + 1) - wobble(px - 1)) / kOf(dcx)) / 2 - SURF.kx / kOf(dcx);
         const nl = 1 / Math.sqrt(1 + sl * sl);
-        splashes.add(px, evalSurf(px, pz, time, false, _pw).y - 0.12 * H, pz, w, h, time, life, alpha, lean, drift, -sl * nl, nl);
+        const py = kind === 2 ? _pf.yb - 0.1 * H : evalSurf(px, pz, time, false, _pw).y - 0.12 * H;
+        splashes.add(px, py, pz, w, h, time, life, alpha, lean, drift, -sl * nl, nl);
       }
     }
     // the particles alive at once (rate x life) must fit in the pool: busy moments such as closeouts
