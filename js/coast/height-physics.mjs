@@ -4,9 +4,9 @@ const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 // Keep the cheap envelope for visuals; body contact queries liquid markers in a
 // bounded cross-section hash, so an overhead lip cannot fill the air below it.
 export class HeightField {
- constructor(){this.n=256;this.z0=-7.8;this.dz=36.3/(this.n-1);this.h=new Float32Array(this.n);this.raw=new Float32Array(this.n);this.vy=new Float32Array(this.n);this.vz=new Float32Array(this.n);this.foam=new Float32Array(this.n);this.count=new Uint16Array(this.n);this.sums=new Float32Array(this.n*3);this.ready=false;}
+ constructor(){this.n=256;this.z0=-17.8;this.dz=46.3/(this.n-1);this.h=new Float32Array(this.n);this.raw=new Float32Array(this.n);this.vy=new Float32Array(this.n);this.vz=new Float32Array(this.n);this.foam=new Float32Array(this.n);this.count=new Uint16Array(this.n);this.sums=new Float32Array(this.n*3);this.ready=false;}
  update(p,v,foam,n){const N=this.n;this.raw.fill(-100);this.count.fill(0);this.sums.fill(0);this.vy.fill(0);
-  if(!this.head){this.hashH=.21;this.hashY=-3.6;this.hashNY=44;this.hashNZ=174;this.head=new Int32Array(this.hashNY*this.hashNZ);this.next=new Int32Array(Math.max(20000,n));}
+  if(!this.head){this.hashH=.21;this.hashY=-3.6;this.hashNY=44;this.hashNZ=222;this.head=new Int32Array(this.hashNY*this.hashNZ);this.next=new Int32Array(Math.max(20000,n));}
   if(this.next.length<n)this.next=new Int32Array(n);this.head.fill(-1);this.particles=p;this.velocities=v;this.particleFoam=foam;this.particlesReady=true;
   for(let i=0;i<n;i++){const a=i*3;if(Math.abs(p[a])>.21)continue;const j=Math.floor((p[a+1]-this.hashY)/this.hashH),k=Math.floor((p[a+2]-this.z0)/this.hashH);if(j<0||j>=this.hashNY||k<0||k>=this.hashNZ)continue;const c=j+k*this.hashNY;this.next[i]=this.head[c];this.head[c]=i;}
   for(let i=0;i<n;i++){const a=i*3,k=Math.round((p[a+2]-this.z0)/this.dz);if(k<0||k>=N||Math.abs(p[a])>.2)continue;this.raw[k]=Math.max(this.raw[k],p[a+1]+.055);this.count[k]++;}
@@ -45,7 +45,7 @@ export class HeightCharacter {
   fx+=(input.x||0)*260-v[0]*6;fz+=(input.z||0)*260;
   v[0]+=fx/75*dt;v[1]+=(fy/75-9.81)*dt;v[2]+=fz/75*dt;
   if(input.jump&&this.contacts&& !this.jumpHeld)v[1]+=3;this.jumpHeld=!!input.jump;
-  p[0]=clamp(p[0]+v[0]*dt,-107,107);p[1]+=v[1]*dt;p[2]=clamp(p[2]+v[2]*dt,-7.5,27);
+  p[0]=clamp(p[0]+v[0]*dt,-107,107);p[1]+=v[1]*dt;p[2]=clamp(p[2]+v[2]*dt,-17.5,27);
   const bed=bottom(0,p[2])+.85;this.contacts=wet?1:0;if(p[1]<bed){p[1]=bed;v[1]=Math.max(0,v[1]);this.contacts++;const drag=wet?.985:.90;v[0]*=drag;v[2]*=drag;}
   const torque=wet?-.45*fz:0;this.omega+=(torque-1100*this.pitch-90*this.omega)/35*dt;this.pitch=clamp(this.pitch+this.omega*dt,-1.2,1.2);this.q[0]=Math.sin(this.pitch/2);this.q[3]=Math.cos(this.pitch/2);
   this.wiped=Math.abs(this.pitch)>.48;this.skim=planing&&!this.wiped;this.dry=s[4]<.035&&p[1]<=bed+.12&&Math.abs(v[1])<.5;

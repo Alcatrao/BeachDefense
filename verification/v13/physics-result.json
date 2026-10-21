@@ -1,0 +1,48 @@
+{
+  "n": 15640,
+  "seconds": 24,
+  "period": 8,
+  "source": "physical-piston",
+  "minForce": -445.25073656964037,
+  "maxForce": 337.73126777315446,
+  "minSpeed": -3,
+  "maxSpeed": 0.7381947973450319,
+  "airUnderLipProbes": 107,
+  "peakEnergy": 104076.91169928478,
+  "body": {
+    "position": [
+      0,
+      0.7294286972614653,
+      2.0095217123089113
+    ],
+    "velocity": [
+      0,
+      0,
+      -0.22259503184451557
+    ],
+    "quaternion": [
+      -0.0017556769033301022,
+      0,
+      0,
+      0.9999984587981179
+    ],
+    "angularVelocity": [
+      0.0005302438308194682,
+      0,
+      0
+    ],
+    "tiltDegrees": 0.20118585685484305,
+    "contacts": 2,
+    "totalImpulse": 11482.488733128252,
+    "waterForceZ": -1.1823334566738588,
+    "waterHeight": 0.575123028402492,
+    "waterDepth": 0.6958073235429781,
+    "waterImmersion": 0.4483056634774362,
+    "footWetness": 1,
+    "contactModel": "particle-volume-quadrature",
+    "flowZ": -0.3369663745769369,
+    "skimming": false,
+    "wiped": false
+  },
+  "oneWayCoupling": true
+}

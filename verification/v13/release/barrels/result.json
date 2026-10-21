@@ -1,0 +1,551 @@
+{
+  "errors": [],
+  "shots": [
+    {
+      "name": "shore-29.8",
+      "ms": 268
+    },
+    {
+      "name": "tube-29.8",
+      "ms": 73
+    },
+    {
+      "name": "shore-30.4",
+      "ms": 276
+    },
+    {
+      "name": "shore-37.8",
+      "ms": 255
+    },
+    {
+      "name": "shore-53",
+      "ms": 260
+    },
+    {
+      "name": "tube-53",
+      "ms": 77
+    },
+    {
+      "name": "shore-53.2",
+      "ms": 278
+    },
+    {
+      "name": "shore-53.8",
+      "ms": 284
+    }
+  ],
+  "timeline": [
+    {
+      "particles": 0,
+      "ambientParticles": 15640,
+      "time": 29.79999999999959,
+      "localTime": 29.79999999999959,
+      "originX": 0,
+      "rider": null,
+      "dryBeach": false,
+      "board": null,
+      "localActive": false,
+      "physicsMs": 1.2000000029802322,
+      "ambientMs": 10.100000001490116,
+      "ambientDropped": 0,
+      "surface": {
+        "coast": {
+          "vertices": 24576,
+          "triangles": 48034,
+          "crestY": 1.4046941995620728,
+          "crestZ": 4.911060333251953,
+          "reconstructionMs": 0.9000000022351742,
+          "widthMetres": 215,
+          "xColumns": 48,
+          "singleSurface": true,
+          "profileCount": 512,
+          "contour": {
+            "points": 381,
+            "segments": 380,
+            "ambiguousCells": 0,
+            "invalidDegree": 0,
+            "resampledStrands": 1,
+            "maxFairingDisplacement": 0.061936857268769616,
+            "fairingPasses": 32,
+            "method": "arc-length-connected-marching-squares"
+          },
+          "uploadBytes": 16384,
+          "workerReconstruction": true,
+          "gpuInterpolation": true,
+          "interpolation": 1
+        },
+        "local": {
+          "foamPoints": 356
+        },
+        "effects": {
+          "capacity": 640,
+          "live": 356,
+          "drawSlots": 634,
+          "totalBorn": 1888,
+          "vertices": 4,
+          "trianglesPerInstance": 2,
+          "gpuAnimated": true,
+          "surfaceFoam": true,
+          "heightTextureBytes": 1024,
+          "splashAtlasFrames": 12
+        },
+        "revision": 197
+      },
+      "backgroundMode": "live",
+      "characterModel": "particle-volume-and-flow",
+      "breaker": {
+        "z": 3.2619607843137217,
+        "y": 0.7995992302894592,
+        "strength": 2.6751639611147766,
+        "flowZ": -4.356574535369873,
+        "velocityY": -2.7224044799804688,
+        "foam": 0.8999999761581421
+      },
+      "oneWayCoupling": true,
+      "maxParcelStepRms": 0.04065305266264721,
+      "phaseError": 0,
+      "droppedTime": 0,
+      "frames": 322,
+      "tier": {
+        "name": "hardware",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "pixelRatio": 1,
+        "columns": 48,
+        "farX": 48,
+        "farZ": 24,
+        "particles": 640,
+        "anisotropy": 1
+      }
+    },
+    {
+      "particles": 0,
+      "ambientParticles": 15640,
+      "time": 30.399999999999554,
+      "localTime": 30.399999999999554,
+      "originX": 0,
+      "rider": null,
+      "dryBeach": false,
+      "board": null,
+      "localActive": false,
+      "physicsMs": 1.0999999977648258,
+      "ambientMs": 10.700000002980232,
+      "ambientDropped": 0,
+      "surface": {
+        "coast": {
+          "vertices": 24576,
+          "triangles": 48034,
+          "crestY": 0.9635053873062134,
+          "crestZ": 4.8893351554870605,
+          "reconstructionMs": 0.7999999970197678,
+          "widthMetres": 215,
+          "xColumns": 48,
+          "singleSurface": true,
+          "profileCount": 512,
+          "contour": {
+            "points": 349,
+            "segments": 348,
+            "ambiguousCells": 0,
+            "invalidDegree": 0,
+            "resampledStrands": 1,
+            "maxFairingDisplacement": 0.04278071768439243,
+            "fairingPasses": 32,
+            "method": "arc-length-connected-marching-squares"
+          },
+          "uploadBytes": 16384,
+          "workerReconstruction": true,
+          "gpuInterpolation": true,
+          "interpolation": 1
+        },
+        "local": {
+          "foamPoints": 345
+        },
+        "effects": {
+          "capacity": 640,
+          "live": 345,
+          "drawSlots": 640,
+          "totalBorn": 2080,
+          "vertices": 4,
+          "trianglesPerInstance": 2,
+          "gpuAnimated": true,
+          "surfaceFoam": true,
+          "heightTextureBytes": 1024,
+          "splashAtlasFrames": 12
+        },
+        "revision": 221
+      },
+      "backgroundMode": "live",
+      "characterModel": "particle-volume-and-flow",
+      "breaker": {
+        "z": 2.172549019607839,
+        "y": 0.5171962976455688,
+        "strength": 0.7699316893048653,
+        "flowZ": -3.924117088317871,
+        "velocityY": -1.4089900255203247,
+        "foam": 0.46409663558006287
+      },
+      "oneWayCoupling": true,
+      "maxParcelStepRms": 0.04065305266264721,
+      "phaseError": 0,
+      "droppedTime": 0,
+      "frames": 375,
+      "tier": {
+        "name": "hardware",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "pixelRatio": 1,
+        "columns": 48,
+        "farX": 48,
+        "farZ": 24,
+        "particles": 640,
+        "anisotropy": 1
+      }
+    },
+    {
+      "particles": 0,
+      "ambientParticles": 15640,
+      "time": 37.79999999999914,
+      "localTime": 37.79999999999914,
+      "originX": 0,
+      "rider": null,
+      "dryBeach": false,
+      "board": null,
+      "localActive": false,
+      "physicsMs": 1.199999999254942,
+      "ambientMs": 10.5,
+      "ambientDropped": 0,
+      "surface": {
+        "coast": {
+          "vertices": 24576,
+          "triangles": 48034,
+          "crestY": 1.8728163242340088,
+          "crestZ": 3.900104522705078,
+          "reconstructionMs": 0.8000000007450581,
+          "widthMetres": 215,
+          "xColumns": 48,
+          "singleSurface": true,
+          "profileCount": 512,
+          "contour": {
+            "points": 373,
+            "segments": 372,
+            "ambiguousCells": 0,
+            "invalidDegree": 0,
+            "resampledStrands": 3,
+            "maxFairingDisplacement": 0.061082699673378565,
+            "fairingPasses": 32,
+            "method": "arc-length-connected-marching-squares"
+          },
+          "uploadBytes": 16384,
+          "workerReconstruction": true,
+          "gpuInterpolation": true,
+          "interpolation": 1
+        },
+        "local": {
+          "foamPoints": 361
+        },
+        "effects": {
+          "capacity": 640,
+          "live": 361,
+          "drawSlots": 626,
+          "totalBorn": 4448,
+          "vertices": 4,
+          "trianglesPerInstance": 2,
+          "gpuAnimated": true,
+          "surfaceFoam": true,
+          "heightTextureBytes": 1024,
+          "splashAtlasFrames": 12
+        },
+        "revision": 464
+      },
+      "backgroundMode": "live",
+      "characterModel": "particle-volume-and-flow",
+      "breaker": {
+        "z": 2.898823529411761,
+        "y": 0.8150917887687683,
+        "strength": 3.4639000262916966,
+        "flowZ": -2.853785514831543,
+        "velocityY": -3.6037473678588867,
+        "foam": 0.8988394141197205
+      },
+      "oneWayCoupling": true,
+      "maxParcelStepRms": 0.04270706921285588,
+      "phaseError": 0,
+      "droppedTime": 0,
+      "frames": 744,
+      "tier": {
+        "name": "hardware",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "pixelRatio": 1,
+        "columns": 48,
+        "farX": 48,
+        "farZ": 24,
+        "particles": 640,
+        "anisotropy": 1
+      }
+    },
+    {
+      "particles": 0,
+      "ambientParticles": 15640,
+      "time": 52.99999999999827,
+      "localTime": 52.99999999999827,
+      "originX": 0,
+      "rider": null,
+      "dryBeach": false,
+      "board": null,
+      "localActive": false,
+      "physicsMs": 1.2000000029802322,
+      "ambientMs": 10,
+      "ambientDropped": 0,
+      "surface": {
+        "coast": {
+          "vertices": 24576,
+          "triangles": 48034,
+          "crestY": 2.3359227180480957,
+          "crestZ": 6.278923988342285,
+          "reconstructionMs": 0.9000000022351742,
+          "widthMetres": 215,
+          "xColumns": 48,
+          "singleSurface": true,
+          "profileCount": 512,
+          "contour": {
+            "points": 393,
+            "segments": 392,
+            "ambiguousCells": 1,
+            "invalidDegree": 0,
+            "resampledStrands": 3,
+            "maxFairingDisplacement": 0.060596140351609,
+            "fairingPasses": 32,
+            "method": "arc-length-connected-marching-squares"
+          },
+          "uploadBytes": 16384,
+          "workerReconstruction": true,
+          "gpuInterpolation": true,
+          "interpolation": 1
+        },
+        "local": {
+          "foamPoints": 359
+        },
+        "effects": {
+          "capacity": 640,
+          "live": 359,
+          "drawSlots": 614,
+          "totalBorn": 8928,
+          "vertices": 4,
+          "trianglesPerInstance": 2,
+          "gpuAnimated": true,
+          "surfaceFoam": true,
+          "heightTextureBytes": 1024,
+          "splashAtlasFrames": 12
+        },
+        "revision": 941
+      },
+      "backgroundMode": "live",
+      "characterModel": "particle-volume-and-flow",
+      "breaker": {
+        "z": 5.077647058823526,
+        "y": 1.7038071155548096,
+        "strength": 0.8161627332347337,
+        "flowZ": -3.6686809062957764,
+        "velocityY": -1.0174622535705566,
+        "foam": 0.6439345479011536
+      },
+      "oneWayCoupling": true,
+      "maxParcelStepRms": 0.04565225861421491,
+      "phaseError": 0,
+      "droppedTime": 0,
+      "frames": 1425,
+      "tier": {
+        "name": "hardware",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "pixelRatio": 1,
+        "columns": 48,
+        "farX": 48,
+        "farZ": 24,
+        "particles": 640,
+        "anisotropy": 1
+      }
+    },
+    {
+      "particles": 0,
+      "ambientParticles": 15640,
+      "time": 53.19999999999826,
+      "localTime": 53.19999999999826,
+      "originX": 0,
+      "rider": null,
+      "dryBeach": false,
+      "board": null,
+      "localActive": false,
+      "physicsMs": 1.199999999254942,
+      "ambientMs": 9.899999998509884,
+      "ambientDropped": 0,
+      "surface": {
+        "coast": {
+          "vertices": 24576,
+          "triangles": 48034,
+          "crestY": 2.1680781841278076,
+          "crestZ": 5.722837448120117,
+          "reconstructionMs": 0.8999999985098839,
+          "widthMetres": 215,
+          "xColumns": 48,
+          "singleSurface": true,
+          "profileCount": 512,
+          "contour": {
+            "points": 389,
+            "segments": 388,
+            "ambiguousCells": 0,
+            "invalidDegree": 0,
+            "resampledStrands": 3,
+            "maxFairingDisplacement": 0.051401563797882494,
+            "fairingPasses": 32,
+            "method": "arc-length-connected-marching-squares"
+          },
+          "uploadBytes": 16384,
+          "workerReconstruction": true,
+          "gpuInterpolation": true,
+          "interpolation": 1
+        },
+        "local": {
+          "foamPoints": 358
+        },
+        "effects": {
+          "capacity": 640,
+          "live": 358,
+          "drawSlots": 640,
+          "totalBorn": 8992,
+          "vertices": 4,
+          "trianglesPerInstance": 2,
+          "gpuAnimated": true,
+          "surfaceFoam": true,
+          "heightTextureBytes": 1024,
+          "splashAtlasFrames": 12
+        },
+        "revision": 949
+      },
+      "backgroundMode": "live",
+      "characterModel": "particle-volume-and-flow",
+      "breaker": {
+        "z": 4.169803921568626,
+        "y": 1.1027426719665527,
+        "strength": 2.8571724373188943,
+        "flowZ": -4.072209358215332,
+        "velocityY": -2.924636125564575,
+        "foam": 0.8999999761581421
+      },
+      "oneWayCoupling": true,
+      "maxParcelStepRms": 0.04565225861421491,
+      "phaseError": 0,
+      "droppedTime": 0,
+      "frames": 1457,
+      "tier": {
+        "name": "hardware",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "pixelRatio": 1,
+        "columns": 48,
+        "farX": 48,
+        "farZ": 24,
+        "particles": 640,
+        "anisotropy": 1
+      }
+    },
+    {
+      "particles": 0,
+      "ambientParticles": 15640,
+      "time": 53.79999999999823,
+      "localTime": 53.79999999999823,
+      "originX": 0,
+      "rider": null,
+      "dryBeach": false,
+      "board": null,
+      "localActive": false,
+      "physicsMs": 1.199999999254942,
+      "ambientMs": 10.100000001490116,
+      "ambientDropped": 0,
+      "surface": {
+        "coast": {
+          "vertices": 24576,
+          "triangles": 48034,
+          "crestY": 1.7018852233886719,
+          "crestZ": 4.3381028175354,
+          "reconstructionMs": 0.7999999970197678,
+          "widthMetres": 215,
+          "xColumns": 48,
+          "singleSurface": true,
+          "profileCount": 512,
+          "contour": {
+            "points": 379,
+            "segments": 378,
+            "ambiguousCells": 0,
+            "invalidDegree": 0,
+            "resampledStrands": 2,
+            "maxFairingDisplacement": 0.056535348006256377,
+            "fairingPasses": 32,
+            "method": "arc-length-connected-marching-squares"
+          },
+          "uploadBytes": 16384,
+          "workerReconstruction": true,
+          "gpuInterpolation": true,
+          "interpolation": 1
+        },
+        "local": {
+          "foamPoints": 348
+        },
+        "effects": {
+          "capacity": 640,
+          "live": 348,
+          "drawSlots": 640,
+          "totalBorn": 9184,
+          "vertices": 4,
+          "trianglesPerInstance": 2,
+          "gpuAnimated": true,
+          "surfaceFoam": true,
+          "heightTextureBytes": 1024,
+          "splashAtlasFrames": 12
+        },
+        "revision": 973
+      },
+      "backgroundMode": "live",
+      "characterModel": "particle-volume-and-flow",
+      "breaker": {
+        "z": 2.717254901960782,
+        "y": 1.3648269176483154,
+        "strength": 2.6427695289513906,
+        "flowZ": -4.554383754730225,
+        "velocityY": -2.686410665512085,
+        "foam": 0.8999999761581421
+      },
+      "oneWayCoupling": true,
+      "maxParcelStepRms": 0.04565225861421491,
+      "phaseError": 0,
+      "droppedTime": 0,
+      "frames": 1507,
+      "tier": {
+        "name": "hardware",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "pixelRatio": 1,
+        "columns": 48,
+        "farX": 48,
+        "farZ": 24,
+        "particles": 640,
+        "anisotropy": 1
+      }
+    }
+  ],
+  "assets": {
+    "/BeachDefense/codex/beach.html": 200,
+    "/BeachDefense/codex/js/coast/beach-demo.mjs": 200,
+    "/BeachDefense/codex/js/coast/quality.mjs": 200,
+    "/BeachDefense/codex/js/coast/beach-ocean.mjs": 200,
+    "/BeachDefense/codex/js/coast/beach-bridge.mjs": 200,
+    "/BeachDefense/codex/js/coast/coast-surface.mjs": 200,
+    "/BeachDefense/codex/js/coast/surf-effects.mjs": 200,
+    "/BeachDefense/codex/js/coast/fluid.mjs": 200,
+    "/BeachDefense/codex/js/coast/water-material.mjs": 200,
+    "/BeachDefense/codex/js/coast/splash-atlas.mjs": 200,
+    "/BeachDefense/codex/js/coast/coast-grid.mjs": 200,
+    "/BeachDefense/codex/js/coast/sea-state.mjs": 200,
+    "/BeachDefense/codex/js/coast/beach-worker.mjs": 200,
+    "/BeachDefense/codex/js/coast/section-surface.mjs": 200,
+    "/BeachDefense/codex/js/coast/height-physics.mjs": 200,
+    "/BeachDefense/codex/js/coast/section-contour.mjs": 200,
+    "/BeachDefense/codex/js/coast/ambient-worker.mjs": 200,
+    "/BeachDefense/codex/js/coast/initial-state.bin": 200
+  }
+}

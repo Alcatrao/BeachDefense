@@ -1,13 +1,6 @@
-import fs from 'node:fs';import assert from 'node:assert/strict';import{SurfWorld,Character}from'../../js/coast/surf-physics.mjs';import{Fluid3D,makeFluidSolver}from'../../js/coast/fluid.mjs';
-const step=process.argv.includes('--30')?1/30:1/60;const out=new URL('../../verification/v7/',import.meta.url);
-const f=new Fluid3D(),body=new Character(0,.9,10);f.p.set([.1,.8,10]);f.v.set([0,0,-4]);const initial=[0,1,2].map(k=>f.mass*f.v[k]+body.mass*body.v[k]);assert(body.contactParticle(f,0,1/30));const momentumError=Math.hypot(...initial.map((v,k)=>v-f.mass*f.v[k]-body.mass*body.v[k]));assert(momentumError<1e-9);
-// Seed from the live solver's one-time warm start, then evolve to t=28.
-const Section=makeFluidSolver({width:.48,spacing:.12,cell:.16}),ref=new Section({options:{sourceAmplitude:1.55,sourceK:.20,symmetry:true,separate:true,periodic:true}}),raw=fs.readFileSync(new URL('../../js/coast/initial-state.bin',import.meta.url)),ab=raw.buffer.slice(raw.byteOffset,raw.byteOffset+raw.byteLength),head=new Float64Array(ab,0,2),n=head[0],rows=n/4;
-ref.p.set(new Float64Array(ab,16,n*3));ref.v.set(new Float64Array(ab,16+n*24,n*3));ref.foam.set(new Float64Array(ab,16+n*48,n));ref.time=head[1];ref.rebuild();for(let i=0;i<30;i++)ref.step(step);
-function seed(w){const f=w.fluid;for(let i=0;i<f.n;i++){const a=i*3,y=f.sourceRest[a+1],z=f.sourceRest[a+2];let best=-1,d=Infinity;for(let q=0;q<rows;q++){const b=q*3,dist=(ref.sourceRest[b+1]-y)**2+(ref.sourceRest[b+2]-z)**2;if(dist<d){d=dist;best=q;}}const b=best*3;f.p[a+1]=ref.p[b+1];f.p[a+2]=ref.p[b+2];f.v[a+1]=ref.v[b+1];f.v[a+2]=ref.v[b+2];}f.time=ref.time;f.rebuild();}
-function trial(calm){const w=new SurfWorld(calm?{source:false}:{sourceAmplitude:1.55,sourceK:.20}),f=w.fluid,count=f.n;if(calm){f.wavemaker=false;f.v.fill(0);for(let i=0;i<4/step;i++)w.step(step);}else seed(w);w.mount(6.5,0,-3);w.person.p[1]=.95;w.originX=60;const timeline=[];let contacts=0,maxSpeed=0;for(let i=0;i<6/step;i++){w.step(step,{});contacts+=w.person.contacts;for(let q=0;q<f.n;q++){const a=q*3;for(let k=0;k<3;k++)assert(Number.isFinite(f.p[a+k])&&Number.isFinite(f.v[a+k]));maxSpeed=Math.max(maxSpeed,Math.hypot(...f.v.subarray(a,a+3)));}assert(w.person.p.every(Number.isFinite));assert.equal(f.n,count);if(i%Math.round(1/step)===Math.round(1/step)-1)timeline.push({seconds:(i+1)*step,...w.person.diagnostics()});}assert(contacts>0);assert(maxSpeed<100);return{contacts,maxSpeed,timeline,originX:w.originX,particles:f.n};}
-// Shoreline handoff follows wet contact, not a fixed z coordinate.
-const handoff=new SurfWorld({source:false});handoff.mount(-2,0,0);handoff.person.p[1]=handoff.fluid.bed(0,-2)+.85;handoff.person.contacts=1;assert.equal(handoff.diagnostics().dryBeach,false);
-handoff.person.contacts=0;handoff.fluid.field=()=>({fill:1});assert.equal(handoff.diagnostics().dryBeach,false);
-handoff.fluid.field=()=>({fill:0});assert.equal(handoff.diagnostics().dryBeach,true);
-const wave=trial(false),calm=trial(true);assert(wave.timeline[1].wiped);assert(!calm.timeline[1].wiped);assert(calm.timeline[1].tiltDegrees<20);const result={momentumError,dt:step,wave,calm};fs.writeFileSync(new URL(step===1/60?'contact-60.json':'contact.json',out),JSON.stringify(result,null,2));console.log(JSON.stringify({momentumError,waveContacts:wave.contacts,calmContacts:calm.contacts,waveTilt:wave.timeline.map(x=>x.tiltDegrees),calmTilt:calm.timeline.map(x=>x.tiltDegrees),maxSpeed:wave.maxSpeed}));
+// Stable Pages entry point: v13 validates the installed piston sea and occupancy body.
+// Earlier exact-orbital/reciprocal-body assertions remain in Git history.
+import fs from 'node:fs';
+await import('../v13/contact-test.mjs');
+const output=new URL('../../verification/v7/',import.meta.url);fs.mkdirSync(output,{recursive:true});
+fs.copyFileSync(new URL('../../verification/v13/contact-fixtures.json',import.meta.url),new URL('contact-60.json',output));

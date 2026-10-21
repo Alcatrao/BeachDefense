@@ -1,7 +1,7 @@
 import {waterTier} from './coast/quality.mjs';
 import * as THREE from 'three';
 import { createOcean } from './coast/beach-ocean.mjs';
-import { createRider, stepRider, bed, shore, world, SCALE, resetSurf, setSurfPlaying, sampleWater } from './coast/beach-bridge.mjs';
+import { createRider, stepRider, bed, shore, world, SCALE, resetSurf, setSurfPlaying, sampleWater, syncRiderView } from './coast/beach-bridge.mjs';
 import { createSurfBodies } from './surf-bodies.js';
 import { Sky } from 'Sky';
 import { PointerLockControls } from 'PointerLockControls';
@@ -604,7 +604,7 @@ function updateMovement(dt) {
 }
 
 function getGroundHeightAt(x, z) {
-  if (z > shore(x)) return bed(x,z);
+  if (z > shore(x)-36*SCALE) return bed(x,z);
   if (z >= -100) return .5;
   if (z >= DUNE_START) return .5 + (-z-100)*20/550;
   if (z >= DUNE_END) { const t=(DUNE_START-z)/(DUNE_START-DUNE_END); return 20.5+t*t*(3-2*t)*DUNE_MAX_HEIGHT; }
@@ -1162,6 +1162,7 @@ function animate() {
       accumulator = Math.min(accumulator + delta, 3/90);
       while (accumulator >= 1/90) { oceanTime += 1/90; updateMovement(1/90); accumulator -= 1/90; }
     }
+    if(gameActive&&world.person&&!world.loading){syncRiderView(rider);character.position.set(rider.x,rider.y,rider.z);surfBodies.update(spectator);if(spectator){externalCamera.position.set(rider.x-30,rider.y+15,rider.z-40);externalCamera.lookAt(rider.x,rider.y-4,rider.z+10);}}
     ocean.update(oceanTime,spectator?externalCamera:camera);
     for(let i=0;i<npcs.length;i++)ocean.wade(npcs[i].mesh);
 

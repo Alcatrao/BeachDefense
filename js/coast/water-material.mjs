@@ -1,3 +1,4 @@
+import {SEA_STATE,SWELL_K,waveNumber} from './sea-state.mjs';
 import * as T from 'three';
 // Original, seeded procedural noise. No game/reference image assets.
 let detail;
@@ -11,12 +12,14 @@ function noiseTexture(){if(detail)return detail;const n=128,height=new Float32Ar
  for(let y=0;y<n;y++)for(let x=0;x<n;x++){const i=x+y*n,a=i*4,dx=(height[((x+1)%n)+y*n]-height[((x+n-1)%n)+y*n])*.7,dz=(height[x+((y+1)%n)*n]-height[x+((y+n-1)%n)*n])*.7;bytes[a]=128+dx*110;bytes[a+1]=128+dz*110;bytes[a+3]=255;}
  detail=new T.DataTexture(bytes,n,n,T.RGBAFormat);detail.wrapS=detail.wrapT=T.RepeatWrapping;detail.magFilter=T.LinearFilter;detail.minFilter=T.LinearMipmapLinearFilter;detail.generateMipmaps=true;detail.anisotropy=1;detail.needsUpdate=true;return detail;
 }
-export function createWaterMaterial(tier={}){return new T.ShaderMaterial({side:T.DoubleSide,defines:{SOFT_WATER:tier.name==='software'?1:0},extensions:{derivatives:true},uniforms:{cut:{value:-645},cutEnd:{value:645},time:{value:0},farWaves:{value:0},rippleStrength:{value:tier.name==='software'?0:.60},detail:{value:noiseTexture()}},
+export function createWaterMaterial(tier={}){return new T.ShaderMaterial({side:T.DoubleSide,defines:{SOFT_WATER:tier.name==='software'?1:0},extensions:{derivatives:true},uniforms:{swell:{value:new T.Vector4(SWELL_K,2*Math.PI/SEA_STATE.period,waveNumber(10.7,3),2*Math.PI/10.7)},cut:{value:-645},cutEnd:{value:645},time:{value:0},farWaves:{value:0},profileSurface:{value:0},surfacePrevious:{value:null},surfaceCurrent:{value:null},surfaceMix:{value:1},rippleStrength:{value:tier.name==='software'?0:.60},detail:{value:noiseTexture()}},
  vertexShader:`// BEACH_WATER
- uniform float time,farWaves;attribute float foam,wetness;varying vec3 P,N;varying float F,depth,W;varying vec2 U;
- float shoreline(float x){float n=(x+1245.)/1290.;float s=sin(n*3.14159265)*60.+sin(n*6.2831853)*20.+50.;if(n>=.6&&n<=1.){float t=(n-.6)/.4;s+=t*t*(3.-2.*t)*sin(t*3.14159265)*100.;}return -s;}
- void main(){P=(modelMatrix*vec4(position,1.)).xyz;N=normal;F=foam;W=wetness;U=vec2(P.x,P.z-shoreline(P.x))/6.;float bed=U.y<0.?-U.y*.18:-min(3.,min(.6,U.y*.15)+max(0.,U.y-10.)*.65);depth=max(0.,P.y/6.-bed);
- if(farWaves>.5){float fade=smoothstep(26.5,42.,U.y),phase=.62*U.y+.10*U.x+time*1.6,phase2=.39*U.y-.17*U.x+time*1.22;float wave=.10*sin(phase)+.045*sin(phase2);P.y+=wave*6.*fade;N=normalize(vec3(-fade*(.010*cos(phase)-.00765*cos(phase2)),1.,-fade*(.062*cos(phase)+.01755*cos(phase2))));}
+ uniform vec4 swell;uniform float time,farWaves,profileSurface,surfaceMix;uniform sampler2D surfacePrevious,surfaceCurrent;attribute float foam,wetness;varying vec3 P,N;varying float F,depth,W;varying vec2 U;
+ float shoreline(float x){float n=(x+1245.)/1290.;float s=sin(n*3.14159265)*60.+sin(n*6.2831853)*20.+50.;if(n>=.6&&n<=1.){float t=(n-.6)/.4;s+=t*t*(3.-2.*t)*pow(sin(t*3.14159265),2.)*100.;}return -s;}
+ void main(){vec3 local=position;N=normal;F=foam;W=wetness;
+ if(profileSurface>.5){vec2 uv0=vec2(uv.x,.25),uv1=vec2(uv.x,.75);vec4 a=mix(texture2D(surfacePrevious,uv0),texture2D(surfaceCurrent,uv0),surfaceMix),b=mix(texture2D(surfacePrevious,uv1),texture2D(surfaceCurrent,uv1),surfaceMix);local.y=a.x;local.z=a.y+shoreline(local.x*6.)/6.;float slope=(shoreline(local.x*6.+.5)-shoreline(local.x*6.-.5));N=normalize(vec3(-slope*a.w,a.z,a.w));F=b.x;W=b.y;}
+ P=(modelMatrix*vec4(local,1.)).xyz;U=vec2(P.x,P.z-shoreline(P.x))/6.;float bed=-min(3.,(U.y<0.?U.y*.18:U.y*.06)+max(0.,U.y-6.)*.27);depth=max(0.,P.y/6.-bed);
+ if(farWaves>.5){float fade=smoothstep(28.5,40.,U.y),phase=swell.x*(U.y+.06*U.x)+time*swell.y,phase2=swell.z*(U.y-.13*U.x)+time*swell.w,phase3=.30*U.y+.08*U.x+time*1.62;float group=.90+.10*cos(time*.13),w=.85*group*sin(phase)+.26*sin(phase2)+.10*sin(phase3);P.y+=w*6.*fade;float dx=.85*group*swell.x*.06*cos(phase)-.26*swell.z*.13*cos(phase2)+.008*cos(phase3),dz=.85*group*swell.x*cos(phase)+.26*swell.z*cos(phase2)+.03*cos(phase3);N=normalize(vec3(-fade*dx,1.,-fade*dz));}
  gl_Position=projectionMatrix*viewMatrix*vec4(P,1.);}`,
  fragmentShader:`// BEACH_WATER
  uniform float cut,cutEnd,time,rippleStrength;uniform sampler2D detail;varying vec3 P,N;varying float F,depth,W;varying vec2 U;
@@ -33,7 +36,7 @@ export function createWaterMaterial(tier={}){return new T.ShaderMaterial({side:T
  float fres=.0204+.9796*pow(1.-max(dot(n,v),0.),5.);vec3 reflected=reflect(-v,n);vec3 sky=mix(vec3(.75,.91,.93),vec3(.44,.79,.85),smoothstep(0.,.8,reflected.y));
  // sRGB art targets: open100/225/235, shallow175/250/250, bar150/208/193.
  vec3 open=vec3(.392,.882,.922),shallow=vec3(.686,.980,.980),bar=vec3(.588,.816,.757);
- vec3 c=mix(shallow,open,smoothstep(.12,2.4,depth));float sandbar=exp(-pow((U.y-7.)/2.5,2.))*.30;c=mix(c,bar,sandbar);c*=.91+.09*max(n.y,0.);c=mix(c,sky,fres*.7);
+ vec3 c=mix(shallow,open,smoothstep(.12,2.4,depth));float sandbar=exp(-pow((U.y-7.)/2.5,2.))*.30;c=mix(c,bar,sandbar);c*=.78+.22*max(n.y,0.);c=mix(c,sky,fres*.82);float translucency=pow(max(dot(-v,normalize(vec3(-.32,.75,.57))),0.),3.)*(1.-abs(n.y))*(1.-smoothstep(0.,2.6,depth));c+=vec3(.025,.12,.10)*translucency;
  vec3 sun=normalize(vec3(-.32,.75,.57));float spec=max(dot(reflect(-sun,n),v),0.);
  #if SOFT_WATER == 1
  // Turbulent water has a wider, dimmer lobe: small physical folds should not
@@ -41,9 +44,9 @@ export function createWaterMaterial(tier={}){return new T.ShaderMaterial({side:T
  float rough=smoothstep(.12,.7,F);c+=vec3(1.)*pow(spec,18.)*(.20+.18*churn)*(1.-rough*.65);
  #else
  float rough=smoothstep(.12,.7,F),glarePatch=.35+.65*churn;
- c+=vec3(1.)*(pow(spec,18.)*.23+pow(spec,80.)*.24*(1.-rough))*glarePatch*(1.-rough*.65);
+ c+=vec3(1.)*(pow(spec,12.)*.30+pow(spec,80.)*.26*(1.-rough))*glarePatch*(1.-rough*.65);
  #endif
  // Break up the boundary of whitewater alongshore, not just its interior.
  // All coverage still comes from the physical foam tracers; no timed crest mask.
- float turbulence=mix(a.b,b.b,.47)*.6+churn*.4;float coverage=smoothstep(.10,.65,F*(.35+turbulence*1.1));float lace=smoothstep(.29,.70,turbulence+F*.12);float f=coverage*mix(lace,1.,smoothstep(.72,1.,F)*.45);vec3 white=vec3(.97,1.,1.)*(.96+.04*max(n.y,0.));c=mix(c,white,f);
+ float turbulence=mix(a.b,b.b,.47)*.6+churn*.4;float coverage=smoothstep(.10,.64,F*(.22+turbulence*1.45));float lace=smoothstep(.34,.73,turbulence+F*.10);float f=coverage*mix(lace,1.,smoothstep(.82,1.,F)*.28);vec3 white=vec3(.97,1.,1.)*(.96+.04*max(n.y,0.));c=mix(c,white,f);
  float haze=1.-exp(-length(cameraPosition-P)*.000055);gl_FragColor=vec4(mix(c,vec3(.78,.89,.91),haze),1.);}`});}

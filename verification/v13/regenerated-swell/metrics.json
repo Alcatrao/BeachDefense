@@ -1,0 +1,3435 @@
+{
+  "seaState": {
+    "period": 8,
+    "stroke": 5,
+    "depth": 3,
+    "nominalHeight": 2.3,
+    "groupPeriod": 48,
+    "groupVariation": 0.1
+  },
+  "k": 0.1494877074996653,
+  "n": 15640,
+  "wallMs": 32788.270599999996,
+  "records": [
+    {
+      "t": 20.200000000000134,
+      "samples": 512,
+      "sourcePoints": 367,
+      "crestY": 1.063930630683899,
+      "crestZ": 10.217107772827148,
+      "reconstructionMs": 14.235900000001493,
+      "contour": {
+        "points": 367,
+        "segments": 366,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04744658100904953,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.9226274490356445
+    },
+    {
+      "t": 20.400000000000123,
+      "samples": 512,
+      "sourcePoints": 387,
+      "crestY": 1.1978044509887695,
+      "crestZ": 9.82295036315918,
+      "reconstructionMs": 2.5830000000005384,
+      "contour": {
+        "points": 387,
+        "segments": 386,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.05581530186765248,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 20.60000000000011,
+      "samples": 512,
+      "sourcePoints": 377,
+      "crestY": 1.299829363822937,
+      "crestZ": 8.674399375915527,
+      "reconstructionMs": 3.801099999998769,
+      "contour": {
+        "points": 377,
+        "segments": 376,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.06179332744790979,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 20.8000000000001,
+      "samples": 512,
+      "sourcePoints": 371,
+      "crestY": 1.3198565244674683,
+      "crestZ": 8.663579940795898,
+      "reconstructionMs": 2.20679999999993,
+      "contour": {
+        "points": 371,
+        "segments": 370,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.05658120447095974,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 21.00000000000009,
+      "samples": 512,
+      "sourcePoints": 381,
+      "crestY": 1.3383575677871704,
+      "crestZ": 7.9449052810668945,
+      "reconstructionMs": 1.6296999999995023,
+      "contour": {
+        "points": 381,
+        "segments": 380,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.05083057087272809,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.005020618438720703
+    },
+    {
+      "t": 21.200000000000077,
+      "samples": 512,
+      "sourcePoints": 395,
+      "crestY": 1.5545681715011597,
+      "crestZ": 4.597850322723389,
+      "reconstructionMs": 1.6959999999999127,
+      "contour": {
+        "points": 395,
+        "segments": 394,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.060129004333086294,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.7301504611968994
+    },
+    {
+      "t": 21.400000000000066,
+      "samples": 512,
+      "sourcePoints": 393,
+      "crestY": 1.647912859916687,
+      "crestZ": 4.492726802825928,
+      "reconstructionMs": 1.6718000000000757,
+      "contour": {
+        "points": 393,
+        "segments": 392,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.06114920165672518,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.9188086986541748
+    },
+    {
+      "t": 21.600000000000055,
+      "samples": 512,
+      "sourcePoints": 377,
+      "crestY": 1.6363009214401245,
+      "crestZ": 3.9753010272979736,
+      "reconstructionMs": 2.280300000000352,
+      "contour": {
+        "points": 377,
+        "segments": 376,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.06321598924094425,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.05342912673950195
+    },
+    {
+      "t": 21.800000000000043,
+      "samples": 512,
+      "sourcePoints": 373,
+      "crestY": 1.570998191833496,
+      "crestZ": 3.53786563873291,
+      "reconstructionMs": 1.1575000000011642,
+      "contour": {
+        "points": 373,
+        "segments": 372,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.06568936654985785,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 22.000000000000032,
+      "samples": 512,
+      "sourcePoints": 365,
+      "crestY": 1.3830881118774414,
+      "crestZ": 2.7518208026885986,
+      "reconstructionMs": 0.8878999999997177,
+      "contour": {
+        "points": 365,
+        "segments": 364,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.06147815214145435,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 22.20000000000002,
+      "samples": 512,
+      "sourcePoints": 365,
+      "crestY": 1.2726060152053833,
+      "crestZ": 2.6125762462615967,
+      "reconstructionMs": 0.8676999999988766,
+      "contour": {
+        "points": 365,
+        "segments": 364,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.06010782442015069,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 22.40000000000001,
+      "samples": 512,
+      "sourcePoints": 355,
+      "crestY": 1.1400400400161743,
+      "crestZ": 2.1417887210845947,
+      "reconstructionMs": 0.8675999999995838,
+      "contour": {
+        "points": 355,
+        "segments": 354,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.06369655590874042,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 22.599999999999998,
+      "samples": 512,
+      "sourcePoints": 355,
+      "crestY": 0.9318343997001648,
+      "crestZ": 3.570972204208374,
+      "reconstructionMs": 1.1135000000012951,
+      "contour": {
+        "points": 355,
+        "segments": 354,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.040187879527731986,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 22.799999999999986,
+      "samples": 512,
+      "sourcePoints": 353,
+      "crestY": 0.9092821478843689,
+      "crestZ": 5.44702672958374,
+      "reconstructionMs": 0.8119999999998981,
+      "contour": {
+        "points": 353,
+        "segments": 352,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.054070772466970514,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 22.999999999999975,
+      "samples": 512,
+      "sourcePoints": 347,
+      "crestY": 0.8571944832801819,
+      "crestZ": 4.936790943145752,
+      "reconstructionMs": 1.2087000000010448,
+      "contour": {
+        "points": 347,
+        "segments": 346,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.050069980357682925,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 23.199999999999964,
+      "samples": 512,
+      "sourcePoints": 335,
+      "crestY": 0.7720032334327698,
+      "crestZ": 4.703466415405273,
+      "reconstructionMs": 0.8119000000006054,
+      "contour": {
+        "points": 335,
+        "segments": 334,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.03780789333337218,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 23.399999999999952,
+      "samples": 512,
+      "sourcePoints": 339,
+      "crestY": 0.7078593969345093,
+      "crestZ": 4.761621475219727,
+      "reconstructionMs": 0.7964000000010856,
+      "contour": {
+        "points": 339,
+        "segments": 338,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04177056255580011,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 23.59999999999994,
+      "samples": 512,
+      "sourcePoints": 333,
+      "crestY": 0.6977193355560303,
+      "crestZ": 2.970398187637329,
+      "reconstructionMs": 0.7959000000009837,
+      "contour": {
+        "points": 333,
+        "segments": 332,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04386823577026982,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 23.79999999999993,
+      "samples": 512,
+      "sourcePoints": 339,
+      "crestY": 0.6814189553260803,
+      "crestZ": 2.987922191619873,
+      "reconstructionMs": 0.8045000000001892,
+      "contour": {
+        "points": 339,
+        "segments": 338,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04285358023890264,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 23.99999999999992,
+      "samples": 512,
+      "sourcePoints": 339,
+      "crestY": 0.65589439868927,
+      "crestZ": 2.9658873081207275,
+      "reconstructionMs": 1.1689000000005763,
+      "contour": {
+        "points": 339,
+        "segments": 338,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05613242381867635,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 24.199999999999907,
+      "samples": 512,
+      "sourcePoints": 337,
+      "crestY": 0.599301278591156,
+      "crestZ": 2.913062810897827,
+      "reconstructionMs": 0.8004000000000815,
+      "contour": {
+        "points": 337,
+        "segments": 336,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.039484249187120096,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 24.399999999999896,
+      "samples": 512,
+      "sourcePoints": 329,
+      "crestY": 0.569304347038269,
+      "crestZ": 2.0726211071014404,
+      "reconstructionMs": 0.8013000000009924,
+      "contour": {
+        "points": 329,
+        "segments": 328,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.03733756856889042,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 24.599999999999884,
+      "samples": 512,
+      "sourcePoints": 329,
+      "crestY": 0.6034017205238342,
+      "crestZ": 2.0734307765960693,
+      "reconstructionMs": 0.7920999999987544,
+      "contour": {
+        "points": 329,
+        "segments": 328,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04653467398728974,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 24.799999999999873,
+      "samples": 512,
+      "sourcePoints": 323,
+      "crestY": 0.6361787915229797,
+      "crestZ": 2.0818817615509033,
+      "reconstructionMs": 1.185300000001007,
+      "contour": {
+        "points": 323,
+        "segments": 322,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.041355741294035915,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 24.99999999999986,
+      "samples": 512,
+      "sourcePoints": 331,
+      "crestY": 0.6650627255439758,
+      "crestZ": 2.019533157348633,
+      "reconstructionMs": 0.8060000000004948,
+      "contour": {
+        "points": 331,
+        "segments": 330,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.037991843243444616,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 25.19999999999985,
+      "samples": 512,
+      "sourcePoints": 339,
+      "crestY": 0.6529161334037781,
+      "crestZ": 2.040419578552246,
+      "reconstructionMs": 0.8024000000004889,
+      "contour": {
+        "points": 339,
+        "segments": 338,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04069644454156077,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 25.39999999999984,
+      "samples": 512,
+      "sourcePoints": 347,
+      "crestY": 0.6198908686637878,
+      "crestZ": 2.0659377574920654,
+      "reconstructionMs": 0.8131000000012136,
+      "contour": {
+        "points": 347,
+        "segments": 346,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05827566762954254,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 25.599999999999827,
+      "samples": 512,
+      "sourcePoints": 347,
+      "crestY": 0.6149665117263794,
+      "crestZ": 2.0078673362731934,
+      "reconstructionMs": 0.8205999999991036,
+      "contour": {
+        "points": 347,
+        "segments": 346,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.053943777091481716,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 25.799999999999816,
+      "samples": 512,
+      "sourcePoints": 345,
+      "crestY": 0.5524327754974365,
+      "crestZ": 2.093078136444092,
+      "reconstructionMs": 0.8256000000001222,
+      "contour": {
+        "points": 345,
+        "segments": 344,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05622353619793949,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 25.999999999999805,
+      "samples": 512,
+      "sourcePoints": 351,
+      "crestY": 0.555364727973938,
+      "crestZ": 2.054906129837036,
+      "reconstructionMs": 0.841999999998734,
+      "contour": {
+        "points": 351,
+        "segments": 350,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.052709863327389674,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 26.199999999999793,
+      "samples": 512,
+      "sourcePoints": 355,
+      "crestY": 1.3571857213974,
+      "crestZ": 19.934865951538086,
+      "reconstructionMs": 0.8245000000006257,
+      "contour": {
+        "points": 355,
+        "segments": 354,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05362890611213701,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.21227264404296875
+    },
+    {
+      "t": 26.399999999999782,
+      "samples": 512,
+      "sourcePoints": 357,
+      "crestY": 1.3839040994644165,
+      "crestZ": 19.633398056030273,
+      "reconstructionMs": 0.8055999999996857,
+      "contour": {
+        "points": 357,
+        "segments": 356,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.050684599630533525,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.04492950439453125
+    },
+    {
+      "t": 26.59999999999977,
+      "samples": 512,
+      "sourcePoints": 361,
+      "crestY": 1.3255106210708618,
+      "crestZ": 18.763803482055664,
+      "reconstructionMs": 0.9333000000005995,
+      "contour": {
+        "points": 361,
+        "segments": 360,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.06284063659621235,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.41625404357910156
+    },
+    {
+      "t": 26.79999999999976,
+      "samples": 512,
+      "sourcePoints": 357,
+      "crestY": 1.221907138824463,
+      "crestZ": 18.067846298217773,
+      "reconstructionMs": 1.3207999999995081,
+      "contour": {
+        "points": 357,
+        "segments": 356,
+        "ambiguousCells": 1,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.06262006350182392,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.27870750427246094
+    },
+    {
+      "t": 26.999999999999748,
+      "samples": 512,
+      "sourcePoints": 365,
+      "crestY": 1.094370722770691,
+      "crestZ": 16.200319290161133,
+      "reconstructionMs": 1.1974000000009255,
+      "contour": {
+        "points": 365,
+        "segments": 364,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.041948361413814514,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 27.199999999999736,
+      "samples": 512,
+      "sourcePoints": 369,
+      "crestY": 0.9664958715438843,
+      "crestZ": 15.153367042541504,
+      "reconstructionMs": 0.860899999999674,
+      "contour": {
+        "points": 369,
+        "segments": 368,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.04880623524979901,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 27.399999999999725,
+      "samples": 512,
+      "sourcePoints": 353,
+      "crestY": 0.7946524620056152,
+      "crestZ": 14.747026443481445,
+      "reconstructionMs": 0.8459000000002561,
+      "contour": {
+        "points": 353,
+        "segments": 352,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.06003319454446472,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 27.599999999999714,
+      "samples": 512,
+      "sourcePoints": 357,
+      "crestY": 0.680608868598938,
+      "crestZ": 13.962395668029785,
+      "reconstructionMs": 0.8496000000013737,
+      "contour": {
+        "points": 357,
+        "segments": 356,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.046889511663139434,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 27.799999999999702,
+      "samples": 512,
+      "sourcePoints": 357,
+      "crestY": 0.6705064177513123,
+      "crestZ": 12.706583976745605,
+      "reconstructionMs": 1.087599999998929,
+      "contour": {
+        "points": 357,
+        "segments": 356,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05868004914298176,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.1744213104248047
+    },
+    {
+      "t": 27.99999999999969,
+      "samples": 512,
+      "sourcePoints": 353,
+      "crestY": 0.7320288419723511,
+      "crestZ": 11.816662788391113,
+      "reconstructionMs": 0.7980999999999767,
+      "contour": {
+        "points": 353,
+        "segments": 352,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05828028600227785,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.33405208587646484
+    },
+    {
+      "t": 28.19999999999968,
+      "samples": 512,
+      "sourcePoints": 355,
+      "crestY": 0.7850968241691589,
+      "crestZ": 11.260756492614746,
+      "reconstructionMs": 1.5027000000009139,
+      "contour": {
+        "points": 355,
+        "segments": 354,
+        "ambiguousCells": 1,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.060094485556092245,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 28.399999999999668,
+      "samples": 512,
+      "sourcePoints": 351,
+      "crestY": 0.9948785305023193,
+      "crestZ": 9.085260391235352,
+      "reconstructionMs": 1.1481000000003405,
+      "contour": {
+        "points": 351,
+        "segments": 350,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.06080249871141074,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 28.599999999999657,
+      "samples": 512,
+      "sourcePoints": 379,
+      "crestY": 1.1387895345687866,
+      "crestZ": 8.42324447631836,
+      "reconstructionMs": 0.8665000000000873,
+      "contour": {
+        "points": 379,
+        "segments": 378,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.054192364454184974,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.5435595512390137
+    },
+    {
+      "t": 28.799999999999645,
+      "samples": 512,
+      "sourcePoints": 373,
+      "crestY": 1.1870025396347046,
+      "crestZ": 6.544467449188232,
+      "reconstructionMs": 0.8806000000004133,
+      "contour": {
+        "points": 373,
+        "segments": 372,
+        "ambiguousCells": 1,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.06423660793870424,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.4484372138977051
+    },
+    {
+      "t": 28.999999999999634,
+      "samples": 512,
+      "sourcePoints": 369,
+      "crestY": 1.4268680810928345,
+      "crestZ": 5.901410102844238,
+      "reconstructionMs": 0.8633999999983644,
+      "contour": {
+        "points": 369,
+        "segments": 368,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.052375851076436664,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.21337032318115234
+    },
+    {
+      "t": 29.199999999999623,
+      "samples": 512,
+      "sourcePoints": 369,
+      "crestY": 1.467309594154358,
+      "crestZ": 5.363397121429443,
+      "reconstructionMs": 1.3500999999996566,
+      "contour": {
+        "points": 369,
+        "segments": 368,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.06659649417750035,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 29.39999999999961,
+      "samples": 512,
+      "sourcePoints": 365,
+      "crestY": 1.4484339952468872,
+      "crestZ": 5.231959819793701,
+      "reconstructionMs": 0.8031999999984691,
+      "contour": {
+        "points": 365,
+        "segments": 364,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05165027727319392,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 29.5999999999996,
+      "samples": 512,
+      "sourcePoints": 367,
+      "crestY": 1.4398725032806396,
+      "crestZ": 5.1002583503723145,
+      "reconstructionMs": 0.8052999999999884,
+      "contour": {
+        "points": 367,
+        "segments": 366,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.05506318148528306,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 29.79999999999959,
+      "samples": 512,
+      "sourcePoints": 381,
+      "crestY": 1.4039007425308228,
+      "crestZ": 4.922452449798584,
+      "reconstructionMs": 0.8123000000014144,
+      "contour": {
+        "points": 381,
+        "segments": 380,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.062156993581398694,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.5162315368652344
+    },
+    {
+      "t": 29.999999999999577,
+      "samples": 512,
+      "sourcePoints": 363,
+      "crestY": 1.255910038948059,
+      "crestZ": 4.657055377960205,
+      "reconstructionMs": 0.7969000000011874,
+      "contour": {
+        "points": 363,
+        "segments": 362,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.0457569365631637,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 30.199999999999566,
+      "samples": 512,
+      "sourcePoints": 355,
+      "crestY": 1.108839988708496,
+      "crestZ": 4.729581832885742,
+      "reconstructionMs": 0.7999000000017986,
+      "contour": {
+        "points": 355,
+        "segments": 354,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.03573844621878591,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 30.399999999999554,
+      "samples": 512,
+      "sourcePoints": 351,
+      "crestY": 0.9951562881469727,
+      "crestZ": 4.874505043029785,
+      "reconstructionMs": 0.8258000000023458,
+      "contour": {
+        "points": 351,
+        "segments": 350,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04430738986594407,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 30.599999999999543,
+      "samples": 512,
+      "sourcePoints": 341,
+      "crestY": 0.8561652302742004,
+      "crestZ": 4.930809020996094,
+      "reconstructionMs": 0.7858999999989464,
+      "contour": {
+        "points": 341,
+        "segments": 340,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05632805226891768,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 30.79999999999953,
+      "samples": 512,
+      "sourcePoints": 343,
+      "crestY": 0.8168765306472778,
+      "crestZ": 5.193224906921387,
+      "reconstructionMs": 0.8903000000027532,
+      "contour": {
+        "points": 343,
+        "segments": 342,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05004744104632316,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 30.99999999999952,
+      "samples": 512,
+      "sourcePoints": 341,
+      "crestY": 0.7132003307342529,
+      "crestZ": 5.240952491760254,
+      "reconstructionMs": 0.7822000000014668,
+      "contour": {
+        "points": 341,
+        "segments": 340,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.053004638209963637,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 31.19999999999951,
+      "samples": 512,
+      "sourcePoints": 345,
+      "crestY": 0.6982473134994507,
+      "crestZ": 2.339982271194458,
+      "reconstructionMs": 0.7865999999994528,
+      "contour": {
+        "points": 345,
+        "segments": 344,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.03886106086875752,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 31.399999999999498,
+      "samples": 512,
+      "sourcePoints": 339,
+      "crestY": 0.6730350255966187,
+      "crestZ": 2.481765031814575,
+      "reconstructionMs": 0.7834000000002561,
+      "contour": {
+        "points": 339,
+        "segments": 338,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.048848846034726875,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 31.599999999999486,
+      "samples": 512,
+      "sourcePoints": 331,
+      "crestY": 0.6865833401679993,
+      "crestZ": 2.13155460357666,
+      "reconstructionMs": 0.7716000000000349,
+      "contour": {
+        "points": 331,
+        "segments": 330,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.03971262238569846,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 31.799999999999475,
+      "samples": 512,
+      "sourcePoints": 335,
+      "crestY": 0.699122428894043,
+      "crestZ": 2.055082321166992,
+      "reconstructionMs": 0.7792000000008557,
+      "contour": {
+        "points": 335,
+        "segments": 334,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04556421391626427,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 31.999999999999464,
+      "samples": 512,
+      "sourcePoints": 333,
+      "crestY": 0.6915594339370728,
+      "crestZ": 2.0433645248413086,
+      "reconstructionMs": 0.8021000000007916,
+      "contour": {
+        "points": 333,
+        "segments": 332,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.03661923734810616,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 32.199999999999456,
+      "samples": 512,
+      "sourcePoints": 331,
+      "crestY": 0.6920925974845886,
+      "crestZ": 2.0463480949401855,
+      "reconstructionMs": 0.7891999999992549,
+      "contour": {
+        "points": 331,
+        "segments": 330,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.034607172694801513,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 32.399999999999444,
+      "samples": 512,
+      "sourcePoints": 333,
+      "crestY": 0.6889603137969971,
+      "crestZ": 2.061270236968994,
+      "reconstructionMs": 0.7883999999976368,
+      "contour": {
+        "points": 333,
+        "segments": 332,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.0360287639964067,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 32.59999999999943,
+      "samples": 512,
+      "sourcePoints": 337,
+      "crestY": 0.684768795967102,
+      "crestZ": 2.0674595832824707,
+      "reconstructionMs": 0.7868000000016764,
+      "contour": {
+        "points": 337,
+        "segments": 336,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.0346430237480486,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 32.79999999999942,
+      "samples": 512,
+      "sourcePoints": 331,
+      "crestY": 0.6826590299606323,
+      "crestZ": 2.0060465335845947,
+      "reconstructionMs": 0.7960000000020955,
+      "contour": {
+        "points": 331,
+        "segments": 330,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05852120683954988,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 32.99999999999941,
+      "samples": 512,
+      "sourcePoints": 333,
+      "crestY": 0.697472870349884,
+      "crestZ": 2.0269834995269775,
+      "reconstructionMs": 0.788299999996525,
+      "contour": {
+        "points": 333,
+        "segments": 332,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.03357721067231238,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 33.1999999999994,
+      "samples": 512,
+      "sourcePoints": 349,
+      "crestY": 0.6802968978881836,
+      "crestZ": 2.0142455101013184,
+      "reconstructionMs": 0.8072999999967578,
+      "contour": {
+        "points": 349,
+        "segments": 348,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05542972758681034,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 33.39999999999939,
+      "samples": 512,
+      "sourcePoints": 347,
+      "crestY": 0.6664516925811768,
+      "crestZ": 2.0323092937469482,
+      "reconstructionMs": 1.192300000002433,
+      "contour": {
+        "points": 347,
+        "segments": 346,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04593751852565707,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 33.599999999999376,
+      "samples": 512,
+      "sourcePoints": 347,
+      "crestY": 0.6576834917068481,
+      "crestZ": 2.050281524658203,
+      "reconstructionMs": 0.790500000002794,
+      "contour": {
+        "points": 347,
+        "segments": 346,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04531126982002519,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 33.799999999999365,
+      "samples": 512,
+      "sourcePoints": 347,
+      "crestY": 0.6568282246589661,
+      "crestZ": 2.0137646198272705,
+      "reconstructionMs": 0.7875999999996566,
+      "contour": {
+        "points": 347,
+        "segments": 346,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.053622367089380306,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 33.99999999999935,
+      "samples": 512,
+      "sourcePoints": 361,
+      "crestY": 0.6269646286964417,
+      "crestZ": 2.0622024536132812,
+      "reconstructionMs": 0.7988000000004831,
+      "contour": {
+        "points": 361,
+        "segments": 360,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.053792998086662776,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 34.19999999999934,
+      "samples": 512,
+      "sourcePoints": 351,
+      "crestY": 1.337660789489746,
+      "crestZ": 19.968477249145508,
+      "reconstructionMs": 0.7923000000009779,
+      "contour": {
+        "points": 351,
+        "segments": 350,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04976655094111751,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.164398193359375
+    },
+    {
+      "t": 34.39999999999933,
+      "samples": 512,
+      "sourcePoints": 359,
+      "crestY": 1.310606598854065,
+      "crestZ": 19.863773345947266,
+      "reconstructionMs": 0.797100000003411,
+      "contour": {
+        "points": 359,
+        "segments": 358,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.0556551088318287,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.42771339416503906
+    },
+    {
+      "t": 34.59999999999932,
+      "samples": 512,
+      "sourcePoints": 361,
+      "crestY": 1.266394853591919,
+      "crestZ": 18.62751007080078,
+      "reconstructionMs": 0.7976999999991676,
+      "contour": {
+        "points": 361,
+        "segments": 360,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.045488282824118625,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.5468692779541016
+    },
+    {
+      "t": 34.79999999999931,
+      "samples": 512,
+      "sourcePoints": 363,
+      "crestY": 1.2380638122558594,
+      "crestZ": 17.308786392211914,
+      "reconstructionMs": 0.800199999997858,
+      "contour": {
+        "points": 363,
+        "segments": 362,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05890187343767439,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.23764896392822266
+    },
+    {
+      "t": 34.9999999999993,
+      "samples": 512,
+      "sourcePoints": 373,
+      "crestY": 1.2175225019454956,
+      "crestZ": 16.19411277770996,
+      "reconstructionMs": 0.9052000000010594,
+      "contour": {
+        "points": 373,
+        "segments": 372,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.053879440482488536,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.48142147064208984
+    },
+    {
+      "t": 35.199999999999285,
+      "samples": 512,
+      "sourcePoints": 371,
+      "crestY": 1.1725215911865234,
+      "crestZ": 15.104625701904297,
+      "reconstructionMs": 0.7986999999993714,
+      "contour": {
+        "points": 371,
+        "segments": 370,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.059022245081380785,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.7574100494384766
+    },
+    {
+      "t": 35.399999999999274,
+      "samples": 512,
+      "sourcePoints": 369,
+      "crestY": 1.020079493522644,
+      "crestZ": 14.435115814208984,
+      "reconstructionMs": 0.7931000000025961,
+      "contour": {
+        "points": 369,
+        "segments": 368,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.0513537154559412,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 35.59999999999926,
+      "samples": 512,
+      "sourcePoints": 361,
+      "crestY": 0.9009029865264893,
+      "crestZ": 13.460604667663574,
+      "reconstructionMs": 0.7920000000012806,
+      "contour": {
+        "points": 361,
+        "segments": 360,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.053726353525628226,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 35.79999999999925,
+      "samples": 512,
+      "sourcePoints": 355,
+      "crestY": 0.8377825021743774,
+      "crestZ": 12.817855834960938,
+      "reconstructionMs": 1.3152999999983876,
+      "contour": {
+        "points": 355,
+        "segments": 354,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.057532726352386335,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 35.99999999999924,
+      "samples": 512,
+      "sourcePoints": 353,
+      "crestY": 0.8132462501525879,
+      "crestZ": 12.073902130126953,
+      "reconstructionMs": 0.7930999999989581,
+      "contour": {
+        "points": 353,
+        "segments": 352,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.06858834937929632,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 36.19999999999923,
+      "samples": 512,
+      "sourcePoints": 339,
+      "crestY": 0.8383932709693909,
+      "crestZ": 11.215962409973145,
+      "reconstructionMs": 0.7848999999987427,
+      "contour": {
+        "points": 339,
+        "segments": 338,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04619712667229039,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 36.39999999999922,
+      "samples": 512,
+      "sourcePoints": 347,
+      "crestY": 0.970004677772522,
+      "crestZ": 10.543805122375488,
+      "reconstructionMs": 0.7872999999999593,
+      "contour": {
+        "points": 347,
+        "segments": 346,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.0560313902513383,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 36.599999999999206,
+      "samples": 512,
+      "sourcePoints": 357,
+      "crestY": 1.0734943151474,
+      "crestZ": 6.954148292541504,
+      "reconstructionMs": 0.7917000000015832,
+      "contour": {
+        "points": 357,
+        "segments": 356,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.05865380772775931,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 36.799999999999194,
+      "samples": 512,
+      "sourcePoints": 367,
+      "crestY": 1.472758173942566,
+      "crestZ": 6.870582103729248,
+      "reconstructionMs": 0.800599999998667,
+      "contour": {
+        "points": 367,
+        "segments": 366,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.057715013247327696,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 36.99999999999918,
+      "samples": 512,
+      "sourcePoints": 369,
+      "crestY": 1.6711640357971191,
+      "crestZ": 6.791813373565674,
+      "reconstructionMs": 1.2040000000015425,
+      "contour": {
+        "points": 369,
+        "segments": 368,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.053802343390542164,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 37.19999999999917,
+      "samples": 512,
+      "sourcePoints": 377,
+      "crestY": 1.8140350580215454,
+      "crestZ": 5.010751724243164,
+      "reconstructionMs": 0.8073000000003958,
+      "contour": {
+        "points": 377,
+        "segments": 376,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.056096174074986384,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.023588180541992188
+    },
+    {
+      "t": 37.39999999999916,
+      "samples": 512,
+      "sourcePoints": 383,
+      "crestY": 1.8973931074142456,
+      "crestZ": 4.740078449249268,
+      "reconstructionMs": 0.9192000000002736,
+      "contour": {
+        "points": 383,
+        "segments": 382,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.06446936509626938,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 37.59999999999915,
+      "samples": 512,
+      "sourcePoints": 367,
+      "crestY": 1.7818635702133179,
+      "crestZ": 4.409152984619141,
+      "reconstructionMs": 0.7989000000015949,
+      "contour": {
+        "points": 367,
+        "segments": 366,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.053136972892378447,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 37.79999999999914,
+      "samples": 512,
+      "sourcePoints": 375,
+      "crestY": 1.625908613204956,
+      "crestZ": 4.184473991394043,
+      "reconstructionMs": 0.8004000000000815,
+      "contour": {
+        "points": 375,
+        "segments": 374,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.06013674820385735,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 37.999999999999126,
+      "samples": 512,
+      "sourcePoints": 361,
+      "crestY": 1.4937316179275513,
+      "crestZ": 3.2441048622131348,
+      "reconstructionMs": 0.7890999999981432,
+      "contour": {
+        "points": 361,
+        "segments": 360,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.04773983912085629,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 38.199999999999115,
+      "samples": 512,
+      "sourcePoints": 363,
+      "crestY": 1.3852133750915527,
+      "crestZ": 2.9076955318450928,
+      "reconstructionMs": 0.8010999999969499,
+      "contour": {
+        "points": 363,
+        "segments": 362,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05442562178516195,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.02496194839477539
+    },
+    {
+      "t": 38.3999999999991,
+      "samples": 512,
+      "sourcePoints": 353,
+      "crestY": 1.247748613357544,
+      "crestZ": 2.6165950298309326,
+      "reconstructionMs": 0.8064000000013039,
+      "contour": {
+        "points": 353,
+        "segments": 352,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05287155003451253,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.12185382843017578
+    },
+    {
+      "t": 38.59999999999909,
+      "samples": 512,
+      "sourcePoints": 343,
+      "crestY": 1.1261765956878662,
+      "crestZ": 2.9365646839141846,
+      "reconstructionMs": 0.7730999999985215,
+      "contour": {
+        "points": 343,
+        "segments": 342,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04154327499347964,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 38.79999999999908,
+      "samples": 512,
+      "sourcePoints": 347,
+      "crestY": 1.0249316692352295,
+      "crestZ": 2.843773126602173,
+      "reconstructionMs": 0.7757999999994354,
+      "contour": {
+        "points": 347,
+        "segments": 346,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.051975279717262034,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 38.99999999999907,
+      "samples": 512,
+      "sourcePoints": 343,
+      "crestY": 0.9531505107879639,
+      "crestZ": 3.105201244354248,
+      "reconstructionMs": 0.7833000000027823,
+      "contour": {
+        "points": 343,
+        "segments": 342,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04229572423704319,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 39.19999999999906,
+      "samples": 512,
+      "sourcePoints": 337,
+      "crestY": 0.9059552550315857,
+      "crestZ": 2.9650156497955322,
+      "reconstructionMs": 1.0913000000000466,
+      "contour": {
+        "points": 337,
+        "segments": 336,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05267839725803755,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 39.39999999999905,
+      "samples": 512,
+      "sourcePoints": 339,
+      "crestY": 0.8404436707496643,
+      "crestZ": 2.8427011966705322,
+      "reconstructionMs": 0.8025999999990745,
+      "contour": {
+        "points": 339,
+        "segments": 338,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.03828356820137024,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 39.599999999999035,
+      "samples": 512,
+      "sourcePoints": 339,
+      "crestY": 0.7379420399665833,
+      "crestZ": 2.8308327198028564,
+      "reconstructionMs": 0.7835000000013679,
+      "contour": {
+        "points": 339,
+        "segments": 338,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.051131796514297695,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 39.799999999999024,
+      "samples": 512,
+      "sourcePoints": 337,
+      "crestY": 0.6821178197860718,
+      "crestZ": 2.625237226486206,
+      "reconstructionMs": 0.7787000000025728,
+      "contour": {
+        "points": 337,
+        "segments": 336,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04216856081165946,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 39.99999999999901,
+      "samples": 512,
+      "sourcePoints": 341,
+      "crestY": 0.6411542296409607,
+      "crestZ": 2.422025203704834,
+      "reconstructionMs": 0.7828000000008615,
+      "contour": {
+        "points": 341,
+        "segments": 340,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.03174872940027347,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 40.199999999999,
+      "samples": 512,
+      "sourcePoints": 341,
+      "crestY": 0.6221089363098145,
+      "crestZ": 2.426759958267212,
+      "reconstructionMs": 0.7792999999983294,
+      "contour": {
+        "points": 341,
+        "segments": 340,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.0560828890246633,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 40.39999999999899,
+      "samples": 512,
+      "sourcePoints": 343,
+      "crestY": 0.5674474239349365,
+      "crestZ": 2.5457358360290527,
+      "reconstructionMs": 0.7855000000017753,
+      "contour": {
+        "points": 343,
+        "segments": 342,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.037689147619782246,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 40.59999999999898,
+      "samples": 512,
+      "sourcePoints": 331,
+      "crestY": 0.557632327079773,
+      "crestZ": 2.0904006958007812,
+      "reconstructionMs": 0.7732999999971071,
+      "contour": {
+        "points": 331,
+        "segments": 330,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.0402221395351367,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 40.79999999999897,
+      "samples": 512,
+      "sourcePoints": 331,
+      "crestY": 0.5365371704101562,
+      "crestZ": 2.0776522159576416,
+      "reconstructionMs": 0.7752000000000407,
+      "contour": {
+        "points": 331,
+        "segments": 330,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.039093082420224065,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 40.999999999998956,
+      "samples": 512,
+      "sourcePoints": 329,
+      "crestY": 0.5222066044807434,
+      "crestZ": 2.086575984954834,
+      "reconstructionMs": 0.7841000000007625,
+      "contour": {
+        "points": 329,
+        "segments": 328,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.034829351299729076,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 41.199999999998944,
+      "samples": 512,
+      "sourcePoints": 347,
+      "crestY": 0.5338211059570312,
+      "crestZ": 2.0192439556121826,
+      "reconstructionMs": 0.7880000000004657,
+      "contour": {
+        "points": 347,
+        "segments": 346,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.0439083994334202,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 41.39999999999893,
+      "samples": 512,
+      "sourcePoints": 353,
+      "crestY": 0.5287383794784546,
+      "crestZ": 2.2424235343933105,
+      "reconstructionMs": 0.7943999999988591,
+      "contour": {
+        "points": 353,
+        "segments": 352,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.0535541944287667,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 41.59999999999892,
+      "samples": 512,
+      "sourcePoints": 361,
+      "crestY": 0.5211072564125061,
+      "crestZ": 2.232576847076416,
+      "reconstructionMs": 0.799299999998766,
+      "contour": {
+        "points": 361,
+        "segments": 360,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.042808315267981366,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 41.79999999999891,
+      "samples": 512,
+      "sourcePoints": 353,
+      "crestY": 0.5123727321624756,
+      "crestZ": 2.0405054092407227,
+      "reconstructionMs": 0.7911000000021886,
+      "contour": {
+        "points": 353,
+        "segments": 352,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04436232915163992,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 41.9999999999989,
+      "samples": 512,
+      "sourcePoints": 357,
+      "crestY": 0.5123834013938904,
+      "crestZ": 2.1034669876098633,
+      "reconstructionMs": 1.1751000000003842,
+      "contour": {
+        "points": 357,
+        "segments": 356,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.033211991258863545,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 42.19999999999889,
+      "samples": 512,
+      "sourcePoints": 363,
+      "crestY": 1.424996256828308,
+      "crestZ": 19.98923110961914,
+      "reconstructionMs": 0.7965000000003783,
+      "contour": {
+        "points": 363,
+        "segments": 362,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.03522753336256839,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.21666717529296875
+    },
+    {
+      "t": 42.399999999998876,
+      "samples": 512,
+      "sourcePoints": 371,
+      "crestY": 1.4479929208755493,
+      "crestZ": 19.631622314453125,
+      "reconstructionMs": 0.7944000000024971,
+      "contour": {
+        "points": 371,
+        "segments": 370,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.053590298494510545,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.6231498718261719
+    },
+    {
+      "t": 42.599999999998865,
+      "samples": 512,
+      "sourcePoints": 375,
+      "crestY": 1.4441325664520264,
+      "crestZ": 18.01866912841797,
+      "reconstructionMs": 0.8060000000004948,
+      "contour": {
+        "points": 375,
+        "segments": 374,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05752381155830956,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.9800281524658203
+    },
+    {
+      "t": 42.79999999999885,
+      "samples": 512,
+      "sourcePoints": 359,
+      "crestY": 1.4448572397232056,
+      "crestZ": 17.05491828918457,
+      "reconstructionMs": 0.797999999998865,
+      "contour": {
+        "points": 359,
+        "segments": 358,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04918804561755851,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.432342529296875
+    },
+    {
+      "t": 42.99999999999884,
+      "samples": 512,
+      "sourcePoints": 383,
+      "crestY": 1.3683583736419678,
+      "crestZ": 16.063064575195312,
+      "reconstructionMs": 0.8098000000027241,
+      "contour": {
+        "points": 383,
+        "segments": 382,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.050564408051389176,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.8850727081298828
+    },
+    {
+      "t": 43.19999999999883,
+      "samples": 512,
+      "sourcePoints": 385,
+      "crestY": 1.2056230306625366,
+      "crestZ": 15.183438301086426,
+      "reconstructionMs": 0.8097999999990861,
+      "contour": {
+        "points": 385,
+        "segments": 384,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.06060364009393899,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 1.0423412322998047
+    },
+    {
+      "t": 43.39999999999882,
+      "samples": 512,
+      "sourcePoints": 365,
+      "crestY": 1.0125008821487427,
+      "crestZ": 14.780298233032227,
+      "reconstructionMs": 0.9020999999993364,
+      "contour": {
+        "points": 365,
+        "segments": 364,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.0526760425261751,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 43.59999999999881,
+      "samples": 512,
+      "sourcePoints": 367,
+      "crestY": 0.8354465961456299,
+      "crestZ": 13.730144500732422,
+      "reconstructionMs": 0.7988000000004831,
+      "contour": {
+        "points": 367,
+        "segments": 366,
+        "ambiguousCells": 2,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.05577418863400482,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 43.799999999998796,
+      "samples": 512,
+      "sourcePoints": 365,
+      "crestY": 0.8261014223098755,
+      "crestZ": 12.033154487609863,
+      "reconstructionMs": 0.7880999999979394,
+      "contour": {
+        "points": 365,
+        "segments": 364,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.06568234559607901,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 43.999999999998785,
+      "samples": 512,
+      "sourcePoints": 369,
+      "crestY": 0.9028109312057495,
+      "crestZ": 10.743595123291016,
+      "reconstructionMs": 0.7888999999995576,
+      "contour": {
+        "points": 369,
+        "segments": 368,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.06373219671606802,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 44.199999999998774,
+      "samples": 512,
+      "sourcePoints": 363,
+      "crestY": 1.0053635835647583,
+      "crestZ": 9.583989143371582,
+      "reconstructionMs": 0.7913000000007742,
+      "contour": {
+        "points": 363,
+        "segments": 362,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.058920612266938885,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.040228843688964844
+    },
+    {
+      "t": 44.39999999999876,
+      "samples": 512,
+      "sourcePoints": 347,
+      "crestY": 1.0729635953903198,
+      "crestZ": 8.628483772277832,
+      "reconstructionMs": 1.1632000000026892,
+      "contour": {
+        "points": 347,
+        "segments": 346,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.06224077253700959,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 44.59999999999875,
+      "samples": 512,
+      "sourcePoints": 349,
+      "crestY": 1.1807098388671875,
+      "crestZ": 7.53872537612915,
+      "reconstructionMs": 0.7787000000025728,
+      "contour": {
+        "points": 349,
+        "segments": 348,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.06147756816324659,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.13879108428955078
+    },
+    {
+      "t": 44.79999999999874,
+      "samples": 512,
+      "sourcePoints": 353,
+      "crestY": 1.2817060947418213,
+      "crestZ": 6.184126853942871,
+      "reconstructionMs": 0.780800000000454,
+      "contour": {
+        "points": 353,
+        "segments": 352,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.054863286620916135,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 44.99999999999873,
+      "samples": 512,
+      "sourcePoints": 361,
+      "crestY": 1.3258860111236572,
+      "crestZ": 5.171901226043701,
+      "reconstructionMs": 0.7828000000008615,
+      "contour": {
+        "points": 361,
+        "segments": 360,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.059908440218596655,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 45.19999999999872,
+      "samples": 512,
+      "sourcePoints": 363,
+      "crestY": 1.3126354217529297,
+      "crestZ": 5.130202293395996,
+      "reconstructionMs": 0.7819999999992433,
+      "contour": {
+        "points": 363,
+        "segments": 362,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.04666612242360244,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 45.399999999998705,
+      "samples": 512,
+      "sourcePoints": 379,
+      "crestY": 1.3130085468292236,
+      "crestZ": 7.504001140594482,
+      "reconstructionMs": 0.8005000000011933,
+      "contour": {
+        "points": 379,
+        "segments": 378,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.06388021993350294,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.4324488043785095
+    },
+    {
+      "t": 45.599999999998694,
+      "samples": 512,
+      "sourcePoints": 357,
+      "crestY": 1.3243932723999023,
+      "crestZ": 4.470798492431641,
+      "reconstructionMs": 0.7756000000008498,
+      "contour": {
+        "points": 357,
+        "segments": 356,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.06213442724996085,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 45.79999999999868,
+      "samples": 512,
+      "sourcePoints": 373,
+      "crestY": 1.2434661388397217,
+      "crestZ": 6.915669918060303,
+      "reconstructionMs": 1.1755000000011933,
+      "contour": {
+        "points": 373,
+        "segments": 372,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.058773220099346164,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 45.99999999999867,
+      "samples": 512,
+      "sourcePoints": 367,
+      "crestY": 1.2530171871185303,
+      "crestZ": 4.520295143127441,
+      "reconstructionMs": 1.1980000000003201,
+      "contour": {
+        "points": 367,
+        "segments": 366,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 3,
+        "maxFairingDisplacement": 0.058798126848266845,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 46.19999999999866,
+      "samples": 512,
+      "sourcePoints": 365,
+      "crestY": 1.1710078716278076,
+      "crestZ": 4.082345485687256,
+      "reconstructionMs": 0.7839999999996508,
+      "contour": {
+        "points": 365,
+        "segments": 364,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.04275775927562456,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 46.39999999999865,
+      "samples": 512,
+      "sourcePoints": 351,
+      "crestY": 1.0470435619354248,
+      "crestZ": 3.88167405128479,
+      "reconstructionMs": 1.15230000000156,
+      "contour": {
+        "points": 351,
+        "segments": 350,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.052228700989465034,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 46.59999999999864,
+      "samples": 512,
+      "sourcePoints": 351,
+      "crestY": 0.9357354640960693,
+      "crestZ": 3.657907247543335,
+      "reconstructionMs": 0.7783000000017637,
+      "contour": {
+        "points": 351,
+        "segments": 350,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.037954330522215265,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 46.799999999998626,
+      "samples": 512,
+      "sourcePoints": 357,
+      "crestY": 0.8167062997817993,
+      "crestZ": 3.2853739261627197,
+      "reconstructionMs": 0.7772000000004482,
+      "contour": {
+        "points": 357,
+        "segments": 356,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04324850316697747,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 46.999999999998614,
+      "samples": 512,
+      "sourcePoints": 343,
+      "crestY": 0.6947277784347534,
+      "crestZ": 2.560333490371704,
+      "reconstructionMs": 0.7702999999964959,
+      "contour": {
+        "points": 343,
+        "segments": 342,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04732293258534347,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.03246355056762695
+    },
+    {
+      "t": 47.1999999999986,
+      "samples": 512,
+      "sourcePoints": 351,
+      "crestY": 0.6399497985839844,
+      "crestZ": 4.59475040435791,
+      "reconstructionMs": 0.7777999999998428,
+      "contour": {
+        "points": 351,
+        "segments": 350,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.054301581965366136,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.11394062638282776
+    },
+    {
+      "t": 47.39999999999859,
+      "samples": 512,
+      "sourcePoints": 357,
+      "crestY": 0.6261519193649292,
+      "crestZ": 4.536594390869141,
+      "reconstructionMs": 0.7756999999983236,
+      "contour": {
+        "points": 357,
+        "segments": 356,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.050468467623967395,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 47.59999999999858,
+      "samples": 512,
+      "sourcePoints": 339,
+      "crestY": 0.5396436452865601,
+      "crestZ": 2.7274796962738037,
+      "reconstructionMs": 0.7717000000011467,
+      "contour": {
+        "points": 339,
+        "segments": 338,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.03380581119989765,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 47.79999999999857,
+      "samples": 512,
+      "sourcePoints": 339,
+      "crestY": 0.5283339619636536,
+      "crestZ": 2.036677598953247,
+      "reconstructionMs": 0.813399999999092,
+      "contour": {
+        "points": 339,
+        "segments": 338,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04491130891016794,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 47.99999999999856,
+      "samples": 512,
+      "sourcePoints": 335,
+      "crestY": 0.611893892288208,
+      "crestZ": 2.0567426681518555,
+      "reconstructionMs": 0.7749000000003434,
+      "contour": {
+        "points": 335,
+        "segments": 334,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.03385764610976651,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 48.199999999998546,
+      "samples": 512,
+      "sourcePoints": 331,
+      "crestY": 0.7796522974967957,
+      "crestZ": 2.07357120513916,
+      "reconstructionMs": 1.1566000000020722,
+      "contour": {
+        "points": 331,
+        "segments": 330,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.029449477113316677,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 48.399999999998535,
+      "samples": 512,
+      "sourcePoints": 333,
+      "crestY": 0.8330109715461731,
+      "crestZ": 2.1985626220703125,
+      "reconstructionMs": 0.7740999999987253,
+      "contour": {
+        "points": 333,
+        "segments": 332,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.060404722609514794,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 48.59999999999852,
+      "samples": 512,
+      "sourcePoints": 333,
+      "crestY": 0.7651201486587524,
+      "crestZ": 2.000652313232422,
+      "reconstructionMs": 0.774199999999837,
+      "contour": {
+        "points": 333,
+        "segments": 332,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04334739951536925,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 48.79999999999851,
+      "samples": 512,
+      "sourcePoints": 335,
+      "crestY": 0.8214083909988403,
+      "crestZ": 2.083993673324585,
+      "reconstructionMs": 0.7728000000024622,
+      "contour": {
+        "points": 335,
+        "segments": 334,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.02923991557164641,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 48.9999999999985,
+      "samples": 512,
+      "sourcePoints": 345,
+      "crestY": 0.8423465490341187,
+      "crestZ": 2.033165454864502,
+      "reconstructionMs": 0.7793999999994412,
+      "contour": {
+        "points": 345,
+        "segments": 344,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.06279174651772529,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 49.19999999999849,
+      "samples": 512,
+      "sourcePoints": 347,
+      "crestY": 0.7722727060317993,
+      "crestZ": 2.0655431747436523,
+      "reconstructionMs": 0.7815999999984342,
+      "contour": {
+        "points": 347,
+        "segments": 346,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.05307560235910823,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 49.39999999999848,
+      "samples": 512,
+      "sourcePoints": 353,
+      "crestY": 0.6952816843986511,
+      "crestZ": 2.021918535232544,
+      "reconstructionMs": 0.7915000000029977,
+      "contour": {
+        "points": 353,
+        "segments": 352,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.045917040039998816,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 49.59999999999847,
+      "samples": 512,
+      "sourcePoints": 357,
+      "crestY": 0.6353612542152405,
+      "crestZ": 2.03549861907959,
+      "reconstructionMs": 0.7857000000003609,
+      "contour": {
+        "points": 357,
+        "segments": 356,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.052370587498839036,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 49.799999999998455,
+      "samples": 512,
+      "sourcePoints": 361,
+      "crestY": 0.6065195202827454,
+      "crestZ": 2.0013129711151123,
+      "reconstructionMs": 0.7972999999983585,
+      "contour": {
+        "points": 361,
+        "segments": 360,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04341654041413915,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 49.999999999998444,
+      "samples": 512,
+      "sourcePoints": 367,
+      "crestY": 0.5961211323738098,
+      "crestZ": 2.031137704849243,
+      "reconstructionMs": 0.7924000000020897,
+      "contour": {
+        "points": 367,
+        "segments": 366,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.05347969350270269,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 50.19999999999843,
+      "samples": 512,
+      "sourcePoints": 367,
+      "crestY": 1.4564348459243774,
+      "crestZ": 19.924522399902344,
+      "reconstructionMs": 0.7887999999984459,
+      "contour": {
+        "points": 367,
+        "segments": 366,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05620300220251979,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.34197425842285156
+    },
+    {
+      "t": 50.39999999999842,
+      "samples": 512,
+      "sourcePoints": 365,
+      "crestY": 1.463180661201477,
+      "crestZ": 19.8179988861084,
+      "reconstructionMs": 0.7921999999998661,
+      "contour": {
+        "points": 365,
+        "segments": 364,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.0515890562032961,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.21694564819335938
+    },
+    {
+      "t": 50.59999999999841,
+      "samples": 512,
+      "sourcePoints": 365,
+      "crestY": 1.3889765739440918,
+      "crestZ": 19.044788360595703,
+      "reconstructionMs": 0.9940999999998894,
+      "contour": {
+        "points": 365,
+        "segments": 364,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05376842708007451,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.6021385192871094
+    },
+    {
+      "t": 50.7999999999984,
+      "samples": 512,
+      "sourcePoints": 371,
+      "crestY": 1.2977259159088135,
+      "crestZ": 16.984426498413086,
+      "reconstructionMs": 0.8810999999986961,
+      "contour": {
+        "points": 371,
+        "segments": 370,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04859739477729855,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.9336700439453125
+    },
+    {
+      "t": 50.99999999999839,
+      "samples": 512,
+      "sourcePoints": 367,
+      "crestY": 1.2115987539291382,
+      "crestZ": 16.633750915527344,
+      "reconstructionMs": 0.788300000000163,
+      "contour": {
+        "points": 367,
+        "segments": 366,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.03806928739503814,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.8742885589599609
+    },
+    {
+      "t": 51.199999999998376,
+      "samples": 512,
+      "sourcePoints": 361,
+      "crestY": 1.1645183563232422,
+      "crestZ": 15.417820930480957,
+      "reconstructionMs": 0.7855000000017753,
+      "contour": {
+        "points": 361,
+        "segments": 360,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.06227216459377081,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 51.399999999998364,
+      "samples": 512,
+      "sourcePoints": 377,
+      "crestY": 1.1548508405685425,
+      "crestZ": 14.62061882019043,
+      "reconstructionMs": 0.7949999999982538,
+      "contour": {
+        "points": 377,
+        "segments": 376,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.059028534933853294,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 51.59999999999835,
+      "samples": 512,
+      "sourcePoints": 379,
+      "crestY": 1.1329509019851685,
+      "crestZ": 13.910508155822754,
+      "reconstructionMs": 0.8072999999967578,
+      "contour": {
+        "points": 379,
+        "segments": 378,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.044527684784372266,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 51.79999999999834,
+      "samples": 512,
+      "sourcePoints": 349,
+      "crestY": 1.0283246040344238,
+      "crestZ": 13.177672386169434,
+      "reconstructionMs": 0.7744999999995343,
+      "contour": {
+        "points": 349,
+        "segments": 348,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.05141755565649186,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 51.99999999999833,
+      "samples": 512,
+      "sourcePoints": 337,
+      "crestY": 1.027134895324707,
+      "crestZ": 11.921211242675781,
+      "reconstructionMs": 0.7600000000020373,
+      "contour": {
+        "points": 337,
+        "segments": 336,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04234482371079318,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 52.19999999999832,
+      "samples": 512,
+      "sourcePoints": 337,
+      "crestY": 1.0769225358963013,
+      "crestZ": 10.991195678710938,
+      "reconstructionMs": 0.7702000000026601,
+      "contour": {
+        "points": 337,
+        "segments": 336,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.06135461227250538,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 52.39999999999831,
+      "samples": 512,
+      "sourcePoints": 355,
+      "crestY": 1.1528806686401367,
+      "crestZ": 10.537740707397461,
+      "reconstructionMs": 0.7754999999997381,
+      "contour": {
+        "points": 355,
+        "segments": 354,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05075502761407661,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.17456483840942383
+    },
+    {
+      "t": 52.599999999998296,
+      "samples": 512,
+      "sourcePoints": 363,
+      "crestY": 1.571250319480896,
+      "crestZ": 5.942900657653809,
+      "reconstructionMs": 0.7796000000016647,
+      "contour": {
+        "points": 363,
+        "segments": 362,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.050465662842980624,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.4666156768798828
+    },
+    {
+      "t": 52.799999999998285,
+      "samples": 512,
+      "sourcePoints": 365,
+      "crestY": 1.6784610748291016,
+      "crestZ": 5.128438472747803,
+      "reconstructionMs": 0.7929999999978463,
+      "contour": {
+        "points": 365,
+        "segments": 364,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.05867945482450779,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.36254072189331055
+    },
+    {
+      "t": 52.99999999999827,
+      "samples": 512,
+      "sourcePoints": 397,
+      "crestY": 1.7720283269882202,
+      "crestZ": 5.619194030761719,
+      "reconstructionMs": 0.8109000000004016,
+      "contour": {
+        "points": 397,
+        "segments": 396,
+        "ambiguousCells": 1,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.059440852918188694,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 1.2915773391723633
+    },
+    {
+      "t": 53.19999999999826,
+      "samples": 512,
+      "sourcePoints": 399,
+      "crestY": 2.0556530952453613,
+      "crestZ": 7.47508430480957,
+      "reconstructionMs": 0.8095999999968626,
+      "contour": {
+        "points": 399,
+        "segments": 398,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.06103141509463335,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 1.258401870727539
+    },
+    {
+      "t": 53.39999999999825,
+      "samples": 512,
+      "sourcePoints": 379,
+      "crestY": 2.1249845027923584,
+      "crestZ": 5.201817035675049,
+      "reconstructionMs": 1.1705000000001746,
+      "contour": {
+        "points": 379,
+        "segments": 378,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.04512518797364654,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.28909993171691895
+    },
+    {
+      "t": 53.59999999999824,
+      "samples": 512,
+      "sourcePoints": 389,
+      "crestY": 2.027643918991089,
+      "crestZ": 4.871710300445557,
+      "reconstructionMs": 0.7962999999981548,
+      "contour": {
+        "points": 389,
+        "segments": 388,
+        "ambiguousCells": 1,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.061962044962281956,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0.29021263122558594
+    },
+    {
+      "t": 53.79999999999823,
+      "samples": 512,
+      "sourcePoints": 377,
+      "crestY": 1.8775924444198608,
+      "crestZ": 3.45326566696167,
+      "reconstructionMs": 0.7874999999985448,
+      "contour": {
+        "points": 377,
+        "segments": 376,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.05492952395705611,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 53.99999999999822,
+      "samples": 512,
+      "sourcePoints": 355,
+      "crestY": 1.6384471654891968,
+      "crestZ": 3.2814271450042725,
+      "reconstructionMs": 0.7703000000001339,
+      "contour": {
+        "points": 355,
+        "segments": 354,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05281398865728567,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 54.199999999998205,
+      "samples": 512,
+      "sourcePoints": 361,
+      "crestY": 1.5324368476867676,
+      "crestZ": 2.9156713485717773,
+      "reconstructionMs": 0.7734999999993306,
+      "contour": {
+        "points": 361,
+        "segments": 360,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04860890844649176,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 54.399999999998194,
+      "samples": 512,
+      "sourcePoints": 351,
+      "crestY": 1.3517862558364868,
+      "crestZ": 2.3009326457977295,
+      "reconstructionMs": 0.7799999999988358,
+      "contour": {
+        "points": 351,
+        "segments": 350,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05448145186985771,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 54.59999999999818,
+      "samples": 512,
+      "sourcePoints": 347,
+      "crestY": 1.0762361288070679,
+      "crestZ": 2.0246388912200928,
+      "reconstructionMs": 0.7701000000015483,
+      "contour": {
+        "points": 347,
+        "segments": 346,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.05134604121883102,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 54.79999999999817,
+      "samples": 512,
+      "sourcePoints": 345,
+      "crestY": 0.9864277839660645,
+      "crestZ": 3.8031184673309326,
+      "reconstructionMs": 0.7586999999984982,
+      "contour": {
+        "points": 345,
+        "segments": 344,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05189986708420003,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 54.99999999999816,
+      "samples": 512,
+      "sourcePoints": 347,
+      "crestY": 0.9640883803367615,
+      "crestZ": 3.9224352836608887,
+      "reconstructionMs": 0.7683000000033644,
+      "contour": {
+        "points": 347,
+        "segments": 346,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.053323119325697,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 55.19999999999815,
+      "samples": 512,
+      "sourcePoints": 347,
+      "crestY": 0.8372963070869446,
+      "crestZ": 3.435595989227295,
+      "reconstructionMs": 0.7733999999982188,
+      "contour": {
+        "points": 347,
+        "segments": 346,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.058965470895365746,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 55.39999999999814,
+      "samples": 512,
+      "sourcePoints": 337,
+      "crestY": 0.8115823864936829,
+      "crestZ": 3.3043150901794434,
+      "reconstructionMs": 0.7602999999980966,
+      "contour": {
+        "points": 337,
+        "segments": 336,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.049015805773558505,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 55.599999999998126,
+      "samples": 512,
+      "sourcePoints": 349,
+      "crestY": 0.731330394744873,
+      "crestZ": 3.208381414413452,
+      "reconstructionMs": 1.1432999999997264,
+      "contour": {
+        "points": 349,
+        "segments": 348,
+        "ambiguousCells": 1,
+        "invalidDegree": 0,
+        "resampledStrands": 2,
+        "maxFairingDisplacement": 0.039901008396402725,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 55.799999999998114,
+      "samples": 512,
+      "sourcePoints": 335,
+      "crestY": 0.6688603162765503,
+      "crestZ": 3.417222738265991,
+      "reconstructionMs": 0.7606000000014319,
+      "contour": {
+        "points": 335,
+        "segments": 334,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.05529645866518506,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    },
+    {
+      "t": 55.9999999999981,
+      "samples": 512,
+      "sourcePoints": 337,
+      "crestY": 0.6277963519096375,
+      "crestZ": 2.083791971206665,
+      "reconstructionMs": 0.7685999999957858,
+      "contour": {
+        "points": 337,
+        "segments": 336,
+        "ambiguousCells": 0,
+        "invalidDegree": 0,
+        "resampledStrands": 1,
+        "maxFairingDisplacement": 0.04029804901338093,
+        "fairingPasses": 32,
+        "method": "arc-length-connected-marching-squares"
+      },
+      "overhang": 0
+    }
+  ]
+}
