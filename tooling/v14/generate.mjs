@@ -1,0 +1,3 @@
+import fs from 'node:fs';
+import {HybridSurf} from '../../js/coast/hybrid-surf.mjs';
+const f=new HybridSurf();for(let i=0;i<24*240;i++)f.step(1/240);const b=f.save();fs.writeFileSync(new URL('../../js/coast/initial-state.bin',import.meta.url),Buffer.from(b));const copy=new HybridSurf().load(b);for(let i=0;i<240;i++){f.step(1/240);copy.step(1/240);}for(let j=0;j<f.lanes.length;j++)for(let k=0;k<f.lanes[j].h.length;k++)if(f.lanes[j].h[k]!==copy.lanes[j].h[k])throw Error('State round-trip diverged');console.log(JSON.stringify({bytes:b.byteLength,warmTime:24,roundTrip:'identical after one second'}));

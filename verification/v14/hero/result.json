@@ -1,0 +1,1504 @@
+{
+  "errors": [],
+  "shots": [
+    {
+      "name": "shore-24.8",
+      "ms": 258
+    },
+    {
+      "name": "shore-25.1",
+      "ms": 246
+    },
+    {
+      "name": "shore-25.4",
+      "ms": 244
+    },
+    {
+      "name": "tube-25.4",
+      "ms": 243
+    },
+    {
+      "name": "shore-25.7",
+      "ms": 255
+    },
+    {
+      "name": "shore-26",
+      "ms": 265
+    },
+    {
+      "name": "shore-33.4",
+      "ms": 249
+    },
+    {
+      "name": "tube-33.4",
+      "ms": 258
+    }
+  ],
+  "timeline": [
+    {
+      "particles": 0,
+      "ambientParticles": 0,
+      "time": 24.799999999998914,
+      "localTime": 24.799999999998914,
+      "originX": 0,
+      "rider": null,
+      "dryBeach": false,
+      "board": null,
+      "localActive": false,
+      "physicsMs": 0.900000000372529,
+      "ambientMs": 1.1999999997206032,
+      "ambientDropped": 0,
+      "surface": {
+        "coast": {
+          "crestY": 0.9701965284001206,
+          "crestZ": 12.955613577023499,
+          "maxOverhang": 5.088169585559743,
+          "tubeZ": 11.934692141816827,
+          "tubeY": 0.8113545986358275,
+          "tubeGap": 0.24215416546441937,
+          "activeSheets": 17,
+          "cells": 6528,
+          "contour": "finite-volume + ballistic sheets",
+          "breakCount": 51,
+          "impacts": 1559,
+          "vertices": 18432,
+          "triangles": 35814,
+          "xColumns": 48,
+          "profileCount": 512,
+          "lanes": 17,
+          "uploadBytes": 278528,
+          "gpuInterpolation": true
+        },
+        "local": {
+          "foamPoints": 49
+        },
+        "effects": {
+          "capacity": 640,
+          "live": 49,
+          "drawSlots": 49,
+          "totalBorn": 49,
+          "vertices": 4,
+          "trianglesPerInstance": 2,
+          "gpuAnimated": true,
+          "surfaceFoam": true,
+          "heightTextureBytes": 26112,
+          "splashAtlasFrames": 12
+        },
+        "revision": 10
+      },
+      "backgroundMode": "hybrid-live",
+      "characterModel": "depth-flow-and-ballistic-sheet-occupancy",
+      "breaker": {
+        "x": 0,
+        "z": 5.699105845159975,
+        "y": 0.7599474073571848,
+        "strength": 1.2345274231762354e-7,
+        "velocityY": -3.551044832511063,
+        "flowZ": -10.82746968984653,
+        "foam": 1
+      },
+      "breakers": [
+        {
+          "x": -121,
+          "z": 4.7310731701202915,
+          "y": 0.7205022513421666,
+          "strength": 9.885322826637177e-8,
+          "velocityY": -3.5583558677313443,
+          "flowZ": -10.959265902769252,
+          "foam": 1
+        },
+        {
+          "x": -105.875,
+          "z": 6.454660632876754,
+          "y": 0.06855267854685965,
+          "strength": 0.9636404443012861,
+          "velocityY": -4.988094584256884,
+          "flowZ": -11.17681353798618,
+          "foam": 1
+        },
+        {
+          "x": -90.75,
+          "z": 6.55488677848026,
+          "y": 0.04716015602514771,
+          "strength": 0.9726044771163483,
+          "velocityY": -5.032297150037435,
+          "flowZ": -11.140739629798222,
+          "foam": 1
+        },
+        {
+          "x": -75.625,
+          "z": 5.1447606165573365,
+          "y": 0.7981900663294421,
+          "strength": 9.438101220471105e-8,
+          "velocityY": -3.6239709927115364,
+          "flowZ": -11.18235466522615,
+          "foam": 1
+        },
+        {
+          "x": -60.5,
+          "z": 5.206939435306754,
+          "y": 0.8348179856592539,
+          "strength": 1.341812855495258e-7,
+          "velocityY": -3.5836850300487186,
+          "flowZ": -11.176200143403314,
+          "foam": 1
+        },
+        {
+          "x": -45.375,
+          "z": 4.896893136666795,
+          "y": 0.8208632487505834,
+          "strength": 1.3171931332509666e-7,
+          "velocityY": -3.6290839806591957,
+          "flowZ": -11.13236319744829,
+          "foam": 1
+        },
+        {
+          "x": -30.25,
+          "z": 4.931074706159523,
+          "y": 0.8075205678235663,
+          "strength": 1.7879301570239914e-7,
+          "velocityY": -3.5641605348543886,
+          "flowZ": -11.045264115366805,
+          "foam": 1
+        },
+        {
+          "x": -15.125,
+          "z": 5.080997067408439,
+          "y": 0.7940348219791519,
+          "strength": 2.212275396153911e-7,
+          "velocityY": -3.504153734373941,
+          "flowZ": -10.93039000206479,
+          "foam": 1
+        },
+        {
+          "x": 0,
+          "z": 5.699105845159975,
+          "y": 0.7599474073571848,
+          "strength": 1.2345274231762354e-7,
+          "velocityY": -3.551044832511063,
+          "flowZ": -10.82746968984653,
+          "foam": 1
+        },
+        {
+          "x": 15.125,
+          "z": 5.89634772847371,
+          "y": 0.7230344040931931,
+          "strength": 6.762695036832237e-8,
+          "velocityY": -3.5163771635596244,
+          "flowZ": -10.724718799674964,
+          "foam": 1
+        },
+        {
+          "x": 30.25,
+          "z": 6.0342315696798705,
+          "y": 0.6694091387983686,
+          "strength": 8.44558404815123e-8,
+          "velocityY": -3.506831892202244,
+          "flowZ": -10.594163812912315,
+          "foam": 1
+        },
+        {
+          "x": 45.375,
+          "z": 6.081925707749495,
+          "y": 0.6299876410656831,
+          "strength": 1.1896405545716696e-7,
+          "velocityY": -3.5398053022613714,
+          "flowZ": -10.47869095767363,
+          "foam": 1
+        },
+        {
+          "x": 60.5,
+          "z": 11.715746281567348,
+          "y": 0.805258781632894,
+          "strength": 0.7933573871705556,
+          "velocityY": -2.384516294634537,
+          "flowZ": -10.403934492441046,
+          "foam": 1
+        },
+        {
+          "x": 75.625,
+          "z": 5.4924856350460844,
+          "y": 0.6362682506718713,
+          "strength": 1.614792978982357e-7,
+          "velocityY": -3.2945562184267887,
+          "flowZ": -10.358614844472696,
+          "foam": 1
+        },
+        {
+          "x": 90.75,
+          "z": 5.334803522808409,
+          "y": 0.5911303534712127,
+          "strength": 3.2337783018901153e-7,
+          "velocityY": -3.263580127590151,
+          "flowZ": -10.361299331773374,
+          "foam": 1
+        },
+        {
+          "x": 105.875,
+          "z": 5.167042088715856,
+          "y": 0.5913038665834656,
+          "strength": 3.1161995596052496e-7,
+          "velocityY": -3.336197974456816,
+          "flowZ": -10.41713457394842,
+          "foam": 1
+        },
+        {
+          "x": 121,
+          "z": 5.168250350566716,
+          "y": 0.6327495816940129,
+          "strength": 1.556079823721156e-7,
+          "velocityY": -3.363168235447164,
+          "flowZ": -10.494128168045547,
+          "foam": 1
+        }
+      ],
+      "oneWayCoupling": false,
+      "coupling": "cross-shore drag momentum; no alongshore fluid solve",
+      "phaseError": 0,
+      "droppedTime": 0,
+      "frames": 56,
+      "tier": {
+        "name": "hardware",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "pixelRatio": 1,
+        "columns": 48,
+        "farX": 48,
+        "farZ": 48,
+        "particles": 640,
+        "anisotropy": 1
+      },
+      "topology": {
+        "boundaryEdges": 1044,
+        "expectedBoundaryEdges": 1044,
+        "interiorBoundaryEdges": 0,
+        "nonmanifoldEdges": 0,
+        "independentStrips": 3,
+        "finite": true
+      }
+    },
+    {
+      "particles": 0,
+      "ambientParticles": 0,
+      "time": 25.099999999998897,
+      "localTime": 25.099999999998897,
+      "originX": 0,
+      "rider": null,
+      "dryBeach": false,
+      "board": null,
+      "localActive": false,
+      "physicsMs": 0.900000000372529,
+      "ambientMs": 0.6999999997206032,
+      "ambientDropped": 0,
+      "surface": {
+        "coast": {
+          "crestY": 0.9278916882798982,
+          "crestZ": 13.159268929503916,
+          "maxOverhang": 4.99507322749043,
+          "tubeZ": 9.645829146656622,
+          "tubeY": 0.052114933540844066,
+          "tubeGap": 1.1411412837431092,
+          "activeSheets": 17,
+          "cells": 6528,
+          "contour": "finite-volume + ballistic sheets",
+          "breakCount": 51,
+          "impacts": 1652,
+          "vertices": 18432,
+          "triangles": 35814,
+          "xColumns": 48,
+          "profileCount": 512,
+          "lanes": 17,
+          "uploadBytes": 278528,
+          "gpuInterpolation": true
+        },
+        "local": {
+          "foamPoints": 189
+        },
+        "effects": {
+          "capacity": 640,
+          "live": 189,
+          "drawSlots": 189,
+          "totalBorn": 189,
+          "vertices": 4,
+          "trianglesPerInstance": 2,
+          "gpuAnimated": true,
+          "surfaceFoam": true,
+          "heightTextureBytes": 26112,
+          "splashAtlasFrames": 12
+        },
+        "revision": 13
+      },
+      "backgroundMode": "hybrid-live",
+      "characterModel": "depth-flow-and-ballistic-sheet-occupancy",
+      "breaker": {
+        "x": 0,
+        "z": 5.699105845159975,
+        "y": 0.7599474073571848,
+        "strength": 6.338275129738718e-8,
+        "velocityY": -3.551044832511063,
+        "flowZ": -10.82746968984653,
+        "foam": 1
+      },
+      "breakers": [
+        {
+          "x": -121,
+          "z": 6.301966143797416,
+          "y": 0.13794979275523284,
+          "strength": 1,
+          "velocityY": -4.869068289054158,
+          "flowZ": -11.186424550208647,
+          "foam": 1
+        },
+        {
+          "x": -105.875,
+          "z": 5.806938230127827,
+          "y": 0.5114983363316985,
+          "strength": 0.9547590287126506,
+          "velocityY": -3.9662195842568897,
+          "flowZ": -11.17681353798618,
+          "foam": 1
+        },
+        {
+          "x": -90.75,
+          "z": 5.848693961535489,
+          "y": 0.5141031860513222,
+          "strength": 1,
+          "velocityY": -3.9695471500374406,
+          "flowZ": -11.140739629798222,
+          "foam": 1
+        },
+        {
+          "x": -75.625,
+          "z": 6.855044865788102,
+          "y": -0.15873448237951737,
+          "strength": 0.9726044771163483,
+          "velocityY": -5.452031987832928,
+          "flowZ": -11.045746498121781,
+          "foam": 1
+        },
+        {
+          "x": -60.5,
+          "z": 5.206939435306754,
+          "y": 0.8348179856592539,
+          "strength": 6.889096905492704e-8,
+          "velocityY": -3.5836850300487186,
+          "flowZ": -11.176200143403314,
+          "foam": 1
+        },
+        {
+          "x": -45.375,
+          "z": 4.896893136666795,
+          "y": 0.8208632487505834,
+          "strength": 6.762695036832237e-8,
+          "velocityY": -3.6290839806591957,
+          "flowZ": -11.13236319744829,
+          "foam": 1
+        },
+        {
+          "x": -30.25,
+          "z": 4.931074706159523,
+          "y": 0.8075205678235663,
+          "strength": 9.179539502507468e-8,
+          "velocityY": -3.5641605348543886,
+          "flowZ": -11.045264115366805,
+          "foam": 1
+        },
+        {
+          "x": -15.125,
+          "z": 5.080997067408439,
+          "y": 0.7940348219791519,
+          "strength": 1.1358200604000264e-7,
+          "velocityY": -3.504153734373941,
+          "flowZ": -10.93039000206479,
+          "foam": 1
+        },
+        {
+          "x": 0,
+          "z": 5.699105845159975,
+          "y": 0.7599474073571848,
+          "strength": 6.338275129738718e-8,
+          "velocityY": -3.551044832511063,
+          "flowZ": -10.82746968984653,
+          "foam": 1
+        },
+        {
+          "x": 15.125,
+          "z": 7.09466855032536,
+          "y": -0.2744159325201114,
+          "strength": 0.9816518956846598,
+          "velocityY": -5.120021547656309,
+          "flowZ": -10.366543227060586,
+          "foam": 1
+        },
+        {
+          "x": 30.25,
+          "z": 7.423187721821492,
+          "y": -0.4357420474546351,
+          "strength": 0.9816518956846598,
+          "velocityY": -5.377114056886622,
+          "flowZ": -10.339239617663662,
+          "foam": 1
+        },
+        {
+          "x": 45.375,
+          "z": 7.955756502205611,
+          "y": -0.7181737833332651,
+          "strength": 0.9907834756820785,
+          "velocityY": -5.9909202697390205,
+          "flowZ": -10.358910451214122,
+          "foam": 1
+        },
+        {
+          "x": 60.5,
+          "z": 7.74140936980311,
+          "y": -0.6435766862573054,
+          "strength": 0.9726044771163483,
+          "velocityY": -5.8180162946345355,
+          "flowZ": -10.403934492441046,
+          "foam": 1
+        },
+        {
+          "x": 75.625,
+          "z": 5.4924856350460844,
+          "y": 0.6362682506718713,
+          "strength": 8.290623591031779e-8,
+          "velocityY": -3.2945562184267887,
+          "flowZ": -10.358614844472696,
+          "foam": 1
+        },
+        {
+          "x": 90.75,
+          "z": 5.334803522808409,
+          "y": 0.5911303534712127,
+          "strength": 1.6602771393465284e-7,
+          "velocityY": -3.263580127590151,
+          "flowZ": -10.361299331773374,
+          "foam": 1
+        },
+        {
+          "x": 105.875,
+          "z": 5.167042088715856,
+          "y": 0.5913038665834656,
+          "strength": 1.599910200223157e-7,
+          "velocityY": -3.336197974456816,
+          "flowZ": -10.41713457394842,
+          "foam": 1
+        },
+        {
+          "x": 121,
+          "z": 7.286169026541186,
+          "y": -0.4296930447654891,
+          "strength": 0.9907834756820785,
+          "velocityY": -5.759383686241152,
+          "flowZ": -10.907458632083655,
+          "foam": 1
+        }
+      ],
+      "oneWayCoupling": false,
+      "coupling": "cross-shore drag momentum; no alongshore fluid solve",
+      "phaseError": 0,
+      "droppedTime": 0,
+      "frames": 76,
+      "tier": {
+        "name": "hardware",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "pixelRatio": 1,
+        "columns": 48,
+        "farX": 48,
+        "farZ": 48,
+        "particles": 640,
+        "anisotropy": 1
+      },
+      "topology": {
+        "boundaryEdges": 1044,
+        "expectedBoundaryEdges": 1044,
+        "interiorBoundaryEdges": 0,
+        "nonmanifoldEdges": 0,
+        "independentStrips": 3,
+        "finite": true
+      }
+    },
+    {
+      "particles": 0,
+      "ambientParticles": 0,
+      "time": 25.39999999999888,
+      "localTime": 25.39999999999888,
+      "originX": 0,
+      "rider": null,
+      "dryBeach": false,
+      "board": null,
+      "localActive": false,
+      "physicsMs": 1,
+      "ambientMs": 1.1999999997206032,
+      "ambientDropped": 0,
+      "surface": {
+        "coast": {
+          "crestY": 0.8857017548909187,
+          "crestZ": 11.937336814621407,
+          "maxOverhang": 5.10157182477333,
+          "tubeZ": 8.336816781220364,
+          "tubeY": -0.05503001851168099,
+          "tubeGap": 1.5813809528603586,
+          "activeSheets": 15,
+          "cells": 6528,
+          "contour": "finite-volume + ballistic sheets",
+          "breakCount": 51,
+          "impacts": 1879,
+          "vertices": 18432,
+          "triangles": 35814,
+          "xColumns": 48,
+          "profileCount": 512,
+          "lanes": 17,
+          "uploadBytes": 278528,
+          "gpuInterpolation": true
+        },
+        "local": {
+          "foamPoints": 466
+        },
+        "effects": {
+          "capacity": 640,
+          "live": 466,
+          "drawSlots": 469,
+          "totalBorn": 469,
+          "vertices": 4,
+          "trianglesPerInstance": 2,
+          "gpuAnimated": true,
+          "surfaceFoam": true,
+          "heightTextureBytes": 26112,
+          "splashAtlasFrames": 12
+        },
+        "revision": 16
+      },
+      "backgroundMode": "hybrid-live",
+      "characterModel": "depth-flow-and-ballistic-sheet-occupancy",
+      "breaker": {
+        "x": 0,
+        "z": 7.00610607750804,
+        "y": -0.18914612293389588,
+        "strength": 0.9816518956846598,
+        "velocityY": -5.019068124331759,
+        "flowZ": -10.44063112201249,
+        "foam": 1
+      },
+      "breakers": [
+        {
+          "x": -121,
+          "z": 5.714288391429207,
+          "y": 0.5190771652468067,
+          "strength": 0.9636404443012861,
+          "velocityY": -3.9289432890541627,
+          "flowZ": -11.186424550208647,
+          "foam": 1
+        },
+        {
+          "x": -105.875,
+          "z": 5.698304779532117,
+          "y": 0.6516810158573562,
+          "strength": 0.8464817248906138,
+          "velocityY": -3.5165945842568873,
+          "flowZ": -11.17681353798618,
+          "foam": 1
+        },
+        {
+          "x": -90.75,
+          "z": 5.794373029556146,
+          "y": 0.6467960132029031,
+          "strength": 0.8865920084903176,
+          "velocityY": -3.5199221500374382,
+          "flowZ": -11.140739629798222,
+          "foam": 1
+        },
+        {
+          "x": -75.625,
+          "z": 5.950368127025921,
+          "y": 0.43913638044832437,
+          "strength": 0.9907834756820785,
+          "velocityY": -4.103156987832936,
+          "flowZ": -11.045746498121781,
+          "foam": 1
+        },
+        {
+          "x": -60.5,
+          "z": 6.569277857094365,
+          "y": 0.049176956369590547,
+          "strength": 1,
+          "velocityY": -4.942438575575848,
+          "flowZ": -10.924336604260024,
+          "foam": 1
+        },
+        {
+          "x": -45.375,
+          "z": 6.747134783661117,
+          "y": -0.048130365173559606,
+          "strength": 1,
+          "velocityY": -5.011220896239643,
+          "flowZ": -10.794334452361557,
+          "foam": 1
+        },
+        {
+          "x": -30.25,
+          "z": 7.535641379342451,
+          "y": -0.5377254034878333,
+          "strength": 0.9816518956846598,
+          "velocityY": -5.9026289048653835,
+          "flowZ": -10.65300766067076,
+          "foam": 1
+        },
+        {
+          "x": -15.125,
+          "z": 5.080997067408439,
+          "y": 0.7940348219791519,
+          "strength": 5.831494631500055e-8,
+          "velocityY": -3.504153734373941,
+          "flowZ": -10.93039000206479,
+          "foam": 1
+        },
+        {
+          "x": 0,
+          "z": 7.00610607750804,
+          "y": -0.18914612293389588,
+          "strength": 0.9816518956846598,
+          "velocityY": -5.019068124331759,
+          "flowZ": -10.44063112201249,
+          "foam": 1
+        },
+        {
+          "x": 15.125,
+          "z": 6.589163115439365,
+          "y": 0.15239099645017212,
+          "strength": 0.9726044771163483,
+          "velocityY": -4.098146547656315,
+          "flowZ": -10.366543227060586,
+          "foam": 1
+        },
+        {
+          "x": 30.25,
+          "z": 6.586441860053567,
+          "y": 0.11695586169030339,
+          "strength": 0.9726044771163483,
+          "velocityY": -4.150864056886629,
+          "flowZ": -10.339239617663662,
+          "foam": 1
+        },
+        {
+          "x": 45.375,
+          "z": 6.630487621987388,
+          "y": -0.03473261346529441,
+          "strength": 0.9726044771163483,
+          "velocityY": -4.478545269739029,
+          "flowZ": -10.358910451214122,
+          "foam": 1
+        },
+        {
+          "x": 60.5,
+          "z": 6.577331871042067,
+          "y": 0.07394354616120488,
+          "strength": 0.9907834756820785,
+          "velocityY": -4.264766294634544,
+          "flowZ": -10.403934492441046,
+          "foam": 1
+        },
+        {
+          "x": 75.625,
+          "z": 6.712220378326574,
+          "y": -0.11954527112033125,
+          "strength": 0.9816518956846598,
+          "velocityY": -4.7770620344407835,
+          "flowZ": -10.506104444885736,
+          "foam": 1
+        },
+        {
+          "x": 90.75,
+          "z": 5.334803522808409,
+          "y": 0.5911303534712127,
+          "strength": 8.524147056789672e-8,
+          "velocityY": -3.263580127590151,
+          "flowZ": -10.361299331773374,
+          "foam": 1
+        },
+        {
+          "x": 105.875,
+          "z": 7.514918307771684,
+          "y": -0.5531409053907318,
+          "strength": 1,
+          "velocityY": -5.906550654964233,
+          "flowZ": -10.79339950697295,
+          "foam": 1
+        },
+        {
+          "x": 121,
+          "z": 6.085262782724493,
+          "y": 0.24479361395078714,
+          "strength": 0.9726044771163483,
+          "velocityY": -4.24700868624116,
+          "flowZ": -10.907458632083655,
+          "foam": 1
+        }
+      ],
+      "oneWayCoupling": false,
+      "coupling": "cross-shore drag momentum; no alongshore fluid solve",
+      "phaseError": 0,
+      "droppedTime": 0,
+      "frames": 95,
+      "tier": {
+        "name": "hardware",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "pixelRatio": 1,
+        "columns": 48,
+        "farX": 48,
+        "farZ": 48,
+        "particles": 640,
+        "anisotropy": 1
+      },
+      "topology": {
+        "boundaryEdges": 1044,
+        "expectedBoundaryEdges": 1044,
+        "interiorBoundaryEdges": 0,
+        "nonmanifoldEdges": 0,
+        "independentStrips": 3,
+        "finite": true
+      }
+    },
+    {
+      "particles": 0,
+      "ambientParticles": 0,
+      "time": 25.699999999998862,
+      "localTime": 25.699999999998862,
+      "originX": 0,
+      "rider": null,
+      "dryBeach": false,
+      "board": null,
+      "localActive": false,
+      "physicsMs": 0.8000000002793968,
+      "ambientMs": 0.6999999997206032,
+      "ambientDropped": 0,
+      "surface": {
+        "coast": {
+          "crestY": 0.8466536037493304,
+          "crestZ": 11.73368146214099,
+          "maxOverhang": 4.953661201502832,
+          "tubeZ": 7.273308508943725,
+          "tubeY": 0.21976039496036065,
+          "tubeGap": 0.6790439221935323,
+          "activeSheets": 10,
+          "cells": 6528,
+          "contour": "finite-volume + ballistic sheets",
+          "breakCount": 51,
+          "impacts": 2144,
+          "vertices": 18432,
+          "triangles": 35814,
+          "xColumns": 48,
+          "profileCount": 512,
+          "lanes": 17,
+          "uploadBytes": 278528,
+          "gpuInterpolation": true
+        },
+        "local": {
+          "foamPoints": 640
+        },
+        "effects": {
+          "capacity": 640,
+          "live": 640,
+          "drawSlots": 640,
+          "totalBorn": 826,
+          "vertices": 4,
+          "trianglesPerInstance": 2,
+          "gpuAnimated": true,
+          "surfaceFoam": true,
+          "heightTextureBytes": 26112,
+          "splashAtlasFrames": 12
+        },
+        "revision": 19
+      },
+      "backgroundMode": "hybrid-live",
+      "characterModel": "depth-flow-and-ballistic-sheet-occupancy",
+      "breaker": {
+        "x": 0,
+        "z": 6.57354755722668,
+        "y": 0.2003228170263313,
+        "strength": 0.9907834756820785,
+        "velocityY": -4.078943124331764,
+        "flowZ": -10.44063112201249,
+        "foam": 1
+      },
+      "breakers": [
+        {
+          "x": -121,
+          "z": 5.6334558165244415,
+          "y": 0.6392993923845912,
+          "strength": 0.8157040254665102,
+          "velocityY": -3.5201932890541605,
+          "flowZ": -11.186424550208647,
+          "foam": 1
+        },
+        {
+          "x": -105.875,
+          "z": 5.698304779532117,
+          "y": 0.6516810158573562,
+          "strength": 0.43459820850707787,
+          "velocityY": -3.5165945842568873,
+          "flowZ": -11.17681353798618,
+          "foam": 1
+        },
+        {
+          "x": -90.75,
+          "z": 5.794373029556146,
+          "y": 0.6467960132029031,
+          "strength": 0.45519151475641795,
+          "velocityY": -3.5199221500374382,
+          "flowZ": -11.140739629798222,
+          "foam": 1
+        },
+        {
+          "x": -75.625,
+          "z": 5.922929383011423,
+          "y": 0.6533578554497166,
+          "strength": 0.9816518956846598,
+          "velocityY": -3.530906987832934,
+          "flowZ": -11.045746498121781,
+          "foam": 1
+        },
+        {
+          "x": -60.5,
+          "z": 6.08451929289201,
+          "y": 0.44498252669607685,
+          "strength": 0.9636404443012861,
+          "velocityY": -4.043188575575853,
+          "flowZ": -10.924336604260024,
+          "foam": 1
+        },
+        {
+          "x": -45.375,
+          "z": 6.25386883893702,
+          "y": 0.38477442921236177,
+          "strength": 0.9907834756820785,
+          "velocityY": -3.9893458962396484,
+          "flowZ": -10.794334452361557,
+          "foam": 1
+        },
+        {
+          "x": -30.25,
+          "z": 6.387034487504472,
+          "y": 0.1293168215239625,
+          "strength": 0.9907834756820785,
+          "velocityY": -4.512878904865391,
+          "flowZ": -10.65300766067076,
+          "foam": 1
+        },
+        {
+          "x": -15.125,
+          "z": 6.863689998033024,
+          "y": -0.12831624815091308,
+          "strength": 0.9726044771163483,
+          "velocityY": -4.953476162331709,
+          "flowZ": -10.529060815183152,
+          "foam": 1
+        },
+        {
+          "x": 0,
+          "z": 6.57354755722668,
+          "y": 0.2003228170263313,
+          "strength": 0.9907834756820785,
+          "velocityY": -4.078943124331764,
+          "flowZ": -10.44063112201249,
+          "foam": 1
+        },
+        {
+          "x": 15.125,
+          "z": 6.704952067072012,
+          "y": 0.3986182818069752,
+          "strength": 0.7033843193421736,
+          "velocityY": -3.4441465476563122,
+          "flowZ": -10.366543227060586,
+          "foam": 1
+        },
+        {
+          "x": 30.25,
+          "z": 6.826901584756325,
+          "y": 0.41168407505312604,
+          "strength": 0.7860453895188955,
+          "velocityY": -3.3333640568866265,
+          "flowZ": -10.339239617663662,
+          "foam": 1
+        },
+        {
+          "x": 45.375,
+          "z": 7.577110796596884,
+          "y": 0.6491266692104112,
+          "strength": 0.9726044771163483,
+          "velocityY": -2.393920269739023,
+          "flowZ": -10.358910451214122,
+          "foam": 1
+        },
+        {
+          "x": 60.5,
+          "z": 7.318735151038487,
+          "y": 0.6284126282704702,
+          "strength": 0.8865920084903176,
+          "velocityY": -2.5480162946345377,
+          "flowZ": -10.403934492441046,
+          "foam": 1
+        },
+        {
+          "x": 75.625,
+          "z": 6.384279804931756,
+          "y": 0.33402123792750865,
+          "strength": 0.9907834756820785,
+          "velocityY": -3.632562034440786,
+          "flowZ": -10.506104444885736,
+          "foam": 1
+        },
+        {
+          "x": 90.75,
+          "z": 6.466626974305631,
+          "y": -0.004379324527514687,
+          "strength": 0.9907834756820785,
+          "velocityY": -4.6670025056979725,
+          "flowZ": -10.646497782958114,
+          "foam": 1
+        },
+        {
+          "x": 105.875,
+          "z": 6.217029657548803,
+          "y": 0.14003334842088483,
+          "strength": 0.9816518956846598,
+          "velocityY": -4.4350506549642414,
+          "flowZ": -10.79339950697295,
+          "foam": 1
+        },
+        {
+          "x": 121,
+          "z": 6.013808181999643,
+          "y": 0.5359451693983384,
+          "strength": 0.9816518956846598,
+          "velocityY": -3.511258686241159,
+          "flowZ": -10.907458632083655,
+          "foam": 1
+        }
+      ],
+      "oneWayCoupling": false,
+      "coupling": "cross-shore drag momentum; no alongshore fluid solve",
+      "phaseError": 0,
+      "droppedTime": 0,
+      "frames": 130,
+      "tier": {
+        "name": "hardware",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "pixelRatio": 1,
+        "columns": 48,
+        "farX": 48,
+        "farZ": 48,
+        "particles": 640,
+        "anisotropy": 1
+      },
+      "topology": {
+        "boundaryEdges": 1044,
+        "expectedBoundaryEdges": 1044,
+        "interiorBoundaryEdges": 0,
+        "nonmanifoldEdges": 0,
+        "independentStrips": 3,
+        "finite": true
+      }
+    },
+    {
+      "particles": 0,
+      "ambientParticles": 0,
+      "time": 25.999999999998845,
+      "localTime": 25.999999999998845,
+      "originX": 0,
+      "rider": null,
+      "dryBeach": false,
+      "board": null,
+      "localActive": false,
+      "physicsMs": 0.7000000001862645,
+      "ambientMs": 0.6999999997206032,
+      "ambientDropped": 0,
+      "surface": {
+        "coast": {
+          "crestY": 1.0965573684068977,
+          "crestZ": 6.43864229765013,
+          "maxOverhang": 2.061777506640171,
+          "tubeZ": 8,
+          "tubeY": 1,
+          "tubeGap": 0,
+          "activeSheets": 4,
+          "cells": 6528,
+          "contour": "finite-volume + ballistic sheets",
+          "breakCount": 51,
+          "impacts": 2268,
+          "vertices": 18432,
+          "triangles": 35814,
+          "xColumns": 48,
+          "profileCount": 512,
+          "lanes": 17,
+          "uploadBytes": 278528,
+          "gpuInterpolation": true
+        },
+        "local": {
+          "foamPoints": 640
+        },
+        "effects": {
+          "capacity": 640,
+          "live": 640,
+          "drawSlots": 640,
+          "totalBorn": 1183,
+          "vertices": 4,
+          "trianglesPerInstance": 2,
+          "gpuAnimated": true,
+          "surfaceFoam": true,
+          "heightTextureBytes": 26112,
+          "splashAtlasFrames": 12
+        },
+        "revision": 22
+      },
+      "backgroundMode": "hybrid-live",
+      "characterModel": "depth-flow-and-ballistic-sheet-occupancy",
+      "breaker": {
+        "x": 0,
+        "z": 6.768661639603797,
+        "y": 0.45255331417950573,
+        "strength": 0.7099273823253334,
+        "velocityY": -3.343193124331761,
+        "flowZ": -10.44063112201249,
+        "foam": 1
+      },
+      "breakers": [
+        {
+          "x": -121,
+          "z": 5.6334558165244415,
+          "y": 0.6392993923845912,
+          "strength": 0.4187964107383035,
+          "velocityY": -3.5201932890541605,
+          "flowZ": -11.186424550208647,
+          "foam": 1
+        },
+        {
+          "x": -105.875,
+          "z": 5.698304779532117,
+          "y": 0.6516810158573562,
+          "strength": 0.22313016014842937,
+          "velocityY": -3.5165945842568873,
+          "flowZ": -11.17681353798618,
+          "foam": 1
+        },
+        {
+          "x": -90.75,
+          "z": 5.794373029556146,
+          "y": 0.6467960132029031,
+          "strength": 0.23370311611432149,
+          "velocityY": -3.5199221500374382,
+          "flowZ": -11.140739629798222,
+          "foam": 1
+        },
+        {
+          "x": -75.625,
+          "z": 5.956453326753598,
+          "y": 0.6554626648626993,
+          "strength": 0.5278786301239428,
+          "velocityY": -3.490031987832934,
+          "flowZ": -11.045746498121781,
+          "foam": 1
+        },
+        {
+          "x": -60.5,
+          "z": 6.130636350258051,
+          "y": 0.5699147585307145,
+          "strength": 0.8464817248906138,
+          "velocityY": -3.5526885755758513,
+          "flowZ": -10.924336604260024,
+          "foam": 1
+        },
+        {
+          "x": -45.375,
+          "z": 6.382812886223176,
+          "y": 0.5738020261803551,
+          "strength": 0.8464817248906138,
+          "velocityY": -3.376220896239645,
+          "flowZ": -10.794334452361557,
+          "foam": 1
+        },
+        {
+          "x": -30.25,
+          "z": 7.501082085209035,
+          "y": 0.7841477468423077,
+          "strength": 1,
+          "velocityY": -2.469128904865386,
+          "flowZ": -10.65300766067076,
+          "foam": 1
+        },
+        {
+          "x": -15.125,
+          "z": 6.397956765451094,
+          "y": 0.33557050125364923,
+          "strength": 1,
+          "velocityY": -3.8907261623317138,
+          "flowZ": -10.529060815183152,
+          "foam": 1
+        },
+        {
+          "x": 0,
+          "z": 6.768661639603797,
+          "y": 0.45255331417950573,
+          "strength": 0.7099273823253334,
+          "velocityY": -3.343193124331761,
+          "flowZ": -10.44063112201249,
+          "foam": 1
+        },
+        {
+          "x": 15.125,
+          "z": 6.704952067072012,
+          "y": 0.3986182818069752,
+          "strength": 0.3611295508093592,
+          "velocityY": -3.4441465476563122,
+          "flowZ": -10.366543227060586,
+          "foam": 1
+        },
+        {
+          "x": 30.25,
+          "z": 6.826901584756325,
+          "y": 0.41168407505312604,
+          "strength": 0.4035691593156427,
+          "velocityY": -3.3333640568866265,
+          "flowZ": -10.339239617663662,
+          "foam": 1
+        },
+        {
+          "x": 45.375,
+          "z": 7.577110796596884,
+          "y": 0.6491266692104112,
+          "strength": 0.49935178859927576,
+          "velocityY": -2.393920269739023,
+          "flowZ": -10.358910451214122,
+          "foam": 1
+        },
+        {
+          "x": 60.5,
+          "z": 7.318735151038487,
+          "y": 0.6284126282704702,
+          "strength": 0.45519151475641795,
+          "velocityY": -2.5480162946345377,
+          "flowZ": -10.403934492441046,
+          "foam": 1
+        },
+        {
+          "x": 75.625,
+          "z": 6.690733286427953,
+          "y": 0.4319849564282756,
+          "strength": 0.5737534207374324,
+          "velocityY": -3.305562034440784,
+          "flowZ": -10.506104444885736,
+          "foam": 1
+        },
+        {
+          "x": 90.75,
+          "z": 6.263022518688777,
+          "y": 0.4073379516766948,
+          "strength": 0.9816518956846598,
+          "velocityY": -3.645127505697974,
+          "flowZ": -10.646497782958114,
+          "foam": 1
+        },
+        {
+          "x": 105.875,
+          "z": 6.154422371629643,
+          "y": 0.48742409416437427,
+          "strength": 1,
+          "velocityY": -3.535800654964241,
+          "flowZ": -10.79339950697295,
+          "foam": 1
+        },
+        {
+          "x": 121,
+          "z": 6.291883154767042,
+          "y": 0.6356110121295304,
+          "strength": 0.5327890937629322,
+          "velocityY": -3.102508686241157,
+          "flowZ": -10.907458632083655,
+          "foam": 1
+        }
+      ],
+      "oneWayCoupling": false,
+      "coupling": "cross-shore drag momentum; no alongshore fluid solve",
+      "phaseError": 0,
+      "droppedTime": 0,
+      "frames": 150,
+      "tier": {
+        "name": "hardware",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "pixelRatio": 1,
+        "columns": 48,
+        "farX": 48,
+        "farZ": 48,
+        "particles": 640,
+        "anisotropy": 1
+      },
+      "topology": {
+        "boundaryEdges": 1044,
+        "expectedBoundaryEdges": 1044,
+        "interiorBoundaryEdges": 0,
+        "nonmanifoldEdges": 0,
+        "independentStrips": 3,
+        "finite": true
+      }
+    },
+    {
+      "particles": 0,
+      "ambientParticles": 0,
+      "time": 33.399999999999615,
+      "localTime": 33.399999999999615,
+      "originX": 0,
+      "rider": null,
+      "dryBeach": false,
+      "board": null,
+      "localActive": false,
+      "physicsMs": 0.8000000002793968,
+      "ambientMs": 0.599999999627471,
+      "ambientDropped": 0,
+      "surface": {
+        "coast": {
+          "crestY": 0.8822804324113545,
+          "crestZ": 11.122715404699736,
+          "maxOverhang": 4.570179876193242,
+          "tubeZ": 8.3379189117493,
+          "tubeY": 0.05583939062704801,
+          "tubeGap": 1.4769755395269266,
+          "activeSheets": 17,
+          "cells": 6528,
+          "contour": "finite-volume + ballistic sheets",
+          "breakCount": 68,
+          "impacts": 2668,
+          "vertices": 18432,
+          "triangles": 35814,
+          "xColumns": 48,
+          "profileCount": 512,
+          "lanes": 17,
+          "uploadBytes": 278528,
+          "gpuInterpolation": true
+        },
+        "local": {
+          "foamPoints": 455
+        },
+        "effects": {
+          "capacity": 640,
+          "live": 455,
+          "drawSlots": 640,
+          "totalBorn": 1638,
+          "vertices": 4,
+          "trianglesPerInstance": 2,
+          "gpuAnimated": true,
+          "surfaceFoam": true,
+          "heightTextureBytes": 26112,
+          "splashAtlasFrames": 12
+        },
+        "revision": 43
+      },
+      "backgroundMode": "hybrid-live",
+      "characterModel": "depth-flow-and-ballistic-sheet-occupancy",
+      "breaker": {
+        "x": 0,
+        "z": 6.977477660152999,
+        "y": -0.17966328328384018,
+        "strength": 1,
+        "velocityY": -4.84922667914445,
+        "flowZ": -10.359318023631495,
+        "foam": 1
+      },
+      "breakers": [
+        {
+          "x": -121,
+          "z": 5.8162700341676,
+          "y": 0.4738165068095024,
+          "strength": 0.9726044771163483,
+          "velocityY": -4.034415807444099,
+          "flowZ": -10.993450654048566,
+          "foam": 1
+        },
+        {
+          "x": -105.875,
+          "z": 5.858387635129951,
+          "y": 0.6113438659620104,
+          "strength": 0.9816518956846598,
+          "velocityY": -3.5639971696803463,
+          "flowZ": -10.887915846098544,
+          "foam": 1
+        },
+        {
+          "x": -90.75,
+          "z": 6.048602727256146,
+          "y": 0.5454951980565736,
+          "strength": 0.9907834756820785,
+          "velocityY": -3.6330436090578657,
+          "flowZ": -10.754731558046394,
+          "foam": 1
+        },
+        {
+          "x": -75.625,
+          "z": 6.567313084822087,
+          "y": 0.057131468866487206,
+          "strength": 1,
+          "velocityY": -4.690866156237327,
+          "flowZ": -10.601755693331501,
+          "foam": 1
+        },
+        {
+          "x": -60.5,
+          "z": 7.582189937276032,
+          "y": -0.48363036376179713,
+          "strength": 0.9726044771163483,
+          "velocityY": -5.662928103132346,
+          "flowZ": -10.47577497713544,
+          "foam": 1
+        },
+        {
+          "x": -45.375,
+          "z": 7.587750080233132,
+          "y": -0.47787634785419336,
+          "strength": 0.9907834756820785,
+          "velocityY": -5.564905518524221,
+          "flowZ": -10.386835415827395,
+          "foam": 1
+        },
+        {
+          "x": -30.25,
+          "z": 6.4926688510614134,
+          "y": 0.508784934971428,
+          "strength": 8.44558404815123e-8,
+          "velocityY": -3.409253904865391,
+          "flowZ": -10.65300766067076,
+          "foam": 1
+        },
+        {
+          "x": -15.125,
+          "z": 6.629648629434213,
+          "y": 0.46545334400326027,
+          "strength": 1.0070089886336533e-7,
+          "velocityY": -3.400226162331711,
+          "flowZ": -10.529060815183152,
+          "foam": 1
+        },
+        {
+          "x": 0,
+          "z": 6.977477660152999,
+          "y": -0.17966328328384018,
+          "strength": 1,
+          "velocityY": -4.84922667914445,
+          "flowZ": -10.359318023631495,
+          "foam": 1
+        },
+        {
+          "x": 15.125,
+          "z": 6.23935714783145,
+          "y": 0.35708533689808813,
+          "strength": 0.9636404443012861,
+          "velocityY": -3.6127846312369476,
+          "flowZ": -10.420188093028539,
+          "foam": 1
+        },
+        {
+          "x": 30.25,
+          "z": 6.154005138316634,
+          "y": 0.36954839529515826,
+          "strength": 0.9636404443012861,
+          "velocityY": -3.633545915607176,
+          "flowZ": -10.52624682173036,
+          "foam": 1
+        },
+        {
+          "x": 45.375,
+          "z": 5.958858348248432,
+          "y": 0.33779688075292474,
+          "strength": 0.9816518956846598,
+          "velocityY": -3.8523986701265485,
+          "flowZ": -10.65804377234091,
+          "foam": 1
+        },
+        {
+          "x": 60.5,
+          "z": 5.9291954251369035,
+          "y": 0.46169712087227816,
+          "strength": 0.9726044771163483,
+          "velocityY": -3.6611824622618085,
+          "flowZ": -10.790372273152968,
+          "foam": 1
+        },
+        {
+          "x": 75.625,
+          "z": 5.8408357377578035,
+          "y": 0.35443171817286756,
+          "strength": 0.9907834756820785,
+          "velocityY": -4.0807727262975435,
+          "flowZ": -10.9290641001731,
+          "foam": 1
+        },
+        {
+          "x": 90.75,
+          "z": 6.868720262877912,
+          "y": -0.1532973933157767,
+          "strength": 0.9907834756820785,
+          "velocityY": -5.278483553656333,
+          "flowZ": -11.052980966794127,
+          "foam": 1
+        },
+        {
+          "x": 105.875,
+          "z": 6.693022142095085,
+          "y": -0.036448691750608365,
+          "strength": 1,
+          "velocityY": -5.135385810756933,
+          "flowZ": -11.13171709663653,
+          "foam": 1
+        },
+        {
+          "x": 121,
+          "z": 5.453116850282339,
+          "y": 0.4337272919141343,
+          "strength": 0.9907834756820785,
+          "velocityY": -4.1818807375070985,
+          "flowZ": -11.172121014342881,
+          "foam": 1
+        }
+      ],
+      "oneWayCoupling": false,
+      "coupling": "cross-shore drag momentum; no alongshore fluid solve",
+      "phaseError": 0,
+      "droppedTime": 0,
+      "frames": 206,
+      "tier": {
+        "name": "hardware",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "pixelRatio": 1,
+        "columns": 48,
+        "farX": 48,
+        "farZ": 48,
+        "particles": 640,
+        "anisotropy": 1
+      },
+      "topology": {
+        "boundaryEdges": 1044,
+        "expectedBoundaryEdges": 1044,
+        "interiorBoundaryEdges": 0,
+        "nonmanifoldEdges": 0,
+        "independentStrips": 3,
+        "finite": true
+      }
+    }
+  ],
+  "assets": {
+    "/BeachDefense/codex/beach.html": 200,
+    "/BeachDefense/codex/js/coast/beach-demo.mjs": 200,
+    "/BeachDefense/codex/js/coast/quality.mjs": 200,
+    "/BeachDefense/codex/js/coast/hazy-sky.mjs": 200,
+    "/BeachDefense/codex/js/coast/beach-ocean.mjs": 200,
+    "/BeachDefense/codex/js/coast/beach-bridge.mjs": 200,
+    "/BeachDefense/codex/js/coast/coast-surface.mjs": 200,
+    "/BeachDefense/codex/js/coast/surf-effects.mjs": 200,
+    "/BeachDefense/codex/js/coast/hybrid-surf.mjs": 200,
+    "/BeachDefense/codex/js/coast/coast-grid.mjs": 200,
+    "/BeachDefense/codex/js/coast/water-material.mjs": 200,
+    "/BeachDefense/codex/js/coast/sea-state.mjs": 200,
+    "/BeachDefense/codex/js/coast/splash-atlas.mjs": 200,
+    "/BeachDefense/codex/js/coast/beach-worker.mjs": 200,
+    "/BeachDefense/codex/js/coast/height-physics.mjs": 200,
+    "/BeachDefense/codex/js/coast/ambient-worker.mjs": 200,
+    "/BeachDefense/codex/js/coast/initial-state.bin": 200
+  }
+}

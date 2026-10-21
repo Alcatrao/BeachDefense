@@ -1,0 +1,37 @@
+{
+  "baseline": "b5adf5aa161d74af77cdb7d083f0a26007eab2a4",
+  "branch": "codex/breaking-surf",
+  "pushed": false,
+  "syntax": "passed",
+  "runtime_sha256": {
+    "ambient-worker.mjs": "7136d73fd2cce2b3167723a66742c79080c4e9810e8fda53dddabddde4a390cd",
+    "beach-bridge.mjs": "b72ba1809092111af02347735b514301182ff2e0e35fae87ea4add63c0915591",
+    "beach-demo.mjs": "6e1cf6c28dac99aa95faecb8310948a7b62769c7c13bb3b1ccf073b046f20904",
+    "beach-ocean.mjs": "29b104307cb3a2d42c9f58c99cd4994d51a8d62e0812f0876d29e95f8f118254",
+    "beach-worker.mjs": "4efcb4050db43171a9c093538249208d000294f744e69d1d3136b3755f808463",
+    "coast-surface.mjs": "3b7be1bdc12221c98dbe5a732eba788768ab5ecb4374b20184ec5ef04110ca98",
+    "hazy-sky.mjs": "ca4a5e1c6ae5eff538cafcaf0f955ddbc2d6d44a1e930d00498d97a6c1e3750e",
+    "height-physics.mjs": "566974f49df7dd176fa55aa931023d9ae8c556ab7b420aabf681e19fc37cc42a",
+    "hybrid-surf.mjs": "49f961d1b5a981314d095847468b3336ef96e98a112ecaf2bed53bc029b54005",
+    "initial-state.bin": "bb4b78795dbe909ff95b3570e5fd0d6eb30eda36c365e657461b702e85c15db2",
+    "quality.mjs": "aa8cd288cfcb13497c5dfd2ad32232a9dcf1f729d1c9291237fb01dbafcfeba0",
+    "splash-atlas.mjs": "685e0875a6abeaa8ea1af040d0bffb94baab280c60e0940d371c6adbfc5ee083",
+    "surf-effects.mjs": "a321196beb5050b7fc3a879cef526801d113aa29137e0af47c763e8395742c9b",
+    "water-material.mjs": "6be624f6194344494e65e804fbb2b94f688a6c9b0ccf3872082cebf26fa72669"
+  },
+  "evidence": [
+    "physics-result.json",
+    "contact-result.json",
+    "before/gpu.json",
+    "intermediate/gpu.json",
+    "profile/gpu.json",
+    "profile/software.json",
+    "paced/gpu.json",
+    "publisher-smoke/smoke.json",
+    "hero/result.json",
+    "hero/shore-25.4.png",
+    "hero/shore-25.7.png",
+    "hero/tube-25.4.png",
+    "hero/shore-33.4.png"
+  ]
+}

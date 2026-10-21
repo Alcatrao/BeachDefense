@@ -1,6 +1,6 @@
-import {bottom} from './fluid.mjs';
+import {bottom} from './hybrid-surf.mjs';
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
-// Gameplay samples the liquid particles, never the reconstructed render mesh.
+// Legacy v13 sampler retained for historical tools. v14 uses HybridSurf contact.
 // Keep the cheap envelope for visuals; body contact queries liquid markers in a
 // bounded cross-section hash, so an overhead lip cannot fill the air below it.
 export class HeightField {
@@ -40,7 +40,7 @@ export class HeightCharacter {
   const planing=wet&&s[7]>.08&&immersion<.45&&Math.abs(v[2])>2&&Math.abs(v[1]-s[1])<3;
   if(planing)fy+=Math.min(500,.5*1000*.06*v[2]*v[2]*immersion);
   fx=clamp(fx,-3000,3000);fy=clamp(fy,-3000,3500);fz=clamp(fz,-3000,3000);
-  this.waterForceZ=fz;this.totalImpulse+=Math.hypot(fx,fy,fz)*dt;
+  this.waterForceZ=fz;field.react?.(p[0],p[2],-fz*dt);this.totalImpulse+=Math.hypot(fx,fy,fz)*dt;
   // Limited player effort is a force, so moving water can overpower steering.
   fx+=(input.x||0)*260-v[0]*6;fz+=(input.z||0)*260;
   v[0]+=fx/75*dt;v[1]+=(fy/75-9.81)*dt;v[2]+=fz/75*dt;
@@ -50,5 +50,5 @@ export class HeightCharacter {
   const torque=wet?-.45*fz:0;this.omega+=(torque-1100*this.pitch-90*this.omega)/35*dt;this.pitch=clamp(this.pitch+this.omega*dt,-1.2,1.2);this.q[0]=Math.sin(this.pitch/2);this.q[3]=Math.cos(this.pitch/2);
   this.wiped=Math.abs(this.pitch)>.48;this.skim=planing&&!this.wiped;this.dry=s[4]<.035&&p[1]<=bed+.12&&Math.abs(v[1])<.5;
  }
- diagnostics(){return {position:Array.from(this.p),velocity:Array.from(this.v),quaternion:Array.from(this.q),angularVelocity:[this.omega,0,0],tiltDegrees:Math.abs(this.pitch)*180/Math.PI,contacts:this.contacts,totalImpulse:this.totalImpulse,waterForceZ:this.waterForceZ,waterHeight:this.sample[0],waterDepth:this.sample[4],waterImmersion:this.sample[6],footWetness:this.sample[7],contactModel:'particle-volume-quadrature',flowZ:this.sample[2],skimming:this.skim,wiped:this.wiped};}
+ diagnostics(){return {position:Array.from(this.p),velocity:Array.from(this.v),quaternion:Array.from(this.q),angularVelocity:[this.omega,0,0],tiltDegrees:Math.abs(this.pitch)*180/Math.PI,contacts:this.contacts,totalImpulse:this.totalImpulse,waterForceZ:this.waterForceZ,waterHeight:this.sample[0],waterDepth:this.sample[4],waterImmersion:this.sample[6],footWetness:this.sample[7],contactModel:'depth-and-sheet-volume-quadrature',flowZ:this.sample[2],skimming:this.skim,wiped:this.wiped};}
 }

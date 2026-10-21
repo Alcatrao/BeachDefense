@@ -1,0 +1,7 @@
+import 'node:fs';
+import assert from 'node:assert/strict';import fs from 'node:fs';
+import {HybridSurf} from '../../js/coast/hybrid-surf.mjs';import {HeightCharacter} from '../../js/coast/height-physics.mjs';
+fs.mkdirSync(new URL('../../verification/v14/',import.meta.url),{recursive:true});
+const bytes=fs.readFileSync(new URL('../../js/coast/initial-state.bin',import.meta.url)),ab=bytes.buffer.slice(bytes.byteOffset,bytes.byteOffset+bytes.byteLength),cases=[];
+for(const initial of [{z:9,y:.2,speed:6},{z:10,y:.9,speed:5},{z:8,y:1.4,speed:4},{z:7,y:.6,speed:-4}]){const f=new HybridSurf().load(ab),b=new HeightCharacter(initial);let minimumForce=0,peakTilt=0,peakRise=0,minV=0,wiped=0,skim=0;for(let i=0;i<8*240;i++){f.step(1/240);if(i%2===1)b.step(1/120,{},f);minimumForce=Math.min(minimumForce,b.waterForceZ);peakTilt=Math.max(peakTilt,Math.abs(b.pitch));peakRise=Math.max(peakRise,b.p[1]-initial.y);minV=Math.min(minV,b.v[2]);if(b.wiped)wiped++;if(b.skim)skim++;assert(b.p.every(Number.isFinite));}cases.push({initial,minimumForce,peakTilt,peakRise,minV,wiped,skim,final:b.diagnostics()});}
+assert(cases.some(c=>c.minimumForce<-500&&c.minV<-1));assert(cases.some(c=>c.skim>0));assert(cases.some(c=>c.wiped>0));fs.writeFileSync(new URL('../../verification/v14/contact-result.json',import.meta.url),JSON.stringify(cases,null,2));console.log(JSON.stringify(cases.map(({initial,minimumForce,peakTilt,peakRise,minV,wiped,skim})=>({initial,minimumForce,peakTilt,peakRise,minV,wiped,skim}))));

@@ -1,9 +1,9 @@
-import {bottom} from './fluid.mjs';
+import {bottom} from './hybrid-surf.mjs';
 export const SCALE=6;
 export function shore(x){const n=(x+1245)/1290;let s=Math.sin(n*Math.PI)*60+Math.sin(n*Math.PI*2)*20+50;if(n>=.6&&n<=1){const t=(n-.6)/.4;s+=t*t*(3-2*t)*Math.sin(t*Math.PI)**2*100;}return -s;}
 export function bed(x,z){const d=(z-shore(x))/SCALE;if(d>=-18)return bottom(0,d)*SCALE;let inland;if(z>=-650)inland=.5+Math.max(0,-z-100)*20/550;else if(z>=-950){const t=(-650-z)/300;inland=20.5+t*t*(3-2*t)*50;}else inland=70.5;const t=Math.max(0,Math.min(1,(-d-18)/18)),blend=t*t*(3-2*t);return bottom(0,-18)*SCALE*(1-blend)+inland*blend;}
 
-export const world={fluid:{p:new Float32Array(0),foam:new Float32Array(0),n:0,time:0},ambient:{p:new Float32Array(0),foam:new Float32Array(0),n:0,time:0},surface:new Float32Array(512*8),receivedAt:0,playing:false,height:new Float32Array(256),person:null,originX:0,revision:0,ready:false,attached:false,latest:{}};
+export const world={fluid:{p:new Float32Array(0),foam:new Float32Array(0),n:0,time:0},ambient:{p:new Float32Array(0),foam:new Float32Array(0),n:0,time:0},surface:new Float32Array(512*17*8),receivedAt:0,playing:false,height:new Float32Array(256),person:null,originX:0,revision:0,ready:false,attached:false,latest:{}};
 let previousPerson=null,personDuration=0,previousTime=0;
 const renderedPerson={q:new Float64Array(4)};
 export function renderPerson(){const p=world.person;if(!p)return null;const a=world.playing&&personDuration>0?Math.min(1,(performance.now()-world.receivedAt)/(personDuration*1000)):1,b=previousPerson||p;renderedPerson.x=b.x+(p.x-b.x)*a;renderedPerson.y=b.y+(p.y-b.y)*a;renderedPerson.z=b.z+(p.z-b.z)*a;let length=0;const sign=b.q[0]*p.q[0]+b.q[1]*p.q[1]+b.q[2]*p.q[2]+b.q[3]*p.q[3]<0?-1:1;for(let i=0;i<4;i++){renderedPerson.q[i]=b.q[i]+(sign*p.q[i]-b.q[i])*a;length+=renderedPerson.q[i]**2;}length=Math.sqrt(length)||1;for(let i=0;i<4;i++)renderedPerson.q[i]/=length;return renderedPerson;}
@@ -24,4 +24,4 @@ addEventListener('beforeunload',shutdown);document.addEventListener('visibilityc
 window.beachFluid={world,command,setPlaying:setSurfPlaying,diagnostics:()=>({...world.latest,revision:world.revision,error:world.error})};
 
 // A cheap physical height lookup for water-hit particles and wading collars.
-export function sampleWater(x,z,out){const local=(z-shore(x))/SCALE,f=Math.max(0,Math.min(254.999,(local+17.8)/(46.3/255))),i=Math.floor(f),t=f-i,h=world.height[i]*(1-t)+world.height[i+1]*t;out[0]=h*SCALE;out[1]=Math.max(0,out[0]-bed(x,z));return out;}
+export function sampleWater(x,z,out){const local=(z-shore(x))/SCALE,fz=Math.max(0,Math.min(382.999,(local+18)/78*383)),iz=Math.floor(fz),tz=fz-iz,fx=Math.max(0,Math.min(15.999,(x/SCALE+121)/242*16)),ix=Math.floor(fx),tx=fx-ix,d=world.surface,a=(ix*512+iz)*4,b=((ix+1)*512+iz)*4,h0=d[a]+(d[a+4]-d[a])*tz,h1=d[b]+(d[b+4]-d[b])*tz;out[0]=(h0+(h1-h0)*tx)*SCALE;out[1]=Math.max(0,out[0]-bed(x,z));return out;}

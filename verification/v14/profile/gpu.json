@@ -1,0 +1,375 @@
+{
+  "mode": "gpu",
+  "simulationStart": 23.99999999999896,
+  "simulationDelta": 12.033333333336085,
+  "uncapped": false,
+  "gpu": {
+    "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+    "timer": true,
+    "width": 1920,
+    "height": 1080
+  },
+  "errors": [],
+  "failed": [],
+  "screenshotMs": 281,
+  "frames": 720,
+  "cpuFrameMs": 0.1880389429779104,
+  "workerMeanMs": 0.9527121001403773,
+  "reconstructMeanMs": 0.8600834492362145,
+  "p95CpuMs": 0.3000000002793968,
+  "p99CpuMs": 0.40000000037252903,
+  "fractionWithin120": 0,
+  "frameIntervalMs": 16.680806675938804,
+  "p95FrameIntervalMs": 16.800000000000182,
+  "draws": {
+    "scene": {
+      "callsPerFrame": 11.709722222222222,
+      "indexReferencesPerFrame": 251293.55,
+      "cpuSubmitMsPerFrame": 0.006805555554779454
+    },
+    "water": {
+      "callsPerFrame": 2,
+      "indexReferencesPerFrame": 121266,
+      "cpuSubmitMsPerFrame": 0.0015277777772603764
+    },
+    "foam": {
+      "callsPerFrame": 0.9833333333333333,
+      "indexReferencesPerFrame": 2806.25,
+      "cpuSubmitMsPerFrame": 0.0006944444450911962
+    }
+  },
+  "timers": {
+    "available": true,
+    "disjoint": false,
+    "sums": {
+      "scene": {
+        "ns": 136474304,
+        "draws": 1991
+      },
+      "water": {
+        "ns": 45353120,
+        "draws": 342
+      },
+      "foam": {
+        "ns": 25451296,
+        "draws": 167
+      }
+    }
+  },
+  "diagnostic": {
+    "game": {
+      "active": true,
+      "paused": false,
+      "input": {
+        "automatedTest": true,
+        "pointerLocked": false,
+        "cameraRoll": 0
+      },
+      "renderFrames": 852,
+      "rider": {
+        "x": 0,
+        "y": 9.262852914917802,
+        "z": -36.12587492797634,
+        "vx": 0,
+        "vy": -8.412355005238274,
+        "vz": -3.5366718467623817,
+        "mode": "swimming",
+        "grounded": false
+      },
+      "tier": {
+        "name": "hardware",
+        "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 5070 Ti (0x00002C05) Direct3D11 vs_5_0 ps_5_0, D3D11)",
+        "pixelRatio": 1,
+        "columns": 48,
+        "farX": 48,
+        "farZ": 48,
+        "particles": 640,
+        "anisotropy": 1
+      },
+      "draws": {
+        "frame": 852,
+        "calls": 15,
+        "triangles": 125470,
+        "points": 0,
+        "lines": 0
+      },
+      "geometries": 15,
+      "ocean": {
+        "coast": {
+          "crestY": 1.0527704233866657,
+          "crestZ": 3.180156657963444,
+          "maxOverhang": 0,
+          "tubeZ": 8,
+          "tubeY": 1,
+          "tubeGap": 0,
+          "activeSheets": 0,
+          "cells": 6528,
+          "contour": "finite-volume + ballistic sheets",
+          "breakCount": 68,
+          "impacts": 3060,
+          "vertices": 18432,
+          "triangles": 35814,
+          "xColumns": 48,
+          "profileCount": 512,
+          "lanes": 17,
+          "uploadBytes": 278528,
+          "gpuInterpolation": true
+        },
+        "local": {
+          "foamPoints": 313
+        },
+        "effects": {
+          "capacity": 640,
+          "live": 313,
+          "drawSlots": 640,
+          "totalBorn": 8477,
+          "vertices": 4,
+          "trianglesPerInstance": 2,
+          "gpuAnimated": true,
+          "surfaceFoam": true,
+          "heightTextureBytes": 26112,
+          "splashAtlasFrames": 12
+        },
+        "revision": 429
+      }
+    },
+    "fluid": {
+      "particles": 0,
+      "ambientParticles": 0,
+      "time": 36.033333333335044,
+      "localTime": 36.033333333335044,
+      "originX": 0,
+      "rider": {
+        "position": [
+          0,
+          0.8063789352562355,
+          3.859508259485547
+        ],
+        "velocity": [
+          0,
+          -1.4020591675397123,
+          -0.5894453077937303
+        ],
+        "quaternion": [
+          0.010579974776402847,
+          0,
+          0,
+          0.9999440305005729
+        ],
+        "angularVelocity": [
+          0.07420191997761645,
+          0,
+          0
+        ],
+        "tiltDegrees": 1.212398423280852,
+        "contacts": 1,
+        "totalImpulse": 6291.154864688847,
+        "waterForceZ": -15.783782448790129,
+        "waterHeight": 1.0467979961977305,
+        "waterDepth": 1.2786632144207601,
+        "waterImmersion": 0.6121991376531736,
+        "footWetness": 1,
+        "contactModel": "depth-and-sheet-volume-quadrature",
+        "flowZ": -0.8981658478386069,
+        "skimming": false,
+        "wiped": false
+      },
+      "dryBeach": false,
+      "board": null,
+      "localActive": true,
+      "physicsMs": 0.6999999997206032,
+      "ambientMs": 0.7000000001862645,
+      "ambientDropped": 0,
+      "surface": {
+        "crestY": 1.0527704233866657,
+        "crestZ": 3.180156657963444,
+        "maxOverhang": 0,
+        "tubeZ": 8,
+        "tubeY": 1,
+        "tubeGap": 0,
+        "activeSheets": 0,
+        "cells": 6528,
+        "contour": "finite-volume + ballistic sheets",
+        "breakCount": 68,
+        "impacts": 3060
+      },
+      "backgroundMode": "hybrid-live",
+      "characterModel": "depth-flow-and-ballistic-sheet-occupancy",
+      "breaker": {
+        "x": 0,
+        "z": 6.398121975056274,
+        "y": 0.4609655420394441,
+        "strength": 0.008414677489201107,
+        "velocityY": -3.2550989517880673,
+        "flowZ": -10.359317779429325,
+        "foam": 1
+      },
+      "breakers": [
+        {
+          "x": -121,
+          "z": 5.789460300246784,
+          "y": 0.667128004891851,
+          "strength": 0.005445514901552519,
+          "velocityY": -3.462165807444096,
+          "flowZ": -10.993450654048566,
+          "foam": 1
+        },
+        {
+          "x": -105.875,
+          "z": 5.84955567717609,
+          "y": 0.6287841933918555,
+          "strength": 0.00306705630086215,
+          "velocityY": -3.482247169680346,
+          "flowZ": -10.887915846098544,
+          "foam": 1
+        },
+        {
+          "x": -90.75,
+          "z": 6.033698236916367,
+          "y": 0.5914353898377284,
+          "strength": 0.003333595913516672,
+          "velocityY": -3.4286686090578646,
+          "flowZ": -10.754731558046394,
+          "foam": 1
+        },
+        {
+          "x": -75.625,
+          "z": 6.166241026728603,
+          "y": 0.5423765706893969,
+          "strength": 0.007813893968626076,
+          "velocityY": -3.4237411562373277,
+          "flowZ": -10.601755693331501,
+          "foam": 1
+        },
+        {
+          "x": -60.5,
+          "z": 6.290212374204483,
+          "y": 0.49258907043667405,
+          "strength": 0.012074413323532799,
+          "velocityY": -3.373928103132352,
+          "flowZ": -10.47577497713544,
+          "foam": 1
+        },
+        {
+          "x": -45.375,
+          "z": 6.32735187241174,
+          "y": 0.457568736994647,
+          "strength": 0.011852870728326085,
+          "velocityY": -3.357655518524227,
+          "flowZ": -10.386835415827395,
+          "foam": 1
+        },
+        {
+          "x": -30.25,
+          "z": 6.353149502577725,
+          "y": 0.4562086202079816,
+          "strength": 0.015793636896301165,
+          "velocityY": -3.3745156675245704,
+          "flowZ": -10.334477814846007,
+          "foam": 1
+        },
+        {
+          "x": -15.125,
+          "z": 6.371322518360856,
+          "y": 0.44840130214322776,
+          "strength": 0.017649690396401612,
+          "velocityY": -3.299078356822444,
+          "flowZ": -10.328275647772992,
+          "foam": 1
+        },
+        {
+          "x": 0,
+          "z": 6.398121975056274,
+          "y": 0.4609655420394441,
+          "strength": 0.008414677489201107,
+          "velocityY": -3.2550989517880673,
+          "flowZ": -10.359317779429325,
+          "foam": 1
+        },
+        {
+          "x": 15.125,
+          "z": 6.270901729584891,
+          "y": 0.5133192867590419,
+          "strength": 0.003938178244719287,
+          "velocityY": -3.2040346312369454,
+          "flowZ": -10.420188093028539,
+          "foam": 1
+        },
+        {
+          "x": 30.25,
+          "z": 6.228433452467613,
+          "y": 0.5177839301656175,
+          "strength": 0.004124787644092069,
+          "velocityY": -3.1839209156071737,
+          "flowZ": -10.52624682173036,
+          "foam": 1
+        },
+        {
+          "x": 45.375,
+          "z": 6.034532191818286,
+          "y": 0.5643104559746478,
+          "strength": 0.004918189446844715,
+          "velocityY": -3.239273670126545,
+          "flowZ": -10.65804377234091,
+          "foam": 1
+        },
+        {
+          "x": 60.5,
+          "z": 5.882609791949406,
+          "y": 0.5823016522331866,
+          "strength": 0.004240971269556103,
+          "velocityY": -3.2933074622618066,
+          "flowZ": -10.790372273152968,
+          "foam": 1
+        },
+        {
+          "x": 75.625,
+          "z": 5.74229586953094,
+          "y": 0.6425107683131043,
+          "strength": 0.005598899686024266,
+          "velocityY": -3.34502272629754,
+          "flowZ": -10.9290641001731,
+          "foam": 1
+        },
+        {
+          "x": 90.75,
+          "z": 5.593842957553602,
+          "y": 0.6626594377119474,
+          "strength": 0.011006610201499817,
+          "velocityY": -3.3982335536563366,
+          "flowZ": -11.052980966794127,
+          "foam": 1
+        },
+        {
+          "x": 105.875,
+          "z": 5.561038685979309,
+          "y": 0.6823706486749446,
+          "strength": 0.010508660465402716,
+          "velocityY": -3.418635810756936,
+          "flowZ": -11.13171709663653,
+          "foam": 1
+        },
+        {
+          "x": 121,
+          "z": 5.405016458646898,
+          "y": 0.6946292154375556,
+          "strength": 0.0054961704905339675,
+          "velocityY": -3.5687557375070975,
+          "flowZ": -11.172121014342881,
+          "foam": 1
+        }
+      ],
+      "oneWayCoupling": false,
+      "coupling": "cross-shore drag momentum; no alongshore fluid solve",
+      "phaseError": 0,
+      "droppedTime": 0,
+      "revision": 429
+    },
+    "pointerLockAttempts": 0
+  },
+  "gpuPerDrawMs": {
+    "scene": 0.06854560723254646,
+    "water": 0.1326114619883041,
+    "foam": 0.15240297005988024
+  }
+}

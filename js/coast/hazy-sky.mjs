@@ -1,0 +1,3 @@
+import * as T from 'three';
+// A quiet Atlantic haze for the inspection scene. No photograph or sky asset.
+export function addHazySky(scene){const mat=new T.ShaderMaterial({side:T.BackSide,depthWrite:false,vertexShader:`varying vec3 direction;void main(){direction=position;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.);}`,fragmentShader:`varying vec3 direction;void main(){vec3 d=normalize(direction);float h=smoothstep(-.04,.65,d.y);vec3 c=mix(vec3(.86,.90,.88),vec3(.55,.74,.80),h);float sun=pow(max(dot(d,normalize(vec3(-.32,.75,.57))),0.),16.);c+=vec3(.13,.12,.09)*sun;gl_FragColor=vec4(c,1.);}`});const mesh=new T.Mesh(new T.SphereGeometry(4800,24,16),mat);mesh.renderOrder=-10;scene.add(mesh);return mesh;}

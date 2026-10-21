@@ -1,0 +1,194 @@
+[
+  {
+    "initial": {
+      "z": 9,
+      "y": 0.2,
+      "speed": 6
+    },
+    "minimumForce": -1636.8065592416049,
+    "peakTilt": 0.39351568368461737,
+    "peakRise": 1.0884704734132153,
+    "minV": -0.9746022262184006,
+    "wiped": 0,
+    "skim": 136,
+    "final": {
+      "position": [
+        0,
+        -0.44891293263197873,
+        11.327579830168903
+      ],
+      "velocity": [
+        0,
+        0.13018154442645363,
+        0.7474063313245194
+      ],
+      "quaternion": [
+        -0.004027490118380989,
+        0,
+        0,
+        0.9999918896287842
+      ],
+      "angularVelocity": [
+        0.012716361363280047,
+        0,
+        0
+      ],
+      "tiltDegrees": 0.4615176193214963,
+      "contacts": 1,
+      "totalImpulse": 6011.619145517149,
+      "waterForceZ": 10.710573920886466,
+      "waterHeight": -0.3820392205516369,
+      "waterDepth": 1.7340067559929586,
+      "waterImmersion": 0.5714285714285713,
+      "footWetness": 1,
+      "contactModel": "depth-and-sheet-volume-quadrature",
+      "flowZ": 1.199289977249379,
+      "skimming": false,
+      "wiped": false
+    }
+  },
+  {
+    "initial": {
+      "z": 10,
+      "y": 0.9,
+      "speed": 5
+    },
+    "minimumForce": -2093.164596422047,
+    "peakTilt": 0.48578825013838206,
+    "peakRise": 0.31534605471608124,
+    "minV": -1.0072616084912795,
+    "wiped": 16,
+    "skim": 0,
+    "final": {
+      "position": [
+        0,
+        -0.4776489253423361,
+        11.561941862722705
+      ],
+      "velocity": [
+        0,
+        0.20482455311857453,
+        0.7437362893185201
+      ],
+      "quaternion": [
+        -0.004156339942092844,
+        0,
+        0,
+        0.9999913623818386
+      ],
+      "angularVelocity": [
+        0.004756069230758272,
+        0,
+        0
+      ],
+      "tiltDegrees": 0.4762828451243786,
+      "contacts": 1,
+      "totalImpulse": 5991.988144408856,
+      "waterForceZ": 10.945813124220491,
+      "waterHeight": -0.3838219236330931,
+      "waterDepth": 1.8095736162697735,
+      "waterImmersion": 0.5714285714285713,
+      "footWetness": 1,
+      "contactModel": "depth-and-sheet-volume-quadrature",
+      "flowZ": 1.1786540843913258,
+      "skimming": false,
+      "wiped": false
+    }
+  },
+  {
+    "initial": {
+      "z": 8,
+      "y": 1.4,
+      "speed": 4
+    },
+    "minimumForce": -1109.9140668047771,
+    "peakTilt": 0.3472997637425095,
+    "peakRise": 0,
+    "minV": -1.3640956087186098,
+    "wiped": 0,
+    "skim": 0,
+    "final": {
+      "position": [
+        0,
+        -0.3231741515886268,
+        8.475374068706039
+      ],
+      "velocity": [
+        0,
+        -0.037508003476179635,
+        0.7596323430636397
+      ],
+      "quaternion": [
+        -0.007000290891991646,
+        0,
+        0,
+        0.9999754976635316
+      ],
+      "angularVelocity": [
+        -0.005664311261586877,
+        0,
+        0
+      ],
+      "tiltDegrees": 0.8021807987286321,
+      "contacts": 1,
+      "totalImpulse": 5724.072625909155,
+      "waterForceZ": 36.37197566343522,
+      "waterHeight": -0.33188172655955134,
+      "waterDepth": 0.8429027271700162,
+      "waterImmersion": 0.4872957516892422,
+      "footWetness": 1,
+      "contactModel": "depth-and-sheet-volume-quadrature",
+      "flowZ": 1.755663603321221,
+      "skimming": false,
+      "wiped": false
+    }
+  },
+  {
+    "initial": {
+      "z": 7,
+      "y": 0.6,
+      "speed": -4
+    },
+    "minimumForce": -176.83158540927798,
+    "peakTilt": 0.21595776118800486,
+    "peakRise": 0.8480752311367349,
+    "minV": -4,
+    "wiped": 0,
+    "skim": 66,
+    "final": {
+      "position": [
+        0,
+        0.6334902129012819,
+        3.6084964516453013
+      ],
+      "velocity": [
+        0,
+        0,
+        0.17289959178326214
+      ],
+      "quaternion": [
+        -0.00737783365327076,
+        0,
+        0,
+        0.9999727834149211
+      ],
+      "angularVelocity": [
+        -0.007759377248054988,
+        0,
+        0
+      ],
+      "tiltDegrees": 0.8454451306210262,
+      "contacts": 2,
+      "totalImpulse": 4382.815930950043,
+      "waterForceZ": 37.044382401554465,
+      "waterHeight": 0.36090831281897084,
+      "waterDepth": 0.5773303336274436,
+      "waterImmersion": 0.32402412527564173,
+      "footWetness": 1,
+      "contactModel": "depth-and-sheet-volume-quadrature",
+      "flowZ": 1.4245134175259657,
+      "skimming": false,
+      "wiped": false
+    }
+  }
+]
