@@ -9,8 +9,8 @@
 import * as THREE from 'three';
 
 export const SURF = {
-  period: 9.0,        // s between waves
-  L0: 230,            // offshore wavelength
+  period: 10.0,       // s between waves
+  L0: 290,            // offshore wavelength (crests travel at L0 / period offshore, ~0.54 of that at the shore)
   shoalA: 0.85,       // wavelength shortens near the shore: k = k0 (1 + A e^(-d/B))
   shoalB: 220,
   kx: 0.0012,         // slight obliquity of the crests
@@ -129,8 +129,11 @@ function stageState(Hn, db, db0, boreK, dc, o) {
   const shoal = 0.55 + 0.45 * sstep(db0 + 420, db0, dc);
   // and it peaks up as it nears its break, by 16 % (most of it before the lip starts to throw, at p 0)
   const Hpre = Hn * shoal * (1 + 0.16 * sstep(-3.5, 1.0, p));
-  const depthC = Math.max(SURF.slope * dc - 0.5, 0.3);
-  const Hbore = Math.min(Hn, boreK * depthC + 0.8);
+  // the bore's height follows the depth, and faster than it (depth^1.5, against the depth where this stage broke):
+  // a bore that merely kept pace with the depth would look the same size all the way in from the beach (constant
+  // H / dc); this one shrinks on its way in and is all but gone at the waterline
+  const depthC = Math.max(SURF.slope * dc - 0.5, 0.3), depthB = Math.max(SURF.slope * db - 0.5, 0.3);
+  const Hbore = Math.min(Hn, boreK * depthC * Math.sqrt(depthC / depthB) + 0.5);
   o.p = p;
   o.bore = sstep(0.95, 2.0, p); // the crash spends the wave's height quickly: bore height by p ~ 2
   // ... and near the sand in any case: a closeout that broke late (db ~ 40) would still be ~9 high when its crest
@@ -468,8 +471,8 @@ WS stageS(float Hn, float db, float db0, float boreK, float dc) {
   float p = (db - dc) / BSPAN;
   float shoal = 0.55 + 0.45 * sstep(db0 + 420.0, db0, dc);
   float Hpre = Hn * shoal * (1.0 + 0.16 * sstep(-3.5, 1.0, p)); // peaking up as it nears its break
-  float depthC = max(SLOPE * dc - 0.5, 0.3);
-  float Hbore = min(Hn, boreK * depthC + 0.8);
+  float depthC = max(SLOPE * dc - 0.5, 0.3), depthB = max(SLOPE * db - 0.5, 0.3);
+  float Hbore = min(Hn, boreK * depthC * sqrt(depthC / depthB) + 0.5); // shrinks faster than the depth (stageState)
   w.p = p;
   w.bore = 1.0 - (1.0 - sstep(0.95, 2.0, p)) * (1.0 - sstep(16.0, 3.0, dc)); // a bore by the sand in any case
   w.H = mix(Hpre, Hbore, w.bore);

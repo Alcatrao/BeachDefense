@@ -710,6 +710,36 @@ sometimes clips the wave.
   gone from the whole inner surf zone, not just under foam; not hand-play-tested; the soft tier (SOFT/FACETS) was
   not run.
 
+## Round 16 (21 Oct 2026, owner: waves a bit faster and more spaced (longer period); the broken wave should get
+## smaller faster, growing until it breaks and then shrinking until it dissipates at the shoreline)
+- Speed and spacing: SURF.period 9 -> 10 s, SURF.L0 230 -> 290. Crests travel at L0 / period / (1 + 0.85 e^(-d/220)):
+  29.0 units/s offshore, 25.5 at d 400, 21.6 at 200, 18.8 at 100, 15.7 at the shore (was 25.6 / 22.5 / 19.0 / 16.6 /
+  13.8: +13.5 % everywhere), and the crests are 25 % further apart (mid-surf 207-211 units, was 165-170). Both
+  constants reach the GLSL by template (K0, OMEGA); the mesh rows are spaced in phase by 1.3 f kOf(200), so their
+  spacing in distance (that over kOf(d)) does not depend on L0, and the row slide uRowF reads OMEGA. The broken wave
+  is carried forward by the surge D on top of this (evalSurf), so a crest tracker reads 30-45 units/s over its break.
+- Bore height (stageState and stageS alike): Hbore = min(Hn, boreK depthC sqrt(depthC / depthB) + 0.5), depthB the depth
+  where that stage broke (was boreK depthC + 0.8, linear in the depth). A bore linear in the depth keeps H / dc
+  constant, i.e. the same angular size from the beach all the way in, which is what read as "stays big"; depth^1.5
+  shrinks on the way in. Profiles (boreK 0.55): a wave that broke at d 185 is 8.9 at 185, 3.7 at 100, 1.5 at 50,
+  0.6 at 16 (was 9.2 / 5.2 / 2.9 / 1.3); an outer-bar wave (db ~345) 8.8 at 226, 6.0 at 185, 2.6-2.9 at 100, 1.2 at 50
+  (was 9.2 at 185, 5.2 at 100, 2.9 at 50). The plumes (sstep(1.5, 3, H)) now go out around d 50 for a bore that broke
+  on the inner bar instead of d ~20. For a wave with no outer stage (dbA = -1e4) that stage's depthB is the floor 0.3,
+  but its Hbore is never used: its bore weight is 0 offshore (p << 0) and the stage itself has weight 0 inside d 200
+  (wB = sstep(228, 200, dc)), long before the sstep(16, 3, dc) forcing; min(Hn, ..) caps it in any case.
+- Measured in the preview (evalSurf with curl, crest minus the lowest point within 60 units shoreward, x 0): the inner
+  wave that broke at d ~195: 10.1 at 196, 6.6 at 150, 3.3 at 96, 1.4 at 43, gone by 15; the outer wave behind it:
+  16 at 437, 18 at 381, 27 at 328 (its peak-up at the break), 15 at 239, 11.6 at 213, 7.2 at 159, 4.2 at 109, 1.8 at
+  64. Consecutive crests pass d 417 every 10.0 s. Player-view stills of that sequence in reference/r12-shots
+  (git-ignored): r16-pv-d200/d150/d100/d050/d015 (t 64.2-73.4) and r16-seq-t76/t79/t81/t84; the white bore wall at
+  d ~200 becomes a low line at d ~100 and a wash at d ~50 while the next outer wave rises behind it.
+- Peel is unchanged: inner waves break at db = max(min(db0, 185) - 0.22 |x - xp| + 12 sin, 40), xp random in +-900,
+  so at any one x some waves break late (db 40-100) and keep their unbroken height (~10) until d ~16, then collapse
+  by d 3 (the sstep(16, 3, dc) forcing). From the beach those read as a wall that stays big, but they are the
+  shorebreak closeouts, not the foam wave; if the owner means those, the fix is a smaller peel or a later minBreakD.
+- Soft tier (?surf=soft): all programs compile, no shader errors. Not re-measured: the tremble scores of Round 15
+  (the law only lowers H, which scales the lumps down with it); not hand-play-tested.
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
