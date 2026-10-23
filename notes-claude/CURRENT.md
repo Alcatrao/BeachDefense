@@ -896,6 +896,67 @@ measured, not cut). The implementation record follows the proposal. Committed wi
   colour constants are first values, to be judged in play; the soft tier was checked only for compiling and one
   still; the haze figure is the shader's mix at one distance, not a pixel measurement.
 
+## Round 18 (23 Oct 2026, owner: water, shallow water, brightness and beach like the new AoM shots; a very light blue
+## sky, almost white at the horizon, no clouds; the basic ghosts with another mesh, animations and effects, like the
+## old Oblivion ghosts)
+The owner's 8 new AoM shots are reference/aom-2026-10-23/21-28.webp (git-ignored, never committed or published).
+Committed with the code; nothing pushed.
+- Sky (aom look only; js/main.js gradientSky, js/surf.js AOM_SKY): the three.js Sky shader is replaced by a clear,
+  cloudless dome drawn straight in display sRGB, (160, 208, 244) overhead to (240, 247, 252) at the horizon, with a
+  soft white glow round the sun and a 1/255 dither against banding. The water's haze colour is the dome's horizon
+  (fromDisplay below). The classic look keeps the Sky shader.
+- Beach (main.js tintSand, LOOKS.aom.sand): the photo texture's brown becomes a pale cream-green tint (1.0, 1.7, 1.0)
+  that keeps 35 % of the photo's grain, crossed by fine wind-ripple streaks along the shore (two sizes, turned about
+  25 degrees, strength 0.25, faded out where they would shimmer), then a small grade in display colour
+  (0.985, 1.043, 0.98): the filmic curve pulls red up with green near white, so AoM's green comes back there.
+  Measured dry sand on screen (224, 248, 222) for the target AOM_SAND (222, 244, 214).
+- Shallow water (surf.js): the sand seen through the water is now the beach's own colour. fromDisplay inverts the
+  water's output (x1.55, three's ACES filmic at exposure 0.6, sRGB) to find the linear colour drawn as a given screen
+  colour, and bed = fromDisplay(AOM_SAND) replaces the fixed BED (now uniform uBed, per look). With uSandDisp = 1 that
+  sand is added in display colour after the tone mapping, as AoM blends its water over its terrain: in linear light
+  the pale sand sits near the top of the filmic curve as an extreme green, which turned the dimmed shallows mint. The
+  damp sand's colour is per look (uDamp; aom (0.2, 0.24, 0.14), classic unchanged). Broader, stronger ripples nearer
+  AoM's dark-teal chevrons: ripple 0.8 -> 1.0, emboss 0.8 -> 1.0 and ripScale 0.55 (new; below 1 widens them).
+  Measured side-view water (108, 228, 234). Exposure is unchanged (0.6): the brighter scene comes from the sky, the
+  sand and the clearer shallows.
+- Spectre, the new basic ghost (main.js SPECTRE block and class SpectreGhost; the Halloween FBX in assets/Ghost/ is
+  no longer loaded, the files stay on disk, and class HalloweenGhost is gone). Research: Oblivion draws its ghosts
+  with a "membrane" effect shader (a translucent fill, a fresnel edge glow and a slowly scrolling texture) over
+  ordinary meshes; its wraiths are hooded robes with glowing eyes. Built from code, geometry shared by all spectres:
+  1. Mesh: a lathed robe whose hem frays into rags, a peaked hood (raised and swept back), a recessed dark face with
+     two glowing eyes, open sleeves with clawed hands (a palm and four cones, merged), and 36 wisp points. On
+     software GL (?soft=1) the robe has fewer segments and no wisps. Height 15; the hitbox is as before.
+  2. Shaders (display sRGB, no tone mapping, like the surf): a membrane from a pale-blue fill to a white-blue rim by
+     fresnel squared, a rising two-scale shimmer, vertical folds and noise rags round the hem. The back faces (a darker
+     inner robe and a dark cowl, render order 1, no depth write) are drawn before the front faces (1.01, writing
+     depth); eye and hand glows 1.02, wisps 1.03. The face fades out at its edges (a negative rim factor).
+  3. Animation (tick): it hovers and bobs, leans into its glide and sways; the robe below the chest flaps and trails
+     behind while it chases (vertex shader); the arms swing. Within 30 units of the player it reaches: the arms rise
+     towards the player and the hands flare and pulse.
+  4. Effects: wisps born round the hem rise, curl and are left behind. While a spectre chases within 45 units, frost
+     creeps in from the screen edges (a fixed radial-gradient overlay, opacity up to 0.6, full on the killing touch).
+     On a hit: a 0.9 s noise dissolve with a bright burning edge; the arms fling up and the body rises; the eyes and
+     hands go out halfway, the dark face early (no dark specks left); the wisps burst from the whole body. Then
+     updateDyingGhosts removes it and disposes its materials.
+  5. Gameplay unchanged: HP 1, speed 0.9, the same air/ground split, spawn, fade-and-blink, chase and kill rules as the
+     Halloween ghost; spark hits skip ghosts already dying; startGame clears dying ghosts and the frost. Khaimera is
+     unchanged.
+- Verified (headless preview, 1920x1080 stills saved at half scale, paused loop stepped by hand; reference/r12-shots/,
+  git-ignored): r18_before_* (before); r18a-d_* (the look's iterations; r18d_beach, r18d_side, r18d_gm final);
+  r18g-i_* (the spectre's iterations); r18j_reach, r18j_die30, r18j_die60; r18k_player, r18k_kill30, r18k_kill70 (the
+  player view with spectres at about 30 and 60 units, one reaching, then killed: it dissolves with bright edges and is
+  gone at 70 % with faint wisps left); r18l_classic and r18l_soft (the classic look and ?soft=1 both render the
+  spectres, with no console errors beyond the preview's pointer-lock ones). The frost overlay's opacity follows
+  frostLevel. The removal and dispose steps ran without error or GL error, but by hand: the real animation loop did
+  not run (the preview pane was hidden, so requestAnimationFrame never fired). Sent to the owner: r18d_beach,
+  r18d_side, r18k_player, r18j_reach, r18k_kill30.
+- Research links: https://en.uesp.net/wiki/Oblivion:Ghost, https://www.gamesas.com/post213877.html,
+  https://cs.uesp.net/wiki/Effect_Shader, https://content3.uesp.net/wiki/Oblivion:Wraith,
+  https://tympanus.net/codrops/?p=86603.
+- Limits: not play-tested, so the motion, the chase at speed, the spawn mix and the frost's feel are unseen; the AoM
+  shots were matched by eye and a few point measurements; the sand streaks may shimmer at grazing angles on other
+  GPUs; the classic look and the soft tier were checked with one still each.
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to

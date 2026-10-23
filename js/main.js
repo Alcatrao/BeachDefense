@@ -3,7 +3,6 @@ import { createSurf, shoreZ, SURF, LOOKS } from './surf.js';
 import { Sky } from 'Sky';
 import { PointerLockControls } from 'PointerLockControls';
 import { GLTFLoader } from 'https://unpkg.com/three@0.155.0/examples/jsm/loaders/GLTFLoader.js';
-import { FBXLoader } from 'https://unpkg.com/three@0.155.0/examples/jsm/loaders/FBXLoader.js';
 import * as SkeletonUtils from 'https://unpkg.com/three@0.155.0/examples/jsm/utils/SkeletonUtils.js';
 
 // === CONSTANTS ===
@@ -62,8 +61,7 @@ let npcSpawnInterval = 15; // seconds
 let npcWave = 1;
 let gameActive = false;
 let playerAlive = true;
-let halloweenGhostModel = null;
-let khaimeraGhostModel = null;
+let khaimeraGhostModel = null; // (the basic ghost is built from code: SpectreGhost)
 
 // === GHOST CLASSES ===
 class Ghost {
@@ -73,9 +71,15 @@ class Ghost {
     this.size = options.size || 15;
     this.chaseDistance = options.chaseDistance || 150; // Default chase distance
     this.hitboxRadius = (options.hitboxRadius || this.size * 0.5) * 1.3;
+    if (options.mesh) {
+      // a ghost built from code, already at its size (SpectreGhost)
+      this.mesh = options.mesh;
+      scene.add(this.mesh);
+      this.height = this.size;
+    } else {
     this.mesh = SkeletonUtils.clone(modelObj.scene);
     this.mesh.renderOrder = 1; // Ensure ghosts are drawn above the ground
-    
+
 
     // Ensure each mesh has its own material instance!
     this.mesh.traverse(child => {
@@ -104,6 +108,7 @@ class Ghost {
       this.mesh.scale.setScalar(scale);
       this.height = this.size; // after scaling, height is now this.size
     }
+    }
 
     // Set hitbox radius to cover the whole height
     this.hitboxRadius = this.height / 2;
@@ -116,7 +121,7 @@ class Ghost {
     );
 
     // Animation
-    if (modelObj.animations && modelObj.animations.length > 0) {
+    if (modelObj && modelObj.animations && modelObj.animations.length > 0) {
       this.mixer = new THREE.AnimationMixer(this.mesh);
       this.action = this.mixer.clipAction(modelObj.animations[0]);
       this.action.play();
@@ -134,15 +139,302 @@ class Ghost {
   }
 }
 
-// Halloween Ghost (fading, blinking, air/ground)
-class HalloweenGhost extends Ghost {
-  constructor(modelObj, wave) {
-    super(modelObj, wave, {
+// === SPECTRE: the basic ghost (Round 18) ===
+// No longer the Halloween FBX sheet ghost: a hooded, robed shade built from code, after the old Oblivion ghosts and
+// wraiths. Oblivion draws its ghosts with a "membrane" effect shader: a translucent fill with a bright edge (fresnel)
+// glow and a slowly scrolling texture. Here: a pale-blue membrane with a white-blue rim and a rising shimmer, a hem
+// that frays into flapping rags, glowing eyes and hands, wisps trailing off the hem, a frost-touch reach at the player
+// (hands flare, frost creeps in from the screen edges) and a noise dissolve with a bright burning edge when killed.
+// Colours are display sRGB (the shaders skip the renderer's tone mapping, like the surf).
+const SPECTRE_COL = {
+  fill: [0.42, 0.63, 0.90], inner: [0.22, 0.36, 0.64], cowl: [0.05, 0.10, 0.24], face: [0.04, 0.08, 0.2],
+  rim: [0.9, 0.98, 1.0], eye: [0.75, 1.0, 1.0], hand: [0.72, 0.93, 1.0], wisp: [0.82, 0.94, 1.0],
+};
+const SPECTRE_DEATH_S = 0.9;
+const SPECTRE_FX = { uTime: { value: 0 }, uHalfH: { value: 540 } }; // shared by every spectre's materials
+const spectreBuf = new THREE.Vector2();
+let SPECTRE_GEO = null; // geometry, built once and shared by every spectre
+const dyingGhosts = []; // spectres playing their death
+
+const SPECTRE_NOISE = `
+float spH(vec3 p) { p = fract(p * 0.3183099 + 0.1); p *= 17.0; return fract(p.x * p.y * p.z * (p.x + p.y + p.z)); }
+float spN(vec3 x) {
+  vec3 i = floor(x), f = fract(x); f = f * f * (3.0 - 2.0 * f);
+  return mix(mix(mix(spH(i), spH(i + vec3(1, 0, 0)), f.x), mix(spH(i + vec3(0, 1, 0)), spH(i + vec3(1, 1, 0)), f.x), f.y),
+             mix(mix(spH(i + vec3(0, 0, 1)), spH(i + vec3(1, 0, 1)), f.x), mix(spH(i + vec3(0, 1, 1)), spH(i + vec3(1, 1, 1)), f.x), f.y), f.z);
+}`;
+const SPECTRE_VS = `
+uniform float uTime, uPhase, uFlutter, uTrail;
+varying vec3 vN, vV, vObj;
+void main() {
+  vec3 p = position;
+  // the robe below the chest flaps and trails behind, more toward the hem
+  float low = clamp(1.0 - p.y / 8.5, 0.0, 1.0); low *= low * uFlutter;
+  float ang = atan(p.z, p.x), t = uTime + uPhase;
+  p.xz *= 1.0 + low * (0.11 * sin(t * 3.1 + ang * 3.0) + 0.06 * sin(t * 5.3 - ang * 5.0));
+  p.y += low * 0.45 * sin(t * 4.2 + ang * 4.0);
+  p.z -= low * uTrail * 1.6;
+  vObj = p;
+  vec4 mv = modelViewMatrix * vec4(p, 1.0);
+  vV = -mv.xyz;
+  vN = normalMatrix * normal;
+  gl_Position = projectionMatrix * mv;
+}`;
+const SPECTRE_FS = `
+uniform vec3 uFill, uRim;
+uniform float uTime, uPhase, uOpacity, uDissolve, uBase, uHemOn, uRimK;
+varying vec3 vN, vV, vObj;
+${SPECTRE_NOISE}
+void main() {
+  float t = uTime + uPhase;
+  // death: noise burns through from the weakest spots, with a bright edge
+  float d = spN(vObj * 0.9 + 3.7) * 0.75 + spN(vObj * 2.9) * 0.25;
+  float burn = uDissolve * 1.25 - d;
+  if (burn > 0.0) discard;
+  float edge = uDissolve > 0.0 ? smoothstep(-0.14, 0.0, burn) : 0.0;
+  // the hem frays into rags of uneven length (noise round the hem, slowly changing)
+  float a = atan(vObj.z, vObj.x);
+  float rag = spN(vec3(cos(a) * 5.0, sin(a) * 5.0, t * 0.35));
+  float hem = mix(1.0, smoothstep(0.0, 2.2, vObj.y - rag * 2.6), uHemOn);
+  if (hem <= 0.01) discard;
+  // membrane: thin face-on, bright at the edges, with a shimmer rising through it
+  float fres = 1.0 - abs(dot(normalize(vN), normalize(vV)));
+  fres *= fres * uRimK;
+  float sh = spN(vObj * vec3(0.8, 0.45, 0.8) + vec3(0.0, -t * 0.9, 0.0));
+  float sh2 = spN(vObj * 2.2 + vec3(0.0, -t * 1.8, t * 0.3));
+  vec3 col = mix(uFill, uRim, clamp(fres * 1.3 + (sh2 - 0.5) * 0.4, 0.0, 1.0));
+  float alpha = uBase * (0.55 + 0.9 * sh) + fres * 0.75;
+  // the robe hangs in vertical folds: darker, denser creases
+  float crease = uHemOn * pow(0.5 + 0.5 * sin(a * 9.0 + spN(vObj * vec3(0.5, 0.12, 0.5) + 1.3) * 5.0), 3.0);
+  col *= 1.0 - 0.22 * crease;
+  alpha += 0.12 * crease;
+  col = mix(col, vec3(0.92, 0.99, 1.0), edge);
+  alpha = max(alpha, edge);
+  if (uRimK < 0.0) alpha *= max(0.0, 1.0 - uDissolve * 2.5); // the dark face goes first, leaving no dark specks
+  gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0) * hem * uOpacity);
+}`;
+const SPECTRE_GLOW_VS = `
+varying vec3 vN, vV;
+void main() {
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  vV = -mv.xyz;
+  vN = normalMatrix * normal;
+  gl_Position = projectionMatrix * mv;
+}`;
+const SPECTRE_GLOW_FS = `
+uniform vec3 uGlow;
+uniform float uOpacity, uDissolve, uBoost;
+varying vec3 vN, vV;
+void main() {
+  if (uDissolve > 0.55) discard; // the eyes and hands go out partway through the death
+  float c = abs(dot(normalize(vN), normalize(vV)));
+  vec3 col = mix(uGlow, vec3(1.0), clamp(c * 0.5 + uBoost * 0.45, 0.0, 1.0));
+  gl_FragColor = vec4(col, (0.45 + 0.55 * c) * uOpacity);
+}`;
+const SPECTRE_WISP_VS = `
+attribute vec4 aSeed;
+uniform float uTime, uPhase, uTrail, uDissolve, uHalfH, uOpacity;
+varying float vA;
+void main() {
+  float t = uTime + uPhase, burst = uDissolve;
+  float life = fract(t * (0.35 + 0.25 * aSeed.w) + aSeed.x);
+  float a = aSeed.y * 6.2832;
+  // born round the hem (anywhere on the body while dying), rising, curling and left behind
+  float r = 2.7 * (0.55 + 0.45 * aSeed.z) * (1.0 + burst * life * 1.5);
+  float y0 = mix(0.6 + aSeed.z * 1.5, aSeed.z * 13.0, step(0.001, burst));
+  vec3 p = vec3(cos(a) * r, y0 + life * (3.5 + 3.0 * aSeed.w) * (1.0 + burst * 2.0), sin(a) * r);
+  p.x += sin(life * 5.0 + aSeed.w * 6.28) * 0.9;
+  p.z -= life * (2.0 + 5.0 * uTrail);
+  vec4 mv = modelViewMatrix * vec4(p, 1.0);
+  gl_Position = projectionMatrix * mv;
+  float size = (0.45 + 0.8 * aSeed.z) * (1.0 - 0.5 * life) * (1.0 + burst * 2.0);
+  gl_PointSize = size * projectionMatrix[1][1] * uHalfH / max(-mv.z, 1.0);
+  vA = sin(3.1416 * life) * uOpacity * mix(0.5, 1.0, burst) * (1.0 - burst * burst);
+}`;
+const SPECTRE_WISP_FS = `
+uniform vec3 uCol;
+varying float vA;
+void main() {
+  vec2 q = gl_PointCoord * 2.0 - 1.0;
+  float r2 = dot(q, q);
+  if (r2 > 1.0) discard;
+  gl_FragColor = vec4(uCol, vA * (1.0 - r2) * (1.0 - r2));
+}`;
+
+function spectreGeometry() {
+  if (SPECTRE_GEO) return SPECTRE_GEO;
+  const seg = softGL ? 16 : 28;
+  // robe: a lathe from the hem (y 0) up over the shoulders to the neck; the front is +z
+  const prof = new THREE.SplineCurve([[3.4, 0], [3.0, 1.4], [2.55, 3.4], [2.15, 5.6], [2.05, 7.4], [2.35, 8.9], [2.6, 9.8],
+    [2.2, 10.6], [1.2, 11.1], [0.6, 11.35], [0.05, 11.45]].map(([r, y]) => new THREE.Vector2(r, y))).getPoints(softGL ? 18 : 34);
+  const body = new THREE.LatheGeometry(prof, seg);
+  // hood: a cowl open at the front, its crown drawn up and back to a peak
+  const gap = 1.7, hr = 1.95;
+  const hood = new THREE.SphereGeometry(hr, seg, 14, Math.PI / 2 + gap / 2, Math.PI * 2 - gap, 0, Math.PI * 0.7);
+  const hp = hood.attributes.position;
+  for (let i = 0; i < hp.count; i++) {
+    const y = hp.getY(i), u = Math.max(y, 0) / hr;
+    hp.setY(i, y * 1.1 + u ** 4 * 1.1);
+    hp.setZ(i, hp.getZ(i) - u ** 2.5 * 1.3);
+  }
+  hood.computeVertexNormals();
+  hood.translate(0, 12.5, -0.15);
+  const head = new THREE.SphereGeometry(1.05, 18, 14);
+  head.scale(0.88, 1.08, 0.92); head.translate(0, 12.4, -0.15); // sunk in the cowl
+  const eye = new THREE.SphereGeometry(0.21, 10, 8);
+  eye.scale(1.35, 0.6, 0.6);
+  const sleeve = new THREE.CylinderGeometry(0.6, 1.15, 5.0, 14, 6, true);
+  sleeve.translate(0, -2.5, 0);
+  // hand: a thin palm and four long, slightly curled claws (one merged geometry)
+  const palm = new THREE.SphereGeometry(0.45, 10, 8);
+  palm.scale(0.85, 1.0, 0.45);
+  const claws = [[-0.3, 1.15], [-0.1, 1.5], [0.1, 1.45], [0.3, 1.1]].map(([x, h]) => {
+    const c = new THREE.ConeGeometry(0.1, h, 6);
+    c.rotateX(Math.PI); c.translate(0, -h / 2, 0); c.rotateX(-0.35); c.translate(x, -0.3, 0.05);
+    return c;
+  });
+  const hand = mergeGeometries([palm, ...claws]);
+  // wisps: random seeds only, the vertex shader moves them
+  const wn = softGL ? 0 : 36;
+  const wisp = new THREE.BufferGeometry();
+  wisp.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(wn * 3), 3));
+  const seeds = new Float32Array(wn * 4);
+  for (let i = 0; i < seeds.length; i++) seeds[i] = Math.random();
+  wisp.setAttribute('aSeed', new THREE.Float32BufferAttribute(seeds, 4));
+  return (SPECTRE_GEO = { body, hood, head, eye, sleeve, hand, wisp });
+}
+
+// position and normal of several geometries in one (non-indexed) geometry
+function mergeGeometries(list) {
+  const parts = list.map(g => (g.index ? g.toNonIndexed() : g));
+  const n = parts.reduce((s, g) => s + g.attributes.position.count, 0);
+  const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3);
+  let o = 0;
+  for (const g of parts) {
+    pos.set(g.attributes.position.array, o * 3);
+    nor.set(g.attributes.normal.array, o * 3);
+    o += g.attributes.position.count;
+  }
+  const m = new THREE.BufferGeometry();
+  m.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  m.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+  return m;
+}
+
+function spectreMembrane(U, fill, base, flutter, hemOn, side, depthWrite, rimK = 1) {
+  return new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: SPECTRE_FX.uTime, uPhase: U.uPhase, uOpacity: U.uOpacity, uDissolve: U.uDissolve, uTrail: U.uTrail,
+      uFill: { value: new THREE.Vector3(...fill) }, uRim: { value: new THREE.Vector3(...SPECTRE_COL.rim) },
+      uBase: { value: base }, uFlutter: { value: flutter }, uHemOn: { value: hemOn }, uRimK: { value: rimK },
+    },
+    vertexShader: SPECTRE_VS, fragmentShader: SPECTRE_FS, transparent: true, depthWrite, side,
+  });
+}
+
+function spectreGlow(U, col, boost) {
+  return new THREE.ShaderMaterial({
+    uniforms: { uOpacity: U.uOpacity, uDissolve: U.uDissolve, uBoost: boost, uGlow: { value: new THREE.Vector3(...col) } },
+    vertexShader: SPECTRE_GLOW_VS, fragmentShader: SPECTRE_GLOW_FS, transparent: true, depthWrite: false,
+  });
+}
+
+// The parts, drawn inside surfaces first (no depth), then the outside (writing depth, so the surf's foam behind a
+// ghost stays behind it), then the glows and the wisps.
+function buildSpectre(U) {
+  const G = spectreGeometry(), C = SPECTRE_COL;
+  const root = new THREE.Group(), body = new THREE.Group();
+  root.add(body);
+  const add = (parent, geo, mat, order, pos) => {
+    const m = new THREE.Mesh(geo, mat);
+    m.renderOrder = order;
+    if (pos) m.position.set(...pos);
+    parent.add(m);
+    return m;
+  };
+  add(body, G.body, spectreMembrane(U, C.inner, 0.38, 1, 1, THREE.BackSide, false), 1);
+  add(body, G.hood, spectreMembrane(U, C.cowl, 0.62, 0, 0, THREE.BackSide, false, 0.3), 1); // the shadow in the cowl
+  add(body, G.body, spectreMembrane(U, C.fill, 0.26, 1, 1, THREE.FrontSide, true), 1.01);
+  add(body, G.hood, spectreMembrane(U, C.fill, 0.3, 0, 0, THREE.FrontSide, true), 1.01);
+  // a dark face fading out at its edges (negative rim), the eyes alight in it
+  add(body, G.head, spectreMembrane(U, C.face, 0.72, 0, 0, THREE.FrontSide, true, -0.9), 1.01);
+  const sleeveM = spectreMembrane(U, C.fill, 0.3, 0.35, 0, THREE.DoubleSide, true);
+  const eyeM = spectreGlow(U, C.eye, { value: 0.6 }), handM = spectreGlow(U, C.hand, U.uReach);
+  const arms = [], hands = [];
+  for (const s of [1, -1]) {
+    add(body, G.eye, eyeM, 1.02, [s * 0.37, 12.55, 0.78]).rotation.z = -s * 0.3; // slanted
+    const arm = new THREE.Group();
+    arm.position.set(s * 2.3, 9.9, 0.1);
+    body.add(arm);
+    arms.push(arm);
+    add(arm, G.sleeve, sleeveM, 1.01);
+    hands.push(add(arm, G.hand, handM, 1.02, [0, -5.5, 0.1]));
+  }
+  if (G.wisp.attributes.position.count) {
+    const w = new THREE.Points(G.wisp, new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: SPECTRE_FX.uTime, uHalfH: SPECTRE_FX.uHalfH, uPhase: U.uPhase, uOpacity: U.uOpacity,
+        uDissolve: U.uDissolve, uTrail: U.uTrail, uCol: { value: new THREE.Vector3(...C.wisp) },
+      },
+      vertexShader: SPECTRE_WISP_VS, fragmentShader: SPECTRE_WISP_FS, transparent: true, depthWrite: false,
+    }));
+    w.renderOrder = 1.03;
+    w.frustumCulled = false; // the shader moves them off their (zero) positions
+    root.add(w); // not on the body: they are left behind, not carried
+  }
+  return { root, body, arms, hands };
+}
+
+// frost creeping in from the screen edges while a spectre reaches for the player (full on its touch)
+let frostEl = null, frostShown = 0;
+function frostLevel(v) {
+  if (!frostEl) {
+    frostEl = document.createElement('div');
+    frostEl.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;transition:opacity 0.2s;' +
+      'background:radial-gradient(ellipse at center, rgba(210,240,255,0) 42%, rgba(160,215,255,0.45) 72%, rgba(235,248,255,0.92) 100%);';
+    document.body.appendChild(frostEl);
+  }
+  if (Math.abs(v - frostShown) > 0.01 || (v === 0 && frostShown !== 0)) {
+    frostShown = v;
+    frostEl.style.opacity = v.toFixed(2);
+  }
+}
+
+function updateDyingGhosts(delta) {
+  for (let i = dyingGhosts.length - 1; i >= 0; i--) {
+    const g = dyingGhosts[i];
+    g.tick(delta);
+    if (g.dying >= 1) {
+      scene.remove(g.mesh);
+      g.dispose();
+      dyingGhosts.splice(i, 1);
+    }
+  }
+}
+
+// Spectre (fading, blinking, air/ground)
+class SpectreGhost extends Ghost {
+  constructor(wave) {
+    // uniforms shared by all of this ghost's materials
+    const U = { uPhase: { value: Math.random() * 100 }, uOpacity: { value: 1 }, uDissolve: { value: 0 },
+      uTrail: { value: 1 }, uReach: { value: 0 } };
+    const parts = buildSpectre(U);
+    super(null, wave, {
       HP: 1,
       speed: 0.9,
       size: 15,
-      chaseDistance: 150
+      chaseDistance: 150,
+      mesh: parts.root,
     });
+    this.isSpectre = true;
+    this.U = U;
+    this.body = parts.body;
+    this.arms = parts.arms;
+    this.hands = parts.hands;
+    this.t = Math.random() * 10;
+    this.reach = 0;
+    this.reachTarget = 0;
+    this.dying = -1;
 
     // AIR GHOST LOGIC
     this.isAirGhost = Math.random() < 0.5;
@@ -201,6 +493,43 @@ class HalloweenGhost extends Ghost {
 
     this.setOpacity(targetOpacity, true);
     this.lastOpacity = targetOpacity;
+  }
+
+  setOpacity(opacity) {
+    this.U.uOpacity.value = opacity;
+  }
+
+  // hover, bob, sway; reach for the player (reachTarget, set by updateNPCs); fling up the arms and rise while dying
+  tick(delta) {
+    this.t += delta;
+    const t = this.t, die = Math.max(this.dying, 0);
+    this.reach += (this.reachTarget - this.reach) * Math.min(1, delta * 6);
+    this.U.uReach.value = this.reach;
+    this.U.uTrail.value += ((gameActive && playerAlive ? 1 : 0.25) - this.U.uTrail.value) * Math.min(1, delta * 2);
+    const b = this.body;
+    b.position.y = 1.2 + Math.sin(t * 1.9) * 0.55 + die * 4;
+    b.rotation.x = 0.1 + this.reach * 0.25 + Math.sin(t * 1.3) * 0.03 - die * 0.45; // leans into its glide
+    b.rotation.z = Math.sin(t * 0.9) * 0.05;
+    this.arms.forEach((arm, k) => {
+      const s = k ? -1 : 1, sway = Math.sin(t * 1.7 + k * 1.3);
+      arm.rotation.x = -0.35 + sway * 0.12 - this.reach * (1.1 + 0.15 * Math.sin(t * 9 + k * 2)) - die * 2.2;
+      arm.rotation.z = s * (0.2 + 0.05 * sway - this.reach * 0.1 + die * 0.5);
+    });
+    for (const h of this.hands) h.scale.setScalar(1 + this.reach * 0.25 * (1 + Math.sin(t * 14)));
+    if (this.dying >= 0) {
+      this.dying = Math.min(1, this.dying + delta / SPECTRE_DEATH_S);
+      this.U.uDissolve.value = Math.max(0.02, this.dying);
+    }
+  }
+
+  die() {
+    this.dying = 0;
+    this.reachTarget = 0;
+    this.U.uOpacity.value = 1;
+  }
+
+  dispose() { // the geometry is shared
+    this.mesh.traverse(o => { if (o.material) o.material.dispose(); });
   }
 }
 
@@ -425,14 +754,43 @@ function sunDirection() {
   return new THREE.Vector3().setFromSphericalCoords(1, THREE.MathUtils.degToRad(90 - elev), THREE.MathUtils.degToRad(azim));
 }
 
+// AoM's clear sky (Round 18, the owner's request): very light blue overhead, nearly white at the horizon, no clouds.
+// Drawn straight in display colours (no tone mapping), with a soft white glow round the sun and a little dither
+// against banding.
+function gradientSky(g, sun) {
+  const c = (a) => new THREE.Vector3(...a.map((v) => v / 255));
+  const material = new THREE.ShaderMaterial({
+    uniforms: { uTop: { value: c(g.zenith) }, uHor: { value: c(g.horizon) }, uSun: { value: sun.clone() } },
+    vertexShader: `varying vec3 vDir;
+      void main() { vec4 w = modelMatrix * vec4(position, 1.0); vDir = w.xyz - cameraPosition; gl_Position = projectionMatrix * viewMatrix * w; }`,
+    fragmentShader: `uniform vec3 uTop, uHor, uSun; varying vec3 vDir;
+      void main() {
+        vec3 d = normalize(vDir);
+        vec3 c = mix(uHor, uTop, pow(clamp(d.y / 0.55, 0.0, 1.0), 0.7));
+        float s = max(dot(d, uSun), 0.0);
+        c = mix(c, vec3(1.0), clamp(pow(s, 900.0) + 0.35 * pow(s, 40.0) + 0.12 * pow(s, 6.0), 0.0, 1.0));
+        c += (fract(sin(dot(gl_FragCoord.xy, vec2(12.9898, 78.233))) * 43758.5453) - 0.5) / 255.0;
+        gl_FragColor = vec4(c, 1.0);
+      }`,
+    side: THREE.BackSide, depthWrite: false,
+  });
+  const dome = new THREE.Mesh(new THREE.SphereGeometry(9000, 48, 24), material);
+  dome.renderOrder = -1;
+  dome.frustumCulled = false;
+  return dome;
+}
+
 function initSkyAndLights() {
-  const sky = new Sky();
-  sky.scale.setScalar(10000);
-  scene.add(sky);
-  const skyUniforms = sky.material.uniforms;
-  for (const [k, v] of Object.entries(LOOKS[LOOK].sky)) skyUniforms[k].value = v;
   const sun = sunDirection();
-  sky.material.uniforms['sunPosition'].value.copy(sun);
+  if (LOOKS[LOOK].skyGrad) scene.add(gradientSky(LOOKS[LOOK].skyGrad, sun));
+  else {
+    const sky = new Sky();
+    sky.scale.setScalar(10000);
+    scene.add(sky);
+    const skyUniforms = sky.material.uniforms;
+    for (const [k, v] of Object.entries(LOOKS[LOOK].sky)) skyUniforms[k].value = v;
+    sky.material.uniforms['sunPosition'].value.copy(sun);
+  }
 
   scene.add(new THREE.AmbientLight(0xffffff, 2.9));
   const directionalLight = new THREE.DirectionalLight(0xffffff, 2);
@@ -457,6 +815,40 @@ function createWater() {
   const rogueIn = params.has('rogue') ? Number(params.get('rogue')) || 0 : undefined; // ?rogue=N: first rogue wave after N s
   surf = createSurf(scene, { sunDir: sunDirection(), quality, rogueIn, look: LOOK });
   return surf;
+}
+
+// AoM's pale sand (Round 18): the photo's brown is replaced by a pale cream-green tint that keeps a little of the
+// photo's grain, crossed by fine wind-ripple streaks along the shore (faded out where they would shimmer). The sand
+// under the water is drawn by surf.js with the matching colour (LOOKS bed). The filmic curve pulls red up with
+// green near white, so the last bit of AoM's green comes from a small grade in display colour (sand.grade).
+function tintSand(material, sand) {
+  material.onBeforeCompile = (sh) => {
+    sh.uniforms.uSandTint = { value: new THREE.Vector3(...sand.tint) };
+    sh.uniforms.uSandGrade = { value: new THREE.Vector3(...sand.grade) };
+    sh.uniforms.uSandStreak = { value: sand.streak };
+    material.userData.shader = sh;
+    sh.vertexShader = 'varying vec2 vSandW;\n' + sh.vertexShader.replace('#include <begin_vertex>', '#include <begin_vertex>\n  vSandW = position.xz;');
+    sh.fragmentShader = `uniform vec3 uSandTint, uSandGrade; uniform float uSandStreak; varying vec2 vSandW;
+float sandN(vec2 p) {
+  vec2 i = floor(p), f = fract(p), u = f * f * (3.0 - 2.0 * f);
+  vec2 k = vec2(127.1, 311.7);
+  return mix(mix(fract(sin(dot(i, k)) * 43758.5453), fract(sin(dot(i + vec2(1.0, 0.0), k)) * 43758.5453), u.x),
+    mix(fract(sin(dot(i + vec2(0.0, 1.0), k)) * 43758.5453), fract(sin(dot(i + 1.0, k)) * 43758.5453), u.x), u.y);
+}
+` + sh.fragmentShader.replace('#include <map_fragment>', `#include <map_fragment>
+  {
+    float l = dot(diffuseColor.rgb, vec3(0.2126, 0.7152, 0.0722));
+    vec3 c = uSandTint * mix(1.0, l / 0.3, 0.35);
+    // streaks: short dashes stretched along the shore (turned ~25 degrees), in two sizes
+    vec2 w = mat2(0.906, 0.423, -0.423, 0.906) * vSandW;
+    vec2 a = w * vec2(0.09, 0.9), b = w * vec2(0.16, 1.7) + 7.3;
+    float fw = max(length(fwidth(a)), 0.5 * length(fwidth(b)));
+    float st = 0.6 * smoothstep(0.55, 0.9, sandN(a)) + 0.4 * smoothstep(0.5, 0.9, sandN(b));
+    c *= 1.0 - uSandStreak * st * (1.0 - smoothstep(0.25, 0.7, fw));
+    diffuseColor.rgb = c;
+  }`).replace('#include <colorspace_fragment>', `#include <colorspace_fragment>
+  gl_FragColor.rgb = min(gl_FragColor.rgb * uSandGrade, 1.0);`);
+  };
 }
 
 function createBeach() {
@@ -535,6 +927,7 @@ function createBeach() {
   positionAttribute.needsUpdate = true;
   beachGeometry.computeVertexNormals();
   beachMaterial.displacementBias = -1;
+  if (LOOKS[LOOK].sand) tintSand(beachMaterial, LOOKS[LOOK].sand);
 
   const beach = new THREE.Mesh(beachGeometry, beachMaterial);
   beach.position.set(0, 0, 0);
@@ -825,23 +1218,9 @@ function shootSpark() {
 // === GHOST MODEL LOADING ===
 function loadAllGhostModels(callback) {
   let loaded = 0;
-  const check = () => { loaded++; if (loaded === 2) callback(); };
+  const check = () => { loaded++; if (loaded === 1) callback(); };
 
-  // Halloween Ghost (FBX)
-  const fbxLoader = new FBXLoader();
-  fbxLoader.setPath('./assets/Ghost/');
-  fbxLoader.load('Halloween Ghost.fbx', (fbx) => {
-    fbx.traverse(child => {
-      if (child.isMesh) {
-        child.material.transparent = true;
-        child.material.opacity = 0.95;
-        child.castShadow = true;
-      }
-    });
-    halloweenGhostModel = { scene: fbx, animations: fbx.animations || [] };
-    check();
-  });
-
+  // (the basic ghost is built from code, SpectreGhost; the Halloween FBX in assets/Ghost/ is no longer loaded)
   // Khaimera Ghost (GLTF)
   const gltfLoader = new GLTFLoader();
   gltfLoader.setPath('./assets/Khaimera Ghost/');
@@ -870,7 +1249,7 @@ function loadAllGhostModels(callback) {
 
 // === NPC SPAWNING ===
 function spawnNPCs() {
-  if (!halloweenGhostModel || !khaimeraGhostModel) return;
+  if (!khaimeraGhostModel) return;
   const count = Math.ceil(npcWave * 1.3);
 
   // Restore original Khaimera spawn logic: only spawn starting at wave 5
@@ -888,9 +1267,9 @@ function spawnNPCs() {
     const ghost = new KhaimeraGhost(khaimeraGhostModel, npcWave);
     npcs.push(ghost);
   }
-  // Spawn Halloween ghosts for the rest
+  // Spawn spectres for the rest
   for (let i = khaimeraCount; i < count; i++) {
-    const ghost = new HalloweenGhost(halloweenGhostModel, npcWave);
+    const ghost = new SpectreGhost(npcWave);
     npcs.push(ghost);
   }
   npcWave++;
@@ -900,6 +1279,7 @@ function spawnNPCs() {
 // === NPC UPDATE ===
 function updateNPCs(delta) {
   if (!gameActive || !playerAlive) return;
+  let frost = 0; // the nearest reaching spectre's frost
   for (let i = npcs.length - 1; i >= 0; i--) {
     const ghost = npcs[i];
     const pos = ghost.mesh.position;
@@ -943,6 +1323,11 @@ if (dist < ghost.chaseDistance) {
   target = ghost.isAirGhost
     ? { x: pos.x, z: -800, y: ghost.airTargetY }
     : { x: pos.x, z: -800 };
+}
+if (ghost.isSpectre) {
+  const chasing = ghost.mesh.userData.state === 'chasePlayer';
+  ghost.reachTarget = chasing && dist < 30 ? 1 : 0;
+  if (chasing) frost = Math.max(frost, 1 - dist / 45);
 }
 
 // Animation state logic for Khaimera
@@ -1069,10 +1454,12 @@ if (len > 1 && canMove) {
     }
     // Check kill player
     if (ghost.mesh.userData.state === 'chasePlayer' && dist < 5) {
+      if (ghost.isSpectre) frostLevel(1); // the frost touch
       endGame(true); // Player killed
       return;
     }
   }
+  frostLevel(Math.min(frost, 1) * 0.6);
 }
 
 // === REMOVE NPC IF HIT BY SPARK ===
@@ -1100,6 +1487,7 @@ function checkSparkHits() {
           if (!ghosts) continue;
           for (let i = ghosts.length - 1; i >= 0; i--) {
             const npc = ghosts[i];
+            if (npc.dying >= 0 || (npc.HP <= 0 && !(npc instanceof KhaimeraGhost))) continue; // already killed this frame
             const dx = spark.mesh.position.x - npc.hitboxCenter.x;
             const dz = spark.mesh.position.z - npc.hitboxCenter.z;
             const dy = spark.mesh.position.y - npc.hitboxCenter.y;
@@ -1113,6 +1501,10 @@ function checkSparkHits() {
                     npc.playAnimation('Death', false);
                     npc.deathTimer = npc.animations['Death'] ? npc.animations['Death'].duration : 2.0;
                   }
+                } else if (npc.isSpectre) {
+                  npcs.splice(npcs.indexOf(npc), 1);
+                  npc.die(); // dissolves, then updateDyingGhosts removes it
+                  dyingGhosts.push(npc);
                 } else {
                   scene.remove(npc.mesh);
                   npcs.splice(npcs.indexOf(npc), 1);
@@ -1154,8 +1546,12 @@ function startGame() {
 
   for (let i = npcs.length - 1; i >= 0; i--) {
     scene.remove(npcs[i].mesh);
+    if (npcs[i].dispose) npcs[i].dispose();
     npcs.splice(i, 1);
   }
+  for (const g of dyingGhosts) { scene.remove(g.mesh); g.dispose(); }
+  dyingGhosts.length = 0;
+  frostLevel(0);
 
   clearMeshPool(sparkPool);
   clearMeshPool(trailPool);
@@ -1451,6 +1847,12 @@ function animate() {
   }
 
   // Animate ghost models
+  if (!gamePaused) {
+    SPECTRE_FX.uTime.value += delta;
+    SPECTRE_FX.uHalfH.value = renderer.getDrawingBufferSize(spectreBuf).y * 0.5;
+    for (const ghost of npcs) if (ghost.tick) ghost.tick(delta);
+    updateDyingGhosts(delta);
+  }
   for (const ghost of npcs) {
     if (ghost.mixer) ghost.mixer.update(delta);
   }
@@ -1484,6 +1886,7 @@ function main() {
   velocityY = 0;
   ghostStates = {};
   npcs = [];
+  dyingGhosts.length = 0;
   sparks.length = 0;
   if (surf) { surf.dispose(); surf = null; }
   // Now re-initialize everything
@@ -1498,6 +1901,7 @@ function main() {
     window.__beach = { get scene() { return scene; }, get camera() { return camera; }, get character() { return character; },
       get renderer() { return renderer; }, get surf() { return surf; }, get npcs() { return npcs; }, sea, keys, shootSpark,
       get paused() { return gamePaused; }, set paused(v) { gamePaused = v; }, // the preview has no pointer lock
+      SpectreGhost, dyingGhosts, frostLevel, SPECTRE_FX, // for spectre stills
       // advance the player and the sea by n frames without rAF (for headless tests)
       step(n = 1) { for (let i = 0; i < n; i++) { updateMovement(); surf.update(1 / 60, character.position.x); } } };
   }

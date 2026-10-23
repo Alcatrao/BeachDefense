@@ -777,8 +777,8 @@ uniform float uTime;
 uniform vec3 uSunDir;
 uniform sampler2D uNormTex;
 // the look (LOOKS below): water and sky colours, and the strength of the stylised terms (all off in 'classic')
-uniform vec3 uHorizon, uZenith, uDeep, uShallow, uShore, uSSS, uSigma, uHazeCol, uDropCol, uSpecCol;
-uniform float uFresK, uFresMax, uHazeK, uGlare, uRipple, uEmboss, uDrop, uWetDark, uVivid;
+uniform vec3 uHorizon, uZenith, uDeep, uShallow, uShore, uSSS, uSigma, uHazeCol, uDropCol, uSpecCol, uBed, uDamp;
+uniform float uFresK, uFresMax, uHazeK, uGlare, uRipple, uEmboss, uDrop, uWetDark, uVivid, uSandDisp, uRipScale;
 varying vec3 vWorld;
 varying vec3 vNrm;
 varying float vFoam;
@@ -869,7 +869,7 @@ float billow(vec2 q, float t, float k3) {
   return 0.5 * b1 + 0.32 * b2 + 0.18 * mix(0.33, b3, k3);
 }
 
-const vec3 BED = vec3(${BED_LIN.map((v) => v.toFixed(4)).join(', ')}); // the dry sand as rendered (linear, before the x1.55)
+#define BED uBed // the dry sand as rendered (linear, before the x1.55): per look, matched to the beach's tint (LOOKS bed)
 const mat2 RIPA = mat2(0.94, 0.34, -0.34, 0.94), RIPB = mat2(0.94, -0.34, 0.34, 0.94); // +-20 degrees
 const mat2 R37 = mat2(0.8, 0.6, -0.6, 0.8); // turns the second detail layer ~37 degrees off the first
 // One detail normal from the tiled normal map without visible repetition (iq's "texture repetition",
@@ -906,7 +906,8 @@ vec2 ripWarp(vec2 c) {
 #endif
 }
 vec2 rippleSlope(vec2 w, vec2 cx, vec2 cy) {
-  mat2 MA = mat2(0.035, 0.0, 0.0, 0.13) * RIPA, MB = mat2(0.03, 0.0, 0.0, 0.11) * RIPB; // turned, then stretched
+  // turned, then stretched (uRipScale < 1 widens them: AoM's are broad chevrons)
+  mat2 MA = mat2(0.035, 0.0, 0.0, 0.13) * RIPA * uRipScale, MB = mat2(0.03, 0.0, 0.0, 0.11) * RIPB * uRipScale;
   vec3 q1 = normNT(MA * w + vec2(0.0, 0.05) * uTime, MA * cx, MA * cy, 7.1);
   vec3 q2 = normNT(MB * w + vec2(0.31, 0.04) * uTime, MB * cx, MB * cy, 1.9);
   return vec2(q1.x * 0.27, q1.y) * RIPA + vec2(q2.x * 0.27, q2.y) * RIPB;
@@ -1025,7 +1026,7 @@ void main() {
   vec3 Tw = T * uWetDark; // wet sand is darker than dry
   // AoM's banded seabed: a darker band where the bottom drops away, between the pale shallows and the open water
   Tw *= mix(vec3(1.0), uDropCol, uDrop * smoothstep(3.0, 8.0, vDepth) * (1.0 - smoothstep(16.0, 34.0, vDepth)));
-  vec3 P = (1.0 - F) * (body * (1.0 - T) + Tw * caus * BED) + F * sky + spec * (1.0 - 0.6 * min(vFoam, 1.0));
+  vec3 P = (1.0 - F) * (body * (1.0 - T) + Tw * caus * BED * (1.0 - uSandDisp)) + F * sky + spec * (1.0 - 0.6 * min(vFoam, 1.0));
   vec3 W = (1.0 - F) * Tw;
 
   // foam: a sheet of bubbles whose thickness sets how opaque and how white it is; thin foam is a translucent
@@ -1101,7 +1102,7 @@ void main() {
     vec3 skyS = mix(uHorizon, uZenith, smoothstep(0.0, 0.35, Rs.y)) + vec3(1.0, 0.95, 0.85) * pow(max(dot(Rs, uSunDir), 0.0), 400.0) * 12.0;
     float refl = glaze * Fs;
     float sandA = clamp(0.4 * damp + refl, 0.0, 1.0);
-    vec3 sandCol = mix(vec3(0.17, 0.13, 0.08), skyS, refl / max(refl + 0.4 * damp, 1e-3));
+    vec3 sandCol = mix(uDamp, skyS, refl / max(refl + 0.4 * damp, 1e-3));
     vec3 Ps = mix(sandCol * sandA, foamCol, af);
     vec3 Ws = vec3((1.0 - sandA) * (1.0 - af));
     Ps = mix(Ps, uHazeCol, haze);
@@ -1113,8 +1114,12 @@ void main() {
   // Output. Blending can only weight the sand behind by one alpha, so alpha takes the red weight (the
   // smallest: red is absorbed most) and the rest of the green/blue transmission is added here using the
   // typical sand colour BED. The sum is done in display space (after tone mapping), where blending happens.
+  // With uSandDisp (AoM) the sand seen through the water is added in display colour instead, as AoM's water is
+  // blended over its terrain: its pale, high-key sand sits so near the top of the filmic curve that in linear light
+  // it is an extreme green, which turned all the shallows mint where the water dimmed it
   float alpha = clamp(1.0 - W.r, 0.0, 1.0);
-  vec3 tgt = linearToOutputTexel(vec4(toneMapping((P + W * BED) * 1.55), 1.0)).rgb;
+  vec3 bedD = linearToOutputTexel(vec4(toneMapping(BED * 1.55), 1.0)).rgb;
+  vec3 tgt = linearToOutputTexel(vec4(toneMapping((P + W * BED * (1.0 - uSandDisp)) * 1.55), 1.0)).rgb;
   // the filmic curve cannot reach AoM's bright, saturated cyan (it desaturates on the way), so in that look the
   // water, not the sand seen through it, is pushed towards it afterwards: more saturation, green raised to blue,
   // a little brighter (uVivid sets how far)
@@ -1123,13 +1128,13 @@ void main() {
     v.g += 0.55 * max(v.b - v.g, 0.0);
     tgt = mix(tgt, clamp(v * (1.0 + 0.04 * uVivid), 0.0, 1.0), min(uVivid, 1.0) * (1.0 - (W.r + W.g + W.b) / 3.0) * (1.0 - af)); // (not the foam: it stays white)
   }
+  if (uSandDisp > 0.0) tgt = clamp(tgt + uSandDisp * W * bedD * (1.0 + 0.5 * caus), 0.0, 1.0);
   // the ripples' emboss again, in display space: the cyan sits near the top of the filmic curve, which squeezes
   // the lit/unlit difference in the water's light (above) nearly flat
   if (uEmboss > 0.0) {
     float emb = (NdL - max(dot(Nb, uSunDir), 0.0)) * (1.0 - af) * (1.0 - haze) * (1.0 - sandL) * (1.0 - 0.7 * (W.r + W.g + W.b) / 3.0);
     tgt = clamp(tgt * (1.0 + uEmboss * 1.5 * emb), 0.0, 1.0);
   }
-  vec3 bedD = linearToOutputTexel(vec4(toneMapping(BED * 1.55), 1.0)).rgb;
   vec3 c = clamp((tgt - bedD * (1.0 - alpha)) / max(alpha, 1e-3), 0.0, 1.0);
   gl_FragColor = vec4(c, alpha);
 }
@@ -2165,18 +2170,45 @@ class FoamCurtain {
 }
 
 // ---------- looks ----------
+// The water's display colour (linear 0..1) of a linear colour c, as drawn at the end of FRAG: c x 1.55 through
+// three's ACES filmic curve (at the exposure 0.6, which cancels its /0.6).
+function acesDisplay(c) {
+  const v = c.map((x) => x * 1.55);
+  const a = [0.59719 * v[0] + 0.35458 * v[1] + 0.04823 * v[2], 0.07600 * v[0] + 0.90834 * v[1] + 0.01566 * v[2],
+    0.02840 * v[0] + 0.13383 * v[1] + 0.83777 * v[2]];
+  const f = a.map((x) => (x * (x + 0.0245786) - 0.000090537) / (x * (0.983729 * x + 0.4329510) + 0.238081));
+  return [1.60475 * f[0] - 0.53108 * f[1] - 0.07367 * f[2], -0.10208 * f[0] + 1.10813 * f[1] - 0.00605 * f[2],
+    -0.00327 * f[0] - 0.07276 * f[1] + 1.07602 * f[2]].map((x) => Math.min(Math.max(x, 0), 1));
+}
+// the linear colour that the water draws as the display colour d (sRGB, 0..255): to tie the water's haze and the sand
+// seen through it to colours on screen (the sky dome and the beach are drawn in those)
+export function fromDisplay(d) {
+  const t = d.map((x) => { const u = x / 255; return u <= 0.04045 ? u / 12.92 : ((u + 0.055) / 1.055) ** 2.4; });
+  let c = t.slice();
+  for (let i = 0; i < 80; i++) {
+    const o = acesDisplay(c);
+    c = c.map((x, k) => Math.max(1e-4, x * (t[k] / Math.max(o[k], 1e-4)) ** 0.8));
+  }
+  return c.map((x) => +x.toFixed(4));
+}
 // 'aom' (the default) is the shiny cyan water of the owner's Age of Mythology setup (a water mod under the
 // MenuArctic lighting): saturated cyan, clear shallows over pale sand, a darker band where the bottom drops away,
 // dense embossed ripples and a broad white sun glare. 'classic' is the earlier natural surf-zone water.
 // Colours are linear, before the water's x1.55 and the tone mapping; sigma is the extinction per metre;
 // sun is [elevation, azimuth] in degrees (azimuth 0 = straight out to sea, +z); sky holds the Sky uniforms.
+// bed is the dry sand as the water sees it (see BED in FRAG). Only in 'aom': skyGrad is the clear gradient sky dome that
+// replaces the Sky shader (display sRGB, overhead and at the horizon) and sand the beach's tint (main.js createBeach;
+// sand.display is the colour the tinted beach comes out on screen, which bed is derived from).
+const AOM_SKY = { zenith: [160, 208, 244], horizon: [240, 247, 252] };
+const AOM_SAND = [222, 244, 214];
 export const LOOKS = {
   classic: {
     sun: [15, 0], sky: { turbidity: 8, rayleigh: 3, mieCoefficient: 0.005, mieDirectionalG: 0.7 },
     horizon: [0.80, 0.82, 0.82], zenith: [0.18, 0.45, 0.85], deep: [0.01, 0.17, 0.42], shallow: [0.03, 0.50, 0.62],
     shore: [0.05, 0.26, 0.24], sss: [0.06, 0.70, 0.72], sigma: [1.3, 0.75, 0.7],
     hazeCol: [0.80, 0.82, 0.82], hazeK: 0.85, dropCol: [1, 1, 1], drop: 0, specCol: [1.0, 0.97, 0.9],
-    fresK: 1, fresMax: 1, glare: 0, ripple: 0, emboss: 0, wetDark: 0.6, vivid: 0,
+    fresK: 1, fresMax: 1, glare: 0, ripple: 0, emboss: 0, wetDark: 0.6, vivid: 0, bed: BED_LIN, damp: [0.17, 0.13, 0.08], sandDisp: 0,
+    ripScale: 1,
   },
   aom: {
     // the owner's preferred hazy sky and low sun out to sea (Round 10; Round 8-9 had a thin deep blue sky, sun [35, -45])
@@ -2184,14 +2216,17 @@ export const LOOKS = {
     // the reflected sky is tinted cyan, like AoM's shiny-water environment map
     horizon: [0.10, 0.75, 1.0], zenith: [0.05, 0.45, 0.9], deep: [0.0, 0.7, 1.05], shallow: [0.10, 0.80, 0.88],
     shore: [0.20, 0.55, 0.50], sss: [0.10, 0.85, 0.85], sigma: [0.55, 0.22, 0.20],
-    hazeCol: [0.58, 0.82, 0.90], hazeK: 0.25, dropCol: [0.35, 0.55, 0.55], drop: 1, specCol: [1, 1, 1],
-    fresK: 0.65, fresMax: 0.55, glare: 1, ripple: 0.8, emboss: 0.8, wetDark: 0.85, vivid: 1,
+    hazeCol: fromDisplay(AOM_SKY.horizon), hazeK: 0.25, dropCol: [0.35, 0.55, 0.55], drop: 1, specCol: [1, 1, 1],
+    // (Round 18: broader, stronger ripples, nearer the dark-teal chevrons of the owner's AoM shots)
+    fresK: 0.65, fresMax: 0.55, glare: 1, ripple: 1.0, emboss: 1.0, ripScale: 0.55, wetDark: 0.85, vivid: 1,
+    skyGrad: AOM_SKY, sand: { display: AOM_SAND, tint: [1.0, 1.7, 1.0], grade: [0.985, 1.043, 0.98], streak: 0.25 }, bed: fromDisplay(AOM_SAND),
+    damp: [0.2, 0.24, 0.14], sandDisp: 1,
   },
 };
 const LOOK_V3 = { horizon: 'uHorizon', zenith: 'uZenith', deep: 'uDeep', shallow: 'uShallow', shore: 'uShore', sss: 'uSSS',
-  sigma: 'uSigma', hazeCol: 'uHazeCol', dropCol: 'uDropCol', specCol: 'uSpecCol' };
+  sigma: 'uSigma', hazeCol: 'uHazeCol', dropCol: 'uDropCol', specCol: 'uSpecCol', bed: 'uBed', damp: 'uDamp' };
 const LOOK_F = { fresK: 'uFresK', fresMax: 'uFresMax', hazeK: 'uHazeK', glare: 'uGlare', ripple: 'uRipple', emboss: 'uEmboss',
-  drop: 'uDrop', wetDark: 'uWetDark', vivid: 'uVivid' };
+  drop: 'uDrop', wetDark: 'uWetDark', vivid: 'uVivid', sandDisp: 'uSandDisp', ripScale: 'uRipScale' };
 function applyLook(u, L) {
   for (const [k, n] of Object.entries(LOOK_V3)) if (L[k]) u[n].value.fromArray(L[k]).multiplyScalar(k === 'sigma' ? 1 / 5.9 : 1);
   for (const [k, n] of Object.entries(LOOK_F)) if (L[k] != null) u[n].value = L[k];
