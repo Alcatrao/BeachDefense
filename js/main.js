@@ -61,7 +61,8 @@ let npcSpawnInterval = 15; // seconds
 let npcWave = 1;
 let gameActive = false;
 let playerAlive = true;
-let khaimeraGhostModel = null; // (the basic ghost is built from code: SpectreGhost)
+let khaimeraGhostModel = null;
+let spectreModel = null; // the basic ghost's skinned mesh and poses (SpectreGhost); null: the Round 18 shade from code
 
 // === GHOST CLASSES ===
 class Ghost {
@@ -139,17 +140,25 @@ class Ghost {
   }
 }
 
-// === SPECTRE: the basic ghost (Round 18) ===
-// No longer the Halloween FBX sheet ghost: a hooded, robed shade built from code, after the old Oblivion ghosts and
-// wraiths. Oblivion draws its ghosts with a "membrane" effect shader: a translucent fill with a bright edge (fresnel)
-// glow and a slowly scrolling texture. Here: a pale-blue membrane with a white-blue rim and a rising shimmer, a hem
-// that frays into flapping rags, glowing eyes and hands, wisps trailing off the hem, a frost-touch reach at the player
-// (hands flare, frost creeps in from the screen edges) and a noise dissolve with a bright burning edge when killed.
+// === SPECTRE: the basic ghost (Round 18, Round 19) ===
+// After the old Oblivion ghosts. Oblivion draws its ghosts with a "membrane" effect shader: a translucent fill with a
+// bright edge (fresnel) glow and a slowly scrolling texture. Round 19: a gaunt, bald old man's upper body, arms raised
+// and clawed, mouth agape, fading at the waist into a tail of glowing mist; a pale green-white membrane with dark eye
+// sockets and mouth and more solid yellow-grey claws, inside a soft halo. The body is a skinned mesh made in Blender
+// from the CC0 Human Base Meshes (assets/Spectre/spectre.glb: its vertex colour holds the cavities, the waist fade
+// and the claws) posed in code by blending three poses (reach, clench, scream). If it fails to load, the Round 18
+// hooded shade built from code stands in (pale blue, ragged hem, glowing eyes and hands). Both have wisps, a
+// frost-touch reach at the player (claws flare, frost creeps in from the screen edges) and a noise dissolve with a
+// bright burning edge when killed.
 // Colours are display sRGB (the shaders skip the renderer's tone mapping, like the surf).
 const SPECTRE_COL = {
   fill: [0.42, 0.63, 0.90], inner: [0.22, 0.36, 0.64], cowl: [0.05, 0.10, 0.24], face: [0.04, 0.08, 0.2],
   rim: [0.9, 0.98, 1.0], eye: [0.75, 1.0, 1.0], hand: [0.72, 0.93, 1.0], wisp: [0.82, 0.94, 1.0],
+  // the mesh (Round 19)
+  skin: [0.2, 0.5, 0.43], skinRim: [0.8, 1.0, 0.88], claw: [0.72, 0.68, 0.48], hollow: [0.03, 0.07, 0.06],
+  halo: [0.62, 1.0, 0.8], mist: [0.55, 0.8, 0.72], mistWisp: [0.8, 1.0, 0.9],
 };
+const SPECTRE_S = 12, SPECTRE_WAIST = 5.5; // the mesh (in metres) scaled up, its waist this high over the ground
 const SPECTRE_DEATH_S = 0.9;
 const SPECTRE_FX = { uTime: { value: 0 }, uHalfH: { value: 540 } }; // shared by every spectre's materials
 const spectreBuf = new THREE.Vector2();
@@ -260,6 +269,93 @@ void main() {
   if (r2 > 1.0) discard;
   gl_FragColor = vec4(uCol, vA * (1.0 - r2) * (1.0 - r2));
 }`;
+// the mesh: skinned by three's own chunks; aMask is the model's vertex colour (r: lit, dark in the eye sockets and
+// mouth; g: the waist fade, 0 at the cut; b: the hands; a: the claws' tips); uInflate swells it for the halo
+const SPECTRE_SKIN_VS = `
+#include <skinning_pars_vertex>
+attribute vec4 aMask;
+uniform float uInflate;
+varying vec3 vN, vV, vObj;
+varying vec4 vMask;
+void main() {
+  #include <skinbase_vertex>
+  #include <beginnormal_vertex>
+  #include <skinnormal_vertex>
+  #include <begin_vertex>
+  #include <skinning_vertex>
+  transformed += normalize(objectNormal) * uInflate;
+  vObj = position * ${SPECTRE_S.toFixed(1)}; // unposed, in ghost units: the noise stays on the body
+  vMask = aMask;
+  vec4 mv = modelViewMatrix * vec4(transformed, 1.0);
+  vV = -mv.xyz;
+  vN = normalMatrix * objectNormal;
+  gl_Position = projectionMatrix * mv;
+}`;
+const SPECTRE_SKIN_FS = `
+uniform vec3 uFill, uRim, uClaw, uHollow;
+uniform float uTime, uPhase, uOpacity, uDissolve, uReach, uPre;
+varying vec3 vN, vV, vObj;
+varying vec4 vMask;
+${SPECTRE_NOISE}
+void main() {
+  float t = uTime + uPhase;
+  float d = spN(vObj * 0.9 + 3.7) * 0.75 + spN(vObj * 2.9) * 0.25;
+  float burn = uDissolve * 1.25 - d;
+  if (burn > 0.0) discard;
+  float edge = uDissolve > 0.0 ? smoothstep(-0.14, 0.0, burn) : 0.0;
+  // the waist frays into the mist: a ragged, drifting edge
+  float rag = spN(vec3(vObj.x * 1.4, vObj.z * 1.4, t * 0.5));
+  float fade = smoothstep(0.1, 0.8, vMask.g + (rag - 0.5) * 0.45);
+  float fres = 1.0 - abs(dot(normalize(vN), normalize(vV)));
+  fres *= fres;
+  float sh = spN(vObj * vec3(0.9, 0.5, 0.9) + vec3(0.0, -t * 0.9, 0.0)); // a shimmer rising through it
+  float lit = smoothstep(0.12, 1.0, vMask.r), hollow = 1.0 - smoothstep(0.18, 0.5, vMask.r);
+  vec3 col = mix(uFill, uRim, clamp(fres * 1.4 + (sh - 0.5) * 0.3, 0.0, 1.0)) * mix(0.5, 1.0, lit);
+  float alpha = 0.16 + 0.26 * sh + fres * 0.7;
+  // the hands are the same membrane, a little denser; only the claws are yellow-grey bone,
+  // nearly solid and paler at the tips, flaring as they reach
+  alpha += 0.12 * vMask.b;
+  float claw = smoothstep(0.45, 0.95, vMask.a);
+  col = mix(col, uClaw * mix(0.85, 1.2, claw) * mix(0.7, 1.0, lit), claw * (1.0 - fres * 0.4));
+  col = mix(col, vec3(1.0, 0.98, 0.86), claw * uReach * 0.35);
+  alpha = mix(alpha, 0.92, claw);
+  hollow *= 1.0 - min(1.0, uDissolve * 3.0); // the dark eye sockets and the open mouth, lit up first as it burns
+  col = mix(col, uHollow, hollow);
+  alpha = max(alpha, hollow * 0.9) * fade;
+  col = mix(col, vec3(0.94, 1.0, 0.96), edge);
+  alpha = max(alpha, edge * fade);
+  // depth only, over the whole body above the frayed waist: the far arm and the halo's back shell stay hidden
+  if (uPre > 0.5) { if (fade < 0.5) discard; gl_FragColor = vec4(0.0); return; }
+  gl_FragColor = vec4(col, clamp(alpha, 0.0, 1.0) * uOpacity);
+}`;
+const SPECTRE_HALO_FS = `
+uniform vec3 uGlow;
+uniform float uOpacity, uDissolve, uReach;
+varying vec3 vN, vV, vObj;
+varying vec4 vMask;
+void main() {
+  // the swollen shell's back faces: clear at its outer edge, thickening toward the body
+  float c = abs(dot(normalize(vN), normalize(vV)));
+  float a = c * c * smoothstep(0.15, 0.85, vMask.g) * (0.5 + 0.3 * uReach) * max(0.0, 1.0 - uDissolve * 1.6);
+  gl_FragColor = vec4(uGlow, a * uOpacity);
+}`;
+// the tail of mist below the waist (on SPECTRE_VS: it flutters and trails like the old robe)
+const SPECTRE_MIST_FS = `
+uniform vec3 uFill;
+uniform float uTime, uPhase, uOpacity, uDissolve, uTop;
+varying vec3 vN, vV, vObj;
+${SPECTRE_NOISE}
+void main() {
+  float t = uTime + uPhase;
+  float h = clamp(vObj.y / uTop, 0.0, 1.0); // 0 at the tail's tip, 1 at the waist
+  float a = atan(vObj.z, vObj.x);
+  // streaks pouring down from the waist
+  float s = spN(vec3(cos(a) * 2.2, sin(a) * 2.2, vObj.y * 0.45 + t * 1.3));
+  float s2 = spN(vObj * 0.9 + vec3(0.0, t * 1.1, 0.0));
+  float face = abs(dot(normalize(vN), normalize(vV)));
+  float alpha = pow(h, 1.3) * (0.2 + 1.3 * s * s2) * face * face * max(0.0, 1.0 - uDissolve * 1.6); // soft at the outline
+  gl_FragColor = vec4(uFill, clamp(alpha * 0.9, 0.0, 1.0) * uOpacity);
+}`;
 
 function spectreGeometry() {
   if (SPECTRE_GEO) return SPECTRE_GEO;
@@ -294,14 +390,18 @@ function spectreGeometry() {
     return c;
   });
   const hand = mergeGeometries([palm, ...claws]);
-  // wisps: random seeds only, the vertex shader moves them
+  return (SPECTRE_GEO = { body, hood, head, eye, sleeve, hand, wisp: spectreWispGeometry() });
+}
+
+// wisps: random seeds only, the vertex shader moves them
+function spectreWispGeometry() {
   const wn = softGL ? 0 : 36;
   const wisp = new THREE.BufferGeometry();
   wisp.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(wn * 3), 3));
   const seeds = new Float32Array(wn * 4);
   for (let i = 0; i < seeds.length; i++) seeds[i] = Math.random();
   wisp.setAttribute('aSeed', new THREE.Float32BufferAttribute(seeds, 4));
-  return (SPECTRE_GEO = { body, hood, head, eye, sleeve, hand, wisp });
+  return wisp;
 }
 
 // position and normal of several geometries in one (non-indexed) geometry
@@ -339,9 +439,127 @@ function spectreGlow(U, col, boost) {
   });
 }
 
-// The parts, drawn inside surfaces first (no depth), then the outside (writing depth, so the surf's foam behind a
-// ghost stays behind it), then the glows and the wisps.
 function buildSpectre(U) {
+  return spectreModel ? buildSpectreMesh(U) : buildSpectreShade(U);
+}
+
+// the wisps on their (shared) geometry of random seeds
+function spectreWisps(U, g, col) {
+  const w = new THREE.Points(g, new THREE.ShaderMaterial({
+    uniforms: {
+      uTime: SPECTRE_FX.uTime, uHalfH: SPECTRE_FX.uHalfH, uPhase: U.uPhase, uOpacity: U.uOpacity,
+      uDissolve: U.uDissolve, uTrail: U.uTrail, uCol: { value: new THREE.Vector3(...col) },
+    },
+    vertexShader: SPECTRE_WISP_VS, fragmentShader: SPECTRE_WISP_FS, transparent: true, depthWrite: false,
+  }));
+  w.renderOrder = 1.03;
+  w.frustumCulled = false; // the shader moves them off their (zero) positions
+  return w;
+}
+
+// The loaded model, made ready once: the vertex colour renamed (three would read it as a colour), and per bone its
+// rest and each pose's turn and shift away from it, taken from the ends of the model's clips.
+function prepareSpectreModel(gltf) {
+  let skin = null;
+  gltf.scene.traverse(o => { if (o.isSkinnedMesh) skin = o; });
+  if (!skin) throw new Error('no skinned mesh');
+  const g = skin.geometry;
+  g.setAttribute('aMask', g.getAttribute('color'));
+  g.deleteAttribute('color');
+  g.computeBoundingBox();
+  const clips = ['reach', 'clench', 'scream'], bones = {};
+  clips.forEach((name, k) => {
+    const clip = gltf.animations.find(c => c.name === name);
+    if (!clip) throw new Error('no pose ' + name);
+    for (const tr of clip.tracks) {
+      const [bone, prop] = tr.name.split('.'), n = tr.getValueSize(), v = tr.values, end = v.length - n;
+      if (prop !== 'quaternion' && prop !== 'position') continue;
+      const b = (bones[bone] ||= { name: bone, dq: [null, null, null], dp: [null, null, null] });
+      if (prop === 'quaternion') {
+        const r = new THREE.Quaternion().fromArray(v, 0), p = new THREE.Quaternion().fromArray(v, end);
+        const dq = r.clone().invert().multiply(p);
+        if (Math.abs(dq.w) < 0.99999) b.dq[k] = dq;
+      } else {
+        const dp = new THREE.Vector3().fromArray(v, end).sub(new THREE.Vector3().fromArray(v, 0));
+        if (dp.lengthSq() > 1e-10) b.dp[k] = dp;
+      }
+    }
+  });
+  return { scene: gltf.scene, waist: g.boundingBox.min.y, poses: Object.values(bones).filter(b => b.dq.some(Boolean) || b.dp.some(Boolean)) };
+}
+
+// pose a spectre: its rest, turned by each pose in turn as far as its weight (a negative weight undoes some of it)
+const spectreQ = new THREE.Quaternion();
+function poseSpectre(rig, w) {
+  for (const b of rig) {
+    b.bone.quaternion.copy(b.rq);
+    b.bone.position.copy(b.rp);
+    for (let k = 0; k < 3; k++) {
+      if (!w[k]) continue;
+      const P = b.pose;
+      if (P.dq[k]) b.bone.quaternion.multiply(spectreQ.identity().slerp(P.dq[k], w[k]));
+      if (P.dp[k]) b.bone.position.addScaledVector(P.dp[k], w[k]);
+    }
+  }
+}
+
+// The mesh drawn three times: depth only (so only its nearest skin shows, not the back of the head through the face
+// and so the surf's foam behind it stays behind it), the membrane, then a swollen shell's back faces for the halo.
+// Then the tail of mist and the wisps.
+function buildSpectreMesh(U) {
+  const C = SPECTRE_COL, M = spectreModel;
+  const root = new THREE.Group(), body = new THREE.Group();
+  root.add(body);
+  const model = SkeletonUtils.clone(M.scene);
+  model.scale.setScalar(SPECTRE_S);
+  model.position.y = SPECTRE_WAIST - M.waist * SPECTRE_S;
+  body.add(model);
+  let skin = null;
+  model.traverse(o => { if (o.isSkinnedMesh) skin = o; });
+  const v3 = c => ({ value: new THREE.Vector3(...c) });
+  const mat = (fs, extra, opts) => new THREE.ShaderMaterial({
+    uniforms: { uTime: SPECTRE_FX.uTime, uPhase: U.uPhase, uOpacity: U.uOpacity, uDissolve: U.uDissolve,
+      uReach: U.uReach, uInflate: { value: 0 }, ...extra },
+    vertexShader: SPECTRE_SKIN_VS, fragmentShader: fs, transparent: true, ...opts,
+  });
+  const skinU = { uFill: v3(C.skin), uRim: v3(C.skinRim), uClaw: v3(C.claw), uHollow: v3(C.hollow) };
+  const twin = (material, order) => {
+    const m = new THREE.SkinnedMesh(skin.geometry, material);
+    m.position.copy(skin.position); m.quaternion.copy(skin.quaternion); m.scale.copy(skin.scale);
+    skin.parent.add(m);
+    m.bind(skin.skeleton, skin.bindMatrix);
+    m.renderOrder = order;
+    m.frustumCulled = false; // its bounds are the unposed model's
+    return m;
+  };
+  skin.material = mat(SPECTRE_SKIN_FS, { ...skinU, uPre: { value: 1 } }, { colorWrite: false });
+  skin.renderOrder = 1;
+  skin.frustumCulled = false;
+  twin(mat(SPECTRE_SKIN_FS, { ...skinU, uPre: { value: 0 } }, { depthWrite: false }), 1.01);
+  twin(mat(SPECTRE_HALO_FS, { uGlow: v3(C.halo), uInflate: { value: 0.045 } }, { depthWrite: false, side: THREE.BackSide }), 1.025);
+  // the tail of mist: a lathe from inside the waist down to a point near the ground (geometry shared, made once)
+  const W = SPECTRE_WAIST;
+  M.tail ||= new THREE.LatheGeometry([[0.9, W + 1.6], [1.55, W + 0.4], [1.6, W - 1.2], [1.3, W - 2.8], [0.85, W - 4.1],
+    [0.4, W - 5.0], [0.05, W - 5.4]].map(([r, y]) => new THREE.Vector2(r, y)), softGL ? 14 : 24);
+  M.wisp ||= spectreWispGeometry();
+  const mist = new THREE.Mesh(M.tail, new THREE.ShaderMaterial({
+    uniforms: { uTime: SPECTRE_FX.uTime, uPhase: U.uPhase, uOpacity: U.uOpacity, uDissolve: U.uDissolve, uTrail: U.uTrail,
+      uFlutter: { value: 1 }, uFill: v3(C.mist), uTop: { value: W + 1.6 } },
+    vertexShader: SPECTRE_VS, fragmentShader: SPECTRE_MIST_FS, transparent: true, depthWrite: false, side: THREE.DoubleSide,
+  }));
+  mist.renderOrder = 1.02;
+  body.add(mist);
+  if (M.wisp.attributes.position.count) root.add(spectreWisps(U, M.wisp, C.mistWisp)); // left behind, not carried
+  const rig = M.poses.map(pose => {
+    const bone = model.getObjectByName(pose.name);
+    return bone && { bone, pose, rq: bone.quaternion.clone(), rp: bone.position.clone() };
+  }).filter(Boolean);
+  return { root, body, rig };
+}
+
+// The Round 18 shade (if the model fails to load). The parts, drawn inside surfaces first (no depth), then the
+// outside (writing depth, so the surf's foam behind a ghost stays behind it), then the glows and the wisps.
+function buildSpectreShade(U) {
   const G = spectreGeometry(), C = SPECTRE_COL;
   const root = new THREE.Group(), body = new THREE.Group();
   root.add(body);
@@ -370,18 +588,7 @@ function buildSpectre(U) {
     add(arm, G.sleeve, sleeveM, 1.01);
     hands.push(add(arm, G.hand, handM, 1.02, [0, -5.5, 0.1]));
   }
-  if (G.wisp.attributes.position.count) {
-    const w = new THREE.Points(G.wisp, new THREE.ShaderMaterial({
-      uniforms: {
-        uTime: SPECTRE_FX.uTime, uHalfH: SPECTRE_FX.uHalfH, uPhase: U.uPhase, uOpacity: U.uOpacity,
-        uDissolve: U.uDissolve, uTrail: U.uTrail, uCol: { value: new THREE.Vector3(...C.wisp) },
-      },
-      vertexShader: SPECTRE_WISP_VS, fragmentShader: SPECTRE_WISP_FS, transparent: true, depthWrite: false,
-    }));
-    w.renderOrder = 1.03;
-    w.frustumCulled = false; // the shader moves them off their (zero) positions
-    root.add(w); // not on the body: they are left behind, not carried
-  }
+  if (G.wisp.attributes.position.count) root.add(spectreWisps(U, G.wisp, C.wisp)); // left behind, not carried
   return { root, body, arms, hands };
 }
 
@@ -431,6 +638,8 @@ class SpectreGhost extends Ghost {
     this.body = parts.body;
     this.arms = parts.arms;
     this.hands = parts.hands;
+    this.rig = parts.rig; // the mesh's posed bones (else the shade's arms and hands)
+    this.w = [0, 0, 0]; // how far into each pose: reach, clench, scream
     this.t = Math.random() * 10;
     this.reach = 0;
     this.reachTarget = 0;
@@ -510,12 +719,22 @@ class SpectreGhost extends Ghost {
     b.position.y = 1.2 + Math.sin(t * 1.9) * 0.55 + die * 4;
     b.rotation.x = 0.1 + this.reach * 0.25 + Math.sin(t * 1.3) * 0.03 - die * 0.45; // leans into its glide
     b.rotation.z = Math.sin(t * 0.9) * 0.05;
-    this.arms.forEach((arm, k) => {
-      const s = k ? -1 : 1, sway = Math.sin(t * 1.7 + k * 1.3);
-      arm.rotation.x = -0.35 + sway * 0.12 - this.reach * (1.1 + 0.15 * Math.sin(t * 9 + k * 2)) - die * 2.2;
-      arm.rotation.z = s * (0.2 + 0.05 * sway - this.reach * 0.1 + die * 0.5);
-    });
-    for (const h of this.hands) h.scale.setScalar(1 + this.reach * 0.25 * (1 + Math.sin(t * 14)));
+    if (this.rig) {
+      // claws raised, drifting; thrust out and grasping when it reaches; the mouth moaning open and shut (a
+      // negative scream closes it), gaping as it reaches and screaming as it dies
+      const r = this.reach, w = this.w;
+      w[0] = r * (1 - die) + 0.08 * Math.sin(t * 1.7);
+      w[1] = Math.max(r * (0.55 + 0.45 * Math.sin(t * 9)), 0.25 + 0.25 * Math.sin(t * 1.3 + 1));
+      w[2] = Math.min(1, 0.45 * Math.sin(t * 0.8) - 0.05 + r * 0.5) * (1 - die) + die;
+      poseSpectre(this.rig, w);
+    } else {
+      this.arms.forEach((arm, k) => {
+        const s = k ? -1 : 1, sway = Math.sin(t * 1.7 + k * 1.3);
+        arm.rotation.x = -0.35 + sway * 0.12 - this.reach * (1.1 + 0.15 * Math.sin(t * 9 + k * 2)) - die * 2.2;
+        arm.rotation.z = s * (0.2 + 0.05 * sway - this.reach * 0.1 + die * 0.5);
+      });
+      for (const h of this.hands) h.scale.setScalar(1 + this.reach * 0.25 * (1 + Math.sin(t * 14)));
+    }
     if (this.dying >= 0) {
       this.dying = Math.min(1, this.dying + delta / SPECTRE_DEATH_S);
       this.U.uDissolve.value = Math.max(0.02, this.dying);
@@ -1218,9 +1437,14 @@ function shootSpark() {
 // === GHOST MODEL LOADING ===
 function loadAllGhostModels(callback) {
   let loaded = 0;
-  const check = () => { loaded++; if (loaded === 1) callback(); };
+  const check = () => { loaded++; if (loaded === 2) callback(); };
 
-  // (the basic ghost is built from code, SpectreGhost; the Halloween FBX in assets/Ghost/ is no longer loaded)
+  // the basic ghost's skinned mesh (SpectreGhost; if it fails, the shade built from code stands in)
+  new GLTFLoader().load('./assets/Spectre/spectre.glb', (gltf) => {
+    try { spectreModel = prepareSpectreModel(gltf); } catch (e) { console.error('Spectre model unusable:', e); }
+    check();
+  }, undefined, (e) => { console.error('Spectre model failed to load:', e); check(); });
+
   // Khaimera Ghost (GLTF)
   const gltfLoader = new GLTFLoader();
   gltfLoader.setPath('./assets/Khaimera Ghost/');

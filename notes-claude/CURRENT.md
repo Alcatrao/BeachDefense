@@ -957,6 +957,50 @@ Committed with the code; nothing pushed.
   shots were matched by eye and a few point measurements; the sand streaks may shimmer at grazing angles on other
   GPUs; the classic look and the soft tier were checked with one still each.
 
+## Round 19 (23 Oct 2026, owner: "Can you do the ghosts more like this?" with 7 Oblivion ghost screenshots; "Feel free
+## to try and get the meshes for this as well if they are available online")
+The screenshots are reference/oblivion-ghosts-2026-10-23/ (git-ignored, never committed or published). Target: a
+translucent pale green-white upper body of a gaunt old man, dark eye sockets and an open mouth, raised arms with bony
+yellow-grey claws, no legs (the waist fades into glowing mist), a soft halo and a fresnel rim. Committed with the code;
+nothing pushed. The previous session's transcript passed 500 MB and was rotated; its handoff is folded in here.
+- Meshes: Oblivion's own ghost meshes are Bethesda's copyrighted assets and cannot go into the public game
+  (https://forums.nexusmods.com/topic/692678-importingadding-meshtexture-from-oblivion). assets/Human Ghost/Ghost.gltf
+  (IDISI, CC-BY-4.0) is rigged but its scene.bin geometry buffer is missing, so it is unusable. Base used: Blender
+  Studio's Human Base Meshes bundle v1.4.1, CC0, downloaded with the owner's permission from
+  https://mirror.blender.org/demo/asset-bundles/human-base-meshes/human-base-meshes-bundle-v1.4.1.zip (50,643,039
+  bytes, SHA-256 811f43accbb31a88266d932f8f5563b2d13586fca0ba2693aad1f5fe582b3515; kept in reference/downloads/,
+  git-ignored; sources https://www.cgchannel.com/2023/06/download-blender-studios-free-human-base-meshes and
+  https://www.blender.org/download/demo-files/). Credit line added to assets/credits.txt.
+- Build (notes-claude/spectre/build_spectre.py; Blender 5.1.1 run headless through the governor:
+  `aiwork.py run --assistant claude --slots 1 -- blender.exe -b -Y <bundle.blend> --python build_spectre.py -- <out.glb>
+  <previewdir>`, the bundle opened with auto-run off): GEO-body_male_realistic cut below the hips; made gaunt (thin neck
+  and torso, bony arms, hollow cheeks, deep sockets, an open jaw split from the upper lip by geodesic distance so the
+  lips do not tear); an armature (hips, spine, chest, neck, head, jaw, clavicles, arms, hands, three-bone fingers,
+  two-bone thumbs: 42 joints) with custom finger, thumb and jaw weights; posed into a raised claw pose that becomes
+  the rest pose; decimated with the face and hands protected; three pose clips (reach, clench, scream). COLOR_0 holds
+  r = cavity AO (sockets and mouth dark), g = waist fade, b = hand mask, a = claw tip. Output assets/Spectre/spectre.glb:
+  392,948 bytes, 8,999 triangles, the mesh in metres (front +Z), drawn at x12 (SPECTRE_S) with its waist 5.5 over the
+  ground, so about 14.5 tall with the mist tail below, as Round 18's 15.
+- js/main.js: loadAllGhostModels loads the GLB; prepareSpectreModel turns each clip into per-bone rest-relative
+  rotations and offsets; buildSpectre uses the mesh (buildSpectreMesh) and falls back to Round 18's procedural spectre
+  (buildSpectreShade) if the GLB fails to load or parse. One skinned geometry, four passes bound to the same skeleton:
+  a depth-only prepass over the body above the frayed waist (render order 1, hides the far arm and the halo's back
+  shell), the membrane (1.01: a green-white fill to a mint rim by fresnel, a rising shimmer, the hands a little denser,
+  only the claw tips yellow-grey bone and near-opaque, flaring as it reaches; dark sockets and mouth from the AO, lit
+  up first when it burns), a BackSide halo shell inflated 0.045 m (1.025), and a lathed mist tail on SPECTRE_VS that
+  flutters and trails (1.02, soft at its outline). Wisps as before (1.03; none on ?soft=1). Animation without a mixer
+  (poseSpectre): reach follows the reach state, the claws clench (pulsing while reaching), the jaw screams, wider while
+  reaching and fully while dying. Gameplay, frost, the 0.9 s dissolve, dying-ghost removal and dispose are Round 18's;
+  the wisp and tail geometry are shared, not per ghost.
+- Verified (headless preview, 1920x1080 stills at half scale, the loop stepped by hand; reference/r19-shots/,
+  git-ignored): a-g (iterations); h_player (two spectres facing the player at about 38 and 67 units), i_close,
+  j_reach, k_death and l_death (the dissolve at 0.2 and 0.47 s: burning holes, arms flung up, the last fragments pale);
+  m_classic (?look=classic) and n_soft (?soft=1). No console errors beyond the preview's pointer-lock ones. Sent to the
+  owner: h_player, i_close, j_reach, k_death, m_classic.
+- Limits: not play-tested (the real animation loop did not run; the chase, spawn mix and frost feel are unseen); the
+  look was matched by eye against the screenshots; the body is pale against the pale AoM beach (clearer on classic);
+  the halo is a shell, not a screen-space bloom; one still each for the classic look and the soft tier.
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
