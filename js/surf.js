@@ -9,33 +9,33 @@
 import * as THREE from 'three';
 
 export const SURF = {
-  period: 10.0,       // s between waves
-  L0: 290,            // offshore wavelength (crests travel at L0 / period offshore, ~0.54 of that at the shore)
+  period: 8.5,        // s between waves
+  L0: 400,            // offshore wavelength (crests travel at L0 / period offshore, ~0.54 of that at the shore)
   shoalA: 0.85,       // wavelength shortens near the shore: k = k0 (1 + A e^(-d/B))
   shoalB: 220,
   kx: 0.0012,         // slight obliquity of the crests
   slope: 0.085,       // seabed slope (depth = slope * d - 0.5)
-  Hbase: 12.5,        // typical breaking wave height (player eye height is 10)
+  Hbase: 20,          // typical breaking wave height (player eye height is 10)
   breakRatio: 0.95,   // inner-bar waves break where depth ~ H / breakRatio
   peel: 0.22,         // how fast the break point moves away from each wave's peak
   minBreakD: 40,      // every wave has closed out by this distance
-  breakSpan: 30,      // distance the crest travels from break onset to lip landing
+  breakSpan: 45,      // distance the crest travels from break onset to lip landing
   q: 0.55,            // horizontal crest sharpening (Gerstner-like)
   setLen: 7,          // waves per set
   runup: 3.2,         // swash run-up length per unit wave height
   film: 1.4,          // swash film thickness over the sand
   flatSand: 100,      // must match main.js FLAT_SAND_WIDTH
   duneStart: -650,    // must match main.js DUNE_START
-  // two breaking zones: an outer bar (~60 m out) where the bigger set waves break, their whitewater bores
-  // charging on across the trough to the shorebreak; the others break on the inner bar (~30 m)
-  barOuter: 345,      // outer-bar break distance (the player is ~5.9 units per metre)
+  // two breaking zones: an outer bar (~80 m out) where the bigger set waves break, their whitewater bores
+  // charging on across the trough to the shorebreak; the others break on the inner bar (~45 m)
+  barOuter: 470,      // outer-bar break distance (the player is ~5.9 units per metre)
   outerGain: 1.5,     // outer-bar waves are this much bigger than the base wave
   outerMin: 1.0,      // only waves with Hn > outerMin * Hbase break on the outer bar
   innerGain: 1.15,
-  innerMax: 185,      // inner-bar break distance cap
-  reform0: 228,       // crest distance where a swell that did not break on the outer bar...
-  reform1: 200,       // ...takes on its inner-bar break
-  rogueH: 60,         // rogue wave height (~10 m)
+  innerMax: 275,      // inner-bar break distance cap
+  reform0: 345,       // crest distance where a swell that did not break on the outer bar...
+  reform1: 305,       // ...takes on its inner-bar break
+  rogueH: 85,         // rogue wave height (~14 m)
   rogueMin: 180,      // s between rogue waves (random in [rogueMin, rogueMax])
   rogueMax: 420,
 };
@@ -371,19 +371,20 @@ function lipTip(w, dc) {
 }
 // The front face and top of a bore at x, sampled off the surface itself (the collapsed roller's front pokes out
 // some way ahead of the lip tip td, and its top stands behind it). out: z = the face (the furthest shoreward point
-// above a third of the way up), yb = the water just ahead of it, top = the highest point
+// above a third of the way up), yb = the water just ahead of it, top = the highest point, zt = where it is
 const _bf = {}, _bfy = new Float32Array(10), _bfz = new Float32Array(10);
 function boreFace(x, zs, td, H, t, out) {
   out.yb = evalSurf(x, zs + td - 1.5 * H, t, false, _bf).y;
-  let top = out.yb;
+  let top = out.yb, zt = zs + td;
   for (let i = 0; i < 10; i++) {
     evalSurf(x, zs + td + H * (-0.8 + 0.27 * i), t, true, _bf);
-    _bfy[i] = _bf.y; _bfz[i] = _bf.z; top = Math.max(top, _bf.y);
+    _bfy[i] = _bf.y; _bfz[i] = _bf.z;
+    if (_bf.y > top) { top = _bf.y; zt = _bf.z; }
   }
   const yc = out.yb + 0.33 * (top - out.yb);
   let z = zs + td;
   for (let i = 0; i < 10; i++) if (_bfy[i] > yc) z = Math.min(z, _bfz[i]);
-  out.z = z; out.top = top;
+  out.z = z; out.top = top; out.zt = zt;
   return out;
 }
 
@@ -806,6 +807,7 @@ uniform sampler2D uNormTex;
 // the look (LOOKS below): water and sky colours, and the strength of the stylised terms (all off in 'classic')
 uniform vec3 uHorizon, uZenith, uDeep, uShallow, uShore, uSSS, uSigma, uHazeCol, uDropCol, uSpecCol, uBed, uDamp;
 uniform float uFresK, uFresMax, uHazeK, uGlare, uRipple, uEmboss, uDrop, uWetDark, uVivid, uSandDisp, uRipScale;
+uniform vec4 uUnder; // the eye under the water: rgb its soft blue (display colour), w its fog density (0 above the water)
 varying vec3 vWorld;
 varying vec3 vNrm;
 varying float vFoam;
@@ -1230,6 +1232,16 @@ void main() {
     float emb = (NdL - max(dot(Nb, uSunDir), 0.0)) * (1.0 - af) * (1.0 - haze) * (1.0 - sandL) * (1.0 - 0.7 * (W.r + W.g + W.b) / 3.0);
     tgt = clamp(tgt * (1.0 + uEmboss * 1.5 * emb), 0.0, 1.0);
   }
+  // the eye under the water: the surface is seen from below, a bright soft blue, brightest in Snell's window
+  // straight overhead (outside it the underside mirrors the water below), where the ripples make it shimmer; the
+  // foam glows pale through it; and it all fades into the blue with distance, as the sand under it does (scene fog)
+  if (uUnder.w > 0.0) {
+    float sw = smoothstep(0.6, 0.72, -V.y + 0.6 * length(Nb.xz - Ng.xz));
+    vec3 win = mix(uUnder.rgb * 0.9,mix(uUnder.rgb, vec3(0.93, 0.98, 1.0), 0.6), sw);
+    win = mix(win, vec3(0.9, 0.96, 1.0), 0.75 * af);
+    gl_FragColor = vec4(mix(win, uUnder.rgb, 1.0 - exp(-pow(uUnder.w * dist, 2.0))), 1.0);
+    return;
+  }
   vec3 c = clamp((tgt - bedD * (1.0 - alpha)) / max(alpha, 1e-3), 0.0, 1.0);
   gl_FragColor = vec4(c, alpha);
 }
@@ -1264,7 +1276,7 @@ function gridLines(min, max, fine0, fine1, base, grow) {
 // row 0, which stays under the sand (d < -125, the swash reaches about -90).
 // The rows also travel with the crests. Standing still, they were crossed by every crest ~10 times a second, and
 // each crossing changed how the mesh caught a bore's sharp top: its edge jumped up and down by a pixel or so all
-// the way in. From d -125 to z 350 the rows are evenly spaced in phase, ds apart (the base spacing 200 out, finer
+// the way in. From d -125 to z 460 the rows are evenly spaced in phase, ds apart (the base spacing 200 out, finer
 // toward the shore, where the waves shorten), and each one slides toward the next row shoreward by uRowF of the
 // way (the step is kept in position.y), which goes 0 -> 1 as the waves advance by ds and starts over: the mesh
 // is then the same as it was, one row on, so the crests see the same rows all the time. The rows below stand
@@ -1281,7 +1293,7 @@ function buildGeometry(quality) {
   const j0 = zs.length; // the lowest row that moves follows this one
   for (let s = sOf(-125), d = -125; ; s += ds) {
     for (let it = 0; it < 20; it++) d -= (sOf(d) - s) / kOf(d);
-    if (sh0 + d > 350) break;
+    if (sh0 + d > 460) break;
     zs.push(sh0 + d);
   }
   const zE = zs[zs.length - 1];
@@ -1926,25 +1938,28 @@ const SPLASH_VERT = /* glsl */`
 uniform float uTime;
 uniform vec3 uSunDir;
 attribute vec4 aA; // base x, y, z (at the water), birth time
-attribute vec4 aB; // full width, full height, life, alpha (negative: a steady one, riding a bore)
+attribute vec4 aB; // full width, full height, life, alpha (negative: a jet, thrown up off a bore's top)
 attribute vec4 aC; // variant 0..3, flip (+-1), lean (top thrown shoreward, per unit height), drift (z units per s)
 attribute vec2 aD; // the crest's horizontal normal (x, z), seaward
 varying vec2 vUv, vM;
 varying vec3 vL;
-varying float vT, vAlpha, vBack, vQy, vDist, vCrisp;
+varying float vT, vAlpha, vBack, vQy, vDist, vClip, vJet, vJp;
 void main() {
   float age = uTime - aA.w, p = age / aB.z;
   if (p < 0.0 || p > 1.0) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); return; } // dead: beyond the far plane
   // bursts up to its full height by p 0.4 and keeps spreading; then its top falls back and it sinks into the
-  // water as it dissolves, so it never hangs over the water the wave has left behind. A steady one (the bore's,
-  // which ride its front all the way in, many at once) only swells a little and fades in and out slowly instead:
-  // bursting up and falling back, each drew an arch over the bore's top, and the overlapping arches made its top
-  // edge jump up and down
-  float st = step(aB.w, 0.0);
+  // water as it dissolves, so it never hangs over the water the wave has left behind. A jet (the bore's) is
+  // thrown up whole out of the bore's top (aA.y) and falls back into it, fast at first, slowing to its height by
+  // p 0.38, then falling faster and faster; only the part of its picture over the top shows (vClip: how much is
+  // under it), so it rises out of the white water and sinks back in. (Round 21: the bore's plumes stood steady on
+  // its front, many at once, and their soft fringes hanging over it read as clouds or vapour)
+  float jt = step(aB.w, 0.0);
   float rise = 1.0 - (1.0 - min(p * 2.5, 1.0)) * (1.0 - min(p * 2.5, 1.0));
-  float h = aB.y * mix((0.3 + 0.7 * rise) * (1.0 - 0.4 * smoothstep(0.4, 1.0, p)), 0.8 + 0.2 * smoothstep(0.0, 0.7, p), st);
-  float w = 1.15 * aB.x * (0.55 + 0.45 * sqrt(p)) * (1.0 + 0.15 * p); // (its atlas tile thins out towards its sides)
-  vec3 base = aA.xyz + vec3(0.0, -0.35 * aB.y * p * p * (1.0 - st), aC.w * age);
+  float pj = p < 0.38 ? (0.38 - p) / 0.38 : (p - 0.38) / 0.62, clip = jt * pj * pj;
+  float h = aB.y * mix((0.3 + 0.7 * rise) * (1.0 - 0.4 * smoothstep(0.4, 1.0, p)), 1.0, jt);
+  // (its atlas tile thins out towards its sides)
+  float w = 1.15 * aB.x * mix((0.55 + 0.45 * sqrt(p)) * (1.0 + 0.15 * p), 1.2 + 0.8 * sqrt(p), jt);
+  vec3 base = aA.xyz + vec3(0.0, -0.35 * aB.y * p * p * (1.0 - jt), aC.w * age);
   // upright, and turned from the camera most of the way round to stand along its crest: turned square to the
   // camera, it would cross the breaking face behind it at a slant towards the sides of the view (more so where the
   // shore runs at an angle), and the face would cut it in slanting lines; it still never goes edge-on. Leant back
@@ -1959,7 +1974,7 @@ void main() {
   vec2 q = position.xy; // x -1..1, y 0..1
   // bowed out towards the camera in the middle, so that it has some depth as the view moves
   vec3 fw = vec3(hd.x, 0.0, hd.y);
-  vec3 P = base + right * (0.5 * w * q.x) + up * (h * q.y) - vec3(aD.x, 0.0, aD.y) * (aC.z * h * q.y * q.y)
+  vec3 P = base + right * (0.5 * w * q.x) + up * (h * (q.y - clip)) - vec3(aD.x, 0.0, aD.y) * (aC.z * h * q.y * q.y)
     + fw * (0.12 * w * (1.0 - q.x * q.x));
   vUv = (vec2(0.5 + 0.5 * q.x, q.y) + vec2(mod(aC.x, 2.0), floor(aC.x * 0.5))) * 0.5;
   vBack = pow(max(dot(normalize(P - cameraPosition), uSunDir), 0.0), 3.0);
@@ -1968,13 +1983,16 @@ void main() {
   vL = vec3(dot(uSunDir, right), dot(uSunDir, up), dot(uSunDir, vec3(hd.x * cos(b), sin(b), hd.y * cos(b))));
   vM = vec2(0.6 * q.x, 0.8 * q.y - 0.2);
   vQy = q.y;
+  // a jet's own pattern (1..2; 0 for the rest), its place across its picture in its heights, and its age (see jet())
+  vJet = jt * (1.0 + fract(sin(aA.w * 12.9898 + aA.x * 0.7823) * 43758.5453));
+  if (jt > 0.5) vM = vec2(0.5 * w / max(h, 1e-3) * q.x, q.y);
+  vJp = p;
   vDist = length(P - cameraPosition);
-  vAlpha = abs(aB.w) * mix(smoothstep(0.0, 0.06, p) * (1.0 - smoothstep(0.85, 1.0, p)),
-    smoothstep(0.0, 0.35, p) * (1.0 - smoothstep(0.6, 1.0, p)), st) * (1.0 - smoothstep(2000.0, 3500.0, lh));
-  // it dissolves from the thin spray inwards over the later part of its life (a steady one only a little: its
-  // ragged top would wear down too fast)
-  vT = 0.08 + mix(0.95 * smoothstep(0.35, 1.0, p), 0.35 * smoothstep(0.5, 1.0, p), st);
-  vCrisp = st;
+  vAlpha = abs(aB.w) * mix(smoothstep(0.0, 0.06, p), 1.0, jt) * (1.0 - smoothstep(mix(0.85, 0.8, jt), 1.0, p))
+    * (1.0 - smoothstep(2000.0, 3500.0, lh));
+  // it dissolves from the thin spray inwards over the later part of its life (a jet less: it is sinking anyway)
+  vT = 0.08 + mix(0.95 * smoothstep(0.35, 1.0, p), 0.5 * smoothstep(0.45, 1.0, p), jt);
+  vClip = clip;
   vec4 cp = projectionMatrix * viewMatrix * vec4(P, 1.0);
   // its depth is taken a few units nearer the camera (less when looking down, where the water would stop hiding
   // its sunk foot): the breaking face it stands against leans past its plane here and there, and would cut it in
@@ -1985,7 +2003,7 @@ void main() {
   gl_Position = vec4(cp.xy, cb.z / cb.w * cp.w, cp.w);
 }`;
 // (shared by the plumes and the foam curtain: vT is how far it has dissolved, uStep one shadow step across the
-// picture, 0.04 of its height, vCrisp how crisp its edge is)
+// picture, 0.04 of its height, vClip how much of the picture is hidden under the water at its foot)
 const SPLASH_FRAG = /* glsl */`
 uniform sampler2D uPlume, uPlumeR;
 uniform vec3 uHazeCol;
@@ -1993,25 +2011,59 @@ uniform float uHazeK;
 uniform vec2 uStep;
 varying vec2 vUv, vM;
 varying vec3 vL;
-varying float vT, vAlpha, vBack, vQy, vDist, vCrisp;
+varying float vT, vAlpha, vBack, vQy, vDist, vClip, vJet, vJp;
+vec3 haze(vec3 col) {
+  vec3 hz = linearToOutputTexel(vec4(toneMapping(uHazeCol * 1.55), 1.0)).rgb;
+  return mix(col, hz, (1.0 - exp(-vDist * 0.00024)) * uHazeK);
+}
+// A jet (the bore's) is drawn here, not from the plume's picture, whose heaps of white lumps standing alone on the
+// bore's top read as little clouds (Round 21): a fan of tapered streaks of water thrown up out of its foot, each
+// ending in a drop, spreading as it rises and breaking up into drops as it falls back in. Its place in its heights
+// (vM: x across, y up from its foot)
+float jh(float n) { return fract(sin(n * 12.9898 + vJet * 78.233) * 43758.5453); }
+// how much of a pixel at distance d from a line or drop of half-width r it covers (thinner than a pixel, it fades
+// rather than breaking up into dashes)
+float jcov(float d, float r, float aa) { return smoothstep(r + aa, max(r - aa, 0.0), d) * min(1.0, 2.0 * r / aa); }
+vec4 jet() {
+  float X = vM.x, Y = vM.y;
+  float aa = 1.2 * max(fwidth(X), fwidth(Y)), a = 0.0;
+  float spread = 0.7 + 0.9 * vJp, brk = smoothstep(0.35, 0.9, vJp);
+  for (int i = 0; i < 9; i++) {
+    float fi = float(i), s = (fi - 4.0) / 4.0 + 0.3 * (jh(fi) - 0.5);
+    float top = 0.97 - 0.35 * abs(s) - 0.25 * jh(fi + 7.0), yt = clamp(Y / top, 0.0, 1.0);
+    // its half-thickness, tapering up it; and a little wobble
+    float th = mix(0.075, 0.013, pow(yt, 0.7)) * (1.0 - 0.3 * abs(s)) * (0.7 + 0.6 * jh(fi + 11.0));
+    float xc = s * spread * (0.3 * Y + 0.6 * Y * Y) + 0.02 * yt * sin(Y * 17.0 + 6.283 * jh(fi + 5.0));
+    float r = jcov(abs(X - xc), th, aa) * smoothstep(top, top - 0.06, Y) * (1.0 - 0.4 * yt);
+    // breaking up into drops along its upper part as it falls
+    r *= 1.0 - brk * smoothstep(0.25, 0.75, 0.5 + 0.5 * sin(Y * 40.0 + 6.283 * jh(fi + 3.0))) * smoothstep(0.15, 0.5, yt);
+    a = max(a, r);
+    // and drops flying on past its end
+    for (int k = 0; k < 2; k++) {
+      float yk = top + (0.04 + 0.08 * float(k)) * (0.5 + jh(fi + 13.0 + float(k)));
+      float xk = s * spread * (0.3 * yk + 0.6 * yk * yk) + 0.05 * (jh(fi + 17.0 + float(k)) - 0.5);
+      float dr = (0.014 + 0.012 * jh(fi + 19.0 + float(k))) * step(0.3, jh(fi + 23.0 + float(k)));
+      a = max(a, 0.8 * jcov(length(vec2(X - xk, Y - yk)), dr, aa));
+    }
+  }
+  // the sheet of white water it leaves the bore as, parting into its streaks
+  float sw = 0.8 * spread * (0.3 * Y + 0.6 * Y * Y) + 0.07;
+  a = max(a, jcov(abs(X), sw, aa) * (1.0 - smoothstep(0.08, 0.35, Y)));
+  a *= vAlpha * smoothstep(vClip, vClip + 0.1, Y);
+  if (a < 0.01) discard;
+  // white water, a little paler on the side turned from the sun, glowing against it
+  vec3 col = mix(vec3(0.8, 0.94, 0.97), vec3(1.0), clamp(0.75 + 0.25 * vL.y + 0.3 * sign(X) * vL.x, 0.0, 1.0));
+  col = min(col + vec3(1.0, 0.95, 0.85) * vBack * 0.45, vec3(1.0));
+  return vec4(haze(col), a);
+}
 void main() {
+  if (vJet > 0.5) { gl_FragColor = jet(); return; }
   vec4 t = texture2D(uPlume, vUv);
   // dissolved from the thin spray inwards up to vT, and its foot thinned out grain by grain towards the water,
   // which would otherwise cut it off in a straight line
-  float foot = smoothstep(0.0, 0.3, vQy + 0.15 * (t.g - 0.5));
-  // (its core solid white.) The white water riding a bore (vCrisp 1) has a crisp edge, and its thin parts are clear
-  // water, not white haze (Round 20: its soft white fringe, hanging over the bore for seconds, read as vapour; cut
-  // crisp but white all over, it read as a flat white cut-out). Crisp only where its picture is sharp: further off it
-  // is read from a blurred mip level, which a crisp cut turned into smooth white blobs with a clear rim; there it
-  // keeps the soft edge, fainter
-  vec2 tz = vec2(textureSize(uPlume, 0));
-  vec2 ux = dFdx(vUv) * tz, uy = dFdy(vUv) * tz;
-  float far = smoothstep(0.75, 2.25, 0.5 * log2(max(max(dot(ux, ux), dot(uy, uy)), 1.0)));
-  float cr = vCrisp * (1.0 - far);
-  float clr = cr * (1.0 - smoothstep(0.22, 0.55, t.r));
-  float dn = mix(min(1.0, 1.25 * t.r), smoothstep(0.08, 0.14, t.r) * (1.0 - 0.6 * clr), cr) * (1.0 - 0.4 * vCrisp * far);
-  float dw = mix(0.12, 0.04, cr);
-  float a = dn * smoothstep(vT - dw, vT + 0.5 * dw, t.g) * vAlpha * foot;
+  // (Round 21: Round 20's crisp edge and clear thin parts on the bore's white water drew an outline round it)
+  float foot = smoothstep(vClip, vClip + 0.3 - 0.15 * vClip, vQy + 0.15 * (t.g - 0.5));
+  float a = min(1.0, 1.25 * t.r) * smoothstep(vT - 0.12, vT + 0.06, t.g) * vAlpha * foot; // (its core solid white)
   if (a < 0.01) discard;
   // lit as the heap of lumps in its relief, bent round by its rounded shape: the sun wrapped a little round into the
   // side turned away from it, the sky from above, both shut out of the creases. Shaded in display colour, between
@@ -2033,26 +2085,23 @@ void main() {
   // pure white; shaded as before it came out a milky grey-cyan veil over the water)
   float lit = (0.85 + 0.1 * n.y + 0.4 * dif) * mix(0.6, 1.0, t.b);
   vec3 col = mix(vec3(0.76, 0.94, 0.97), vec3(1.0), clamp(lit - 0.05, 0.0, 1.0));
-  col = mix(col, vec3(0.42, 0.86, 0.9) * (0.8 + 0.25 * dif), clr);
   // against the sun all of it glows a little with the light scattered through it, and its thin spray, the thin low
   // parts of its relief and the rims of its lumps on the sun's side more; and it takes the water's haze
   float dense = smoothstep(0.4, 0.9, t.r);
   float rim = smoothstep(0.25, 0.85, 1.0 - n.z) * clamp(dot(n.xy, L.xy) * 4.0, 0.0, 1.0);
   col = min(col + vec3(1.0, 0.95, 0.85) * vBack * (0.2 + 0.3 * (1.0 - dense) + 0.2 * (1.0 - rl.b) + 0.4 * rim), vec3(1.0));
-  vec3 hz = linearToOutputTexel(vec4(toneMapping(uHazeCol * 1.55), 1.0)).rgb;
-  gl_FragColor = vec4(mix(col, hz, (1.0 - exp(-vDist * 0.00024)) * uHazeK), a);
+  gl_FragColor = vec4(haze(col), a);
 }`;
 // The foam curtain (see FoamCurtain): one strip per crest slot and layer, position = (column, 0..1 up, slot + NS
 // layer). Each column's state is read from uCur (NC columns; rows 2 slot: z, y of its foot, height, dissolve; 2 slot
-// + 1: lean, alpha, strips per unit x, picture offset; 2 NS + slot: how crisp its edge is) and run smoothly through
-// the columns (Catmull-Rom).
+// + 1: lean, alpha, strips per unit x, picture offset) and run smoothly through the columns (Catmull-Rom).
 const CURTAIN_VERT = /* glsl */`
 uniform float uTime, uX0, uDX;
 uniform vec3 uSunDir;
 uniform sampler2D uCur;
 varying vec2 vUv, vM;
 varying vec3 vL;
-varying float vT, vAlpha, vBack, vQy, vDist, vCrisp;
+varying float vT, vAlpha, vBack, vQy, vDist, vClip, vJet, vJp;
 vec4 tapC(int i, int r) { return texelFetch(uCur, ivec2(clamp(i, 0, NC - 1), r), 0); }
 vec4 crom(vec4 a, vec4 b, vec4 c, vec4 d, float t) {
   return b + 0.5 * t * ((c - a) + t * ((2.0 * a - 5.0 * b + 4.0 * c - d) + t * (3.0 * (b - c) + d - a)));
@@ -2070,8 +2119,7 @@ void main() {
   vec4 S = crom(a, b, c, d, f);
   float dzdx = cromD(a, b, c, d, f).x / uDX;
   vec4 Q = crom(tapC(j - 1, 2 * sl + 1), tapC(j, 2 * sl + 1), tapC(j + 1, 2 * sl + 1), tapC(j + 2, 2 * sl + 1), f);
-  int rc = 2 * NS + sl;
-  vCrisp = clamp(crom(tapC(j - 1, rc), tapC(j, rc), tapC(j + 1, rc), tapC(j + 2, rc), f).x, 0.0, 1.0);
+  vClip = 0.0; vJet = 0.0; vJp = 0.0;
   // the crest line's horizontal normal (seaward) and tangent
   vec2 N = normalize(vec2(-dzdx, 1.0));
   vec3 N3 = vec3(N.x, 0.0, N.y), T3 = vec3(N.y, 0.0, -N.x);
@@ -2177,8 +2225,8 @@ class FoamCurtain {
   constructor(scene, uniforms, { half, ns = 4, sub, rows, layers, texV, soft }) {
     const nc = Math.round(2 * half / CURTAIN_DX) + 1;
     this.half = half; this.nc = nc; this.ns = ns;
-    this.data = new Float32Array(nc * 3 * ns * 4);
-    this.cur = new THREE.DataTexture(this.data, nc, 3 * ns, THREE.RGBAFormat, THREE.FloatType);
+    this.data = new Float32Array(nc * 2 * ns * 4);
+    this.cur = new THREE.DataTexture(this.data, nc, 2 * ns, THREE.RGBAFormat, THREE.FloatType);
     this.cur.minFilter = this.cur.magFilter = THREE.NearestFilter;
     this.cur.generateMipmaps = false;
     this.cur.needsUpdate = true;
@@ -2230,8 +2278,8 @@ class FoamCurtain {
         const fn = nLo + (((s - nLo) % ns) + ns) % ns, dc = crestD(fn, x, time);
         const o = (2 * s * nc + j) * 4;
         if (j === jc) this.far[s] = dc;
-        let z = zs + Math.min(Math.max(dc, -20), 470), y = 0, h = 0, T = 1, lean = 0, alpha = 0, iTW = 0.01, uO = 0, cr = 0;
-        if (dc >= -20 && dc <= 470) {
+        let z = zs + Math.min(Math.max(dc, -20), 640), y = 0, h = 0, T = 1, lean = 0, alpha = 0, iTW = 0.01, uO = 0;
+        if (dc >= -20 && dc <= 640) {
           crestState(fn, x, dc, st);
           const tip = lipTip(st, dc), H = Math.min(st.H, 40), pC = st.pC;
           z = zs + tip.d;
@@ -2259,13 +2307,11 @@ class FoamCurtain {
             z += (f.z - 0.6 - z) * bT; y += (f.yb - 0.12 * H - y) * bT; h += (hb - h) * bT;
             T += (0.3 - T) * bT; lean += (0.08 - lean) * bT; alpha += (0.92 * edge - alpha) * bT;
           }
-          cr = bT; // (crisp-edged, as the bore's plumes)
           iTW = 1 / (4.2 * waveBaseHn(fn) * (st.outer ? SURF.outerGain : SURF.innerGain));
           uO = hash01(hashU(fn + 7777));
         }
         data[o] = z; data[o + 1] = y; data[o + 2] = h; data[o + 3] = T;
         data[o + row] = lean; data[o + row + 1] = alpha; data[o + row + 2] = iTW; data[o + row + 3] = uO;
-        data[((2 * ns + s) * nc + j) * 4] = cr;
       }
     }
     this.cur.needsUpdate = true;
@@ -2366,6 +2412,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
     uSunDir: { value: (sunDir || new THREE.Vector3(0, 0.26, 0.97)).clone().normalize() },
     uNormTex: { value: normTex },
     uRogue: { value: new THREE.Vector3(-1e9, 0, 0) },
+    uUnder: { value: new THREE.Vector4(0.47, 0.77, 0.94, 0) },
   };
   for (const n of Object.values(LOOK_V3)) uniforms[n] = { value: new THREE.Vector3() };
   for (const n of Object.values(LOOK_F)) uniforms[n] = { value: 0 };
@@ -2395,7 +2442,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
   const rnd = (a, b) => a + Math.random() * (b - a);
   let nextRogue = rogueIn != null ? rogueIn : rnd(SURF.rogueMin, SURF.rogueMax);
   ROGUE.fn = -1e9; ROGUE.H = 0;
-  // pick the crest now ~1400 units offshore (about 40 s out) and make it the rogue
+  // pick the crest now ~1400 units offshore (about 30 s out) and make it the rogue
   function spawnRogue(cx) {
     ROGUE.fn = Math.round(phaseAt(cx, 1400, time) / TAU);
     ROGUE.H = SURF.rogueH; ROGUE.x = cx;
@@ -2434,9 +2481,9 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
   const LIFE = [0.6, 0.68, 0.75]; // mean particle life of each kind (lip spray, splash-up, bore drops), s
   // splash plumes found in one tick: kind (0 plunge, 1 shore dump, 2 bore), x, crest fn, wanted count
   const pjobs = [];
-  const PLIFE = [1.9, 1.65, 2.2]; // mean plume life of each kind, s
+  const PLIFE = [1.9, 1.65, 1.35]; // mean plume life of each kind, s
   // how many of each kind still come as separate plumes, over the foam curtain (the lip's and the shore dump's
-  // are all in the curtain; the bore's keep billowing up off its face all the way in)
+  // are all in the curtain; the bore's jets keep leaping up off its top all the way in)
   const PACC = [0, 0, 1];
   const _ps = {}, _pw = {}, _pf = {}, _sf = {};
   function emitSpray(dt, cx) {
@@ -2451,7 +2498,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
       const k = step * 30 / (1 + Math.abs(ex - cx) / 700); // distant columns are small on screen: emit fewer
       // plumes are bigger, so they thin out more slowly with distance (on the software tier: only near the camera)
       const pk = soft ? (Math.abs(ex - cx) < 700 ? 0.5 * step : 0) : step / (1 + Math.abs(ex - cx) / 1000);
-      const nLo = Math.ceil(phaseAt(ex, 15, time) / TAU), nHi = Math.floor(phaseAt(ex, 440, time) / TAU);
+      const nLo = Math.ceil(phaseAt(ex, 15, time) / TAU), nHi = Math.floor(phaseAt(ex, 620, time) / TAU);
       for (let fn = nLo; fn <= nHi; fn++) {
         const dc = crestD(fn, ex, time);
         crestState(fn, ex, dc, st);
@@ -2477,7 +2524,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
           } else if (st.p > 0.12 && st.p < 1.3 && st.H > 3 && loss > 0.15) {
             kind = 1; rate = 6 * sstep(0.12, 0.35, st.p) * (1 - sstep(1.0, 1.3, st.p)) * sstep(0.15, 0.5, loss);
           } else if (st.pC > 1.5 && dc > 4) {
-            kind = 2; rate = 1.6 * sstep(1.5, 1.9, st.pC) * sstep(4, 15, dc) * sstep(1.5, 3, st.H);
+            kind = 2; rate = 0.6 * sstep(1.5, 1.9, st.pC) * sstep(4, 15, dc) * sstep(1.5, 3, st.H);
           }
           if (kind >= 0) rate *= PACC[kind];
           if (rate > 0) { const n = rate * pk; pjobs.push(kind, ex, fn, n); pwant += n * PLIFE[kind]; }
@@ -2502,20 +2549,18 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
           d = dcx - _ps.D - H * rnd(0.2, 0.5);
           h = H * rnd(1.0, 1.4); w = h * rnd(1.3, 1.8);
           life = rnd(1.3, 2.0); lean = rnd(0.1, 0.3); drift = -c * rnd(0.3, 0.55); alpha = rnd(0.85, 1);
-        } else { // billowing up off the tumbling bore's face, riding with it, some over its top
+        } else { // a jet of white water leaping up out of the tumbling bore's top and falling back in, riding with it
           const f = boreFace(px, shoreZ(px), lipTip(_ps, dcx).d, H, time, _pf);
-          d = f.z - shoreZ(px) - rnd(0.3, 1.5);
-          // (tall enough that the dome of its mass stands over the bore's top, tearing its line against the sea beyond;
-          // any lower, and its squarish mass lay on the face as a block, its top along the bore's)
-          // (all much alike, and long-lived, so that many overlap and their tops make one steady ragged line)
-          h = (f.top - f.yb + 0.1 * H) * rnd(1.3, 1.5); w = h * rnd(1.0, 1.4);
-          life = rnd(1.8, 2.6); lean = rnd(-0.05, 0.15); drift = -c * rnd(0.95, 1.05); alpha = rnd(0.7, 0.95);
+          d = f.z + (f.zt - f.z) * rnd(0.2, 0.6) - shoreZ(px);
+          // (few and short-lived, each a splash of its own, breaking the bore's top line here and there)
+          h = (f.top - f.yb) * rnd(0.5, 0.9) + 0.05 * H; w = h * rnd(0.9, 1.3);
+          life = rnd(1.1, 1.6); lean = rnd(0.05, 0.3); drift = -c * rnd(0.95, 1.05); alpha = rnd(0.85, 1);
         }
         const pz = shoreZ(px) + d;
         // it stands along the crest line here: slope dz/dx of z = shoreZ(x) + crestD(fn, x, t)
         const sl = (shoreZ(px + 1) - shoreZ(px - 1) - (wobble(px + 1) - wobble(px - 1)) / kOf(dcx)) / 2 - SURF.kx / kOf(dcx);
         const nl = 1 / Math.sqrt(1 + sl * sl);
-        const py = kind === 2 ? _pf.yb - 0.1 * H : evalSurf(px, pz, time, false, _pw).y - 0.12 * H;
+        const py = kind === 2 ? _pf.top - 0.04 * H : evalSurf(px, pz, time, false, _pw).y - 0.12 * H;
         splashes.add(px, py, pz, w, h, time, life, alpha, lean, drift, -sl * nl, nl, kind === 2);
       }
     }
@@ -2652,6 +2697,8 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
       return dc > -40 ? { fn: ROGUE.fn, d: dc, H: ROGUE.H, x: ROGUE.x, next: nextRogue - time } : null;
     },
     triggerRogue(cx = 0) { spawnRogue(cx); },
+    // the eye is under the water: the underwater fog density (0 above the water) and its colour (display sRGB 0-1)
+    setUnder(density, rgb) { const u = material.uniforms.uUnder.value; u.w = density; if (rgb) u.set(rgb[0], rgb[1], rgb[2], density); },
     // switch or tune the look: a LOOKS name, or an object with any of its fields
     setLook(L) { applyLook(material.uniforms, typeof L === 'string' ? LOOKS[L] : L); },
     dispose() {

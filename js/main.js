@@ -20,7 +20,9 @@ const minX = -BORDER_HALF_X;
 const maxX = BORDER_HALF_X;
 const minZ = -BORDER_LENGTH_Z;
 const maxZ = 0;
-const SEA_MAX_Z = 430; // the player may swim / skim out past the shorebreak
+const SEA_MAX_Z = 560; // the player may swim / skim out past the outer bar
+const UNDER_COL = [0.47, 0.77, 0.94]; // under the water everything fades into a soft bright blue (display sRGB)
+const UNDER_FOG = 0.009;              // ... this fast (exp2 fog density per unit)
 
 const FLAT_SAND_WIDTH = 100;
 const DUNE_WIDTH = 100;
@@ -48,6 +50,7 @@ let survivalTime = 0;
 const gravity = -0.02, jumpStrength = 0.5;
 const keys = { w: false, a: false, s: false, d: false, space: false, shift: false };
 let surf = null;
+let skyObj = null; // the sky dome: hidden under the water, where everything fades into the underwater blue
 let softGL = false; // WebGL without a GPU: see softwareGL()
 // player-in-water state (velocities in units per frame, like the rest of the movement code)
 const sea = { vx: 0, vz: 0, push: 0, tumble: 0, tumbleDur: 1.6, inWater: false, skimming: false, overlay: null, lastHit: -1 };
@@ -918,6 +921,7 @@ function preloadPools() {
 // === INIT FUNCTIONS ===
 function initScene() {
   scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(new THREE.Color().setRGB(...UNDER_COL, THREE.SRGBColorSpace), 0); // thickens under the water
   character = new THREE.Object3D();
 
   // Spawn at center of playable area, slightly above ground
@@ -1001,9 +1005,9 @@ function gradientSky(g, sun) {
 
 function initSkyAndLights() {
   const sun = sunDirection();
-  if (LOOKS[LOOK].skyGrad) scene.add(gradientSky(LOOKS[LOOK].skyGrad, sun));
+  if (LOOKS[LOOK].skyGrad) scene.add(skyObj = gradientSky(LOOKS[LOOK].skyGrad, sun));
   else {
-    const sky = new Sky();
+    const sky = skyObj = new Sky();
     sky.scale.setScalar(10000);
     scene.add(sky);
     const skyUniforms = sky.material.uniforms;
@@ -1232,6 +1236,13 @@ function seaOverlay() {
   return sea.overlay;
 }
 
+// under the water: the sky hidden and everything fading into the soft blue; above it, the open view
+function setUnderView(under) {
+  scene.fog.density = under ? UNDER_FOG : 0;
+  skyObj.visible = !under; scene.background = under ? scene.fog.color : null;
+  surf.setUnder(under ? UNDER_FOG : 0);
+}
+
 function updateMovement() {
   const pos = character.position;
   const x0 = pos.x, z0 = pos.z;
@@ -1339,11 +1350,17 @@ function updateMovement() {
       ov.style.background = 'radial-gradient(circle, rgba(240,250,248,0.25), rgba(215,238,234,0.85))';
       ov.style.opacity = String(0.75 * (1 - hit / 0.6) ** 1.5);
     } else if (under) {
-      ov.style.background = 'linear-gradient(rgba(40,110,110,0.55), rgba(10,50,60,0.8))';
+      // a soft bright blue, lighter towards the surface, so the world under the water reads apart from the one above
+      ov.style.background = 'linear-gradient(rgba(175,228,255,0.22), rgba(95,175,240,0.4))';
       ov.style.opacity = '1';
     } else {
       ov.style.opacity = '0';
     }
+    setUnderView(under);
+  } else if (scene.fog.density > 0 || (sea.overlay && sea.overlay.style.opacity !== '0')) {
+    // left the water some other way (a respawn on the sand): back to the view above it
+    if (sea.overlay) sea.overlay.style.opacity = '0';
+    if (surf) setUnderView(false);
   }
 
   // Clamp to box (the sea side extends past the old waterline)

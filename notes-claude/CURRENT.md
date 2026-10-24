@@ -1050,6 +1050,46 @@ curtain's burst, spray kinds 0/1, plume kinds 0/1) is untouched.
   the vertex shader evaluates the surface a second time where there is foam (cost not measured); one small soft blob
   can remain over a far bore (t 41.5); the bore's look was judged by eye.
 
+## Round 21 (24 Oct 2026, owner: "can you make the waves travel faster, and have far bigger waves that break further
+## back? And can you make the vision under water with another tone, like a soft bright blue [...] the splash sprites
+## (not the ones when the wave breaks, those are good) from the foam wave [...] look like clouds or vapor, not water
+## sprites. I'd prefer the actual AoM sprites with some modifications so they fly back down eventually, or a completely
+## new type of water splash for that case")
+Committed with the code; nothing pushed. The fixes of Rounds 13-15, 17 and 20 are kept; the tube-break splash (the
+curtain's burst, spray kinds 0/1, plume kinds 0/1) is untouched. The actual AoM sprites were not used: AoM assets are
+never committed or published, so the bore's splash is new and procedural (AoM-like in spirit only).
+- Faster, bigger, further out (SURF): period 10 to 8.5 s and L0 290 to 400 (offshore crest speed 29 to 47 units/s, about
+  1.6 times faster; ~25 units/s at the shore), Hbase 12.5 to 20, breakSpan 30 to 45, barOuter 345 to 470, innerMax 185
+  to 275, reform0/reform1 228/200 to 345/305, rogueH 60 to 85 (the rogue is picked ~1400 units out). The surface mesh
+  rows reach z 460 evenly; the player may swim out to z 560 (was 430). With seed 1 the inner-bar crests break at H 18-26
+  and the outer-bar bores run in at H 12-15 from ~410 units out.
+- Under the water (main.js, surf.js): a soft bright blue (display 0.47, 0.77, 0.94) instead of the dark teal veil. The
+  sky dome is hidden and the scene background and an exp2 fog (density 0.009) take the blue; the water's underside
+  (uUnder, set by surf.setUnder) is lit brightest in Snell's window overhead with the ripples shimmering in it, mirrors
+  the water below outside it, and fades into the blue with distance; the overlay is a light gradient (0.22-0.4 alpha).
+  setUnderView() switches it all back on surfacing, and also if the player leaves the water without surfacing.
+- The bore's splash ("clouds or vapour", "outline"): Round 20's crisp edge and clear cyan thin parts are removed from
+  the bore's plumes and the curtain's bore band (the curtain's state texture is back to two rows). The bore's plumes
+  (kind 2) are now jets: few (rate 1.6 to 0.6, life 1.1-1.6 s), thrown up whole from the bore's top between its front
+  and its peak (boreFace now returns zt), rising fast, slowing to their height at p 0.38, then falling back faster and
+  faster, clipped where they sink under the white water (vClip). They are drawn procedurally in SPLASH_FRAG (jet(), not
+  the atlas picture whose white lumps read as little clouds): a sheet of white water at the foot parting into a fan of
+  9 tapered streaks that curve outwards, each with drops flying on past its end, the fan spreading as it rises and the
+  streaks breaking up into drops as they fall; coverage is antialiased by fwidth (thinner than a pixel, a streak fades
+  rather than dashes); white, a little paler away from the sun, glowing against it.
+- Verified (headless preview, 1920x1080, seed 1; Round 20 copy in reference/head20, git-ignored): the jets on the
+  outer bore at t 51.5 (r21_o_jc_515: a fan of streaks and drops) and falling apart at t 51.9 (r21_o_jc2_519); from the
+  player view they are small spouts on the far bore (r21_o_pv_515); the old atlas look for comparison r21_k_ow_515.
+  Jitter, player view, hi/rv (Round 20 then Round 21, same times but different wave phases): t 25.8 frame 1.13/0.43
+  then 2.74/2.32; t 32.0 2.59/2.23 then 1.52/0.67; t 51.9 2.56/2.10 then 0.69/0.16, so the peaks stay in Round 20's
+  range. Under the water r21_uw_*_old/new2. The soft tier (?soft=1) compiles and renders the jets; no shader errors,
+  only the preview's pointer-lock ones. Surfacing from under the water to the sand resets fog, background and overlay
+  (driven by __beach.step).
+- Limits: not play-tested (the real loop did not run); the faster, bigger waves were judged by eye and by the seed-1
+  timeline, not for gameplay (a 47 units/s crest and a 20-unit breaker may be too hard to outrun or skim); the jets are
+  judged on the outer bore, and on the inner bores, which shrink before p 1.5, they are rare; the soft bore band of the
+  curtain is unchanged; the jet's 9 streaks with 2 drops each are a loop of 27 shapes a fragment (cost not measured).
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
