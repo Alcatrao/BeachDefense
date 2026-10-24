@@ -1090,6 +1090,41 @@ never committed or published, so the bore's splash is new and procedural (AoM-li
   judged on the outer bore, and on the inner bores, which shrink before p 1.5, they are rare; the soft bore band of the
   curtain is unchanged; the jet's 9 streaks with 2 drops each are a loop of 27 shapes a fragment (cost not measured).
 
+## Round 22 (24 Oct 2026, owner: "can't you use the actual AoM sprites and brightness of them, and make a very dense
+## line of them in the foam wave front? The foam wave also has some very sharp/straight edges sometimes. The tubes
+## themselves are very good now. [...] Having a crest form just before the tube forms would be great")
+Committed with the code; nothing pushed. The fixes of Rounds 13-15, 17, 20 and 21 are kept and the tubes are unchanged
+(the new crest shaping fades out at p 0.2-0.7, before the lip throws). The actual AoM sprites were not used: AoM assets
+are never committed or published, so the line is procedural, AoM's technique (a dense row of bright overlapping
+splashes) only.
+- The bore's splash line (spray kind 3, SPLASH_FRAG sline()): from p 1.4-1.8 on, at rate 12 (the jets' 0.6;
+  PACC[3], sharing the plume pool), standing on the bore's face from half-way up it to 0.1 H over its top, h 0.6-1.0 of
+  the face, life 0.8-1.2 s, riding with the bore (drift 0.95-1.05 c). Each is a low lumpy dome of white water, crisp
+  along its top, thinning below into streaks and drops, torn more as it breaks up (brk), lit white with a pale cyan
+  shaded side; bright (C.x +4, so aC.x >= 3.5 marks it, bl in SPLASH_VERT). It bursts up (rise), sinks back 0.6 of its
+  height and fades in and out slowly (over the first 0.22 and the last 0.3 of its life) so the overlapping rows do not pop. Far off (antialias
+  width over 0.03-0.09 of the sprite) its tearing and breaking streaks fade to their mean (lod).
+- Ragged bore (no straight edges): boreVar lumps the bore's height along its crest by up to +-25 % (JS stageState and
+  GLSL crestState mirrored), boreRag lets the front edge of its solid white wander by up to 1.2 wf along the crest, and
+  the curtain's straight bore band fades out at p 1.9-2.6.
+- A crest that forms before the tube (stageState/crestState, mirrored in GLSL): crest = sstep(-3.5, -1.0, p) and lean =
+  sstep(-2.6, -0.6, p), both fading out at p 0.2-0.7. crest peaks the top (nGauss with exponent q = 2 - 0.6 crest in front,
+  2 - 0.4 crest behind), lean shears the top forwards by up to min(0.3 H, 0.45 wf) (bump squared, evalSurf and surfPos),
+  and a thin feather of white (fFeather) runs along the peak, counted as young foam.
+- Verified (headless preview, 1920x1080, seed 1; Round 21 copy in reference/head21, git-ignored): the crest forming,
+  face on, Round 21 and 22 side by side at t 45.4-47.8 (r22_m_l2: a taller, peaked, leaning crest with a feather line
+  at 46.2-46.7, the same tube at 47.4 and 47.8) and in profile (chart r22_pf_l, montage r22_m_l1); the splash line on
+  the outer bore (r22_j_ob_535, montage r22_m_e2). Jitter, player view, frame hi/rv (Round 21 then 22, same times): t
+  25.8 2.74/2.32 then 2.69/2.10; t 32.0 1.52/0.67 then 1.57/0.80; t 46.2 1.56/0.98 then 1.63/1.16; t 51.9 0.70/0.17 then
+  0.80/0.42, all within Rounds 20-21's range. In the bore's band (y 440-640) at t 46.2 3.07/4.15 then 3.38/5.18 (the
+  same streaks on a taller face) and at t 51.9 1.03/0.35 then 1.39/1.74, 1.6 after the slower fades; without the line
+  sprites it is 1.08/0.40. No shader errors, only the preview's pointer-lock ones.
+- Limits: not play-tested; the line still twinkles a little in the bore's band at a distance (rv ~1.6 against 0.4
+  without it): tests showed it is not the shading, the light/shade seam, the depth test, the tearing or the sinking and
+  shrinking, but the edges of many overlapping small sheets moving with the bore, so it is accepted; the line's cost (a
+  loop of streaks and drops per fragment, up to a few hundred sprites) and whether it thins the other plumes in a full
+  pool were not measured; the crest was judged on seed 1's inner and outer bars only.
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
