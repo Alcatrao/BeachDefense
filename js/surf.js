@@ -394,6 +394,7 @@ float gDrift; // set by surfPos: how far the swash has carried its foam up the b
 vec2 gCrest;  // set by surfPos: position across the crest (s2) and a mask that is 1 near the crest (foam texturing only)
 vec3 gBrk;    // set by surfPos: the breaker's own texture frame and its weight (see the end of surfPos)
 bool gFlat = false; // set before surfPos: no crest bunching and no curl, so (x, z) stays put (JS evalSurf with curl false)
+float gTs = 0.0;    // set before surfPos: how far after uTime to take the surface (s)
 const float K0 = ${K0.toFixed(9)};
 const float OMEGA = ${OMEGA.toFixed(9)};
 const float SA = ${SURF.shoalA.toFixed(5)};
@@ -447,7 +448,7 @@ float sOf(float d) {
   return s;
 }
 float wobble(float x) { return 0.9 * sin(x * 0.0021 + 0.7) + 0.5 * sin(x * 0.0057 + 2.1); }
-float phaseAt(float x, float d) { return OMEGA * uTime + sOf(d) + KX * x + wobble(x); }
+float phaseAt(float x, float d) { return OMEGA * (uTime + gTs) + sOf(d) + KX * x + wobble(x); }
 float waveBaseHn(float fn) {
   uint h = hashU(uint(int(fn) + 100000));
   float setv = 0.5 + 0.5 * sin(fn * TAU / SETLEN + 1.0);
@@ -492,7 +493,7 @@ float impOf(float p) { return sstep(0.9, 1.2, p) * (1.0 - sstep(3.0, 5.0, p)); }
 // lumps of the tumbling whitewater mass, about -1..1 (mirrored in JS): they roll forward over the roller and boil,
 // slowly, so the mass does not tremble; wavelengths of at least ~8 grid cells so the mesh can follow them
 float rollerLumps(float x, float u, float fn) {
-  float t = uTime;
+  float t = uTime + gTs;
   return 0.5 * sin(x * 0.043 + u * 0.12 + 0.7 * t + fn * 1.7) + 0.35 * sin(-x * 0.079 + u * 0.19 + 1.0 * t + fn * 0.9)
     + 0.25 * sin(x * 0.131 - u * 0.09 + 1.3 * t) + 0.2 * sin(x * 0.17 + u * 0.21 + 1.6 * t + fn);
 }
@@ -624,8 +625,9 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
 
   // turbulent, lumpy whitewater on the bore front and just behind it (slow lumps riding the bore, see boreLumps in JS)
   float turb = bore * (1.0 - sstep(0.15 * L, 0.45 * L, s2)) * sstep(-wf - 4.0, -0.3 * wf, s2);
-  y += turb * H * (0.035 * sin(x * 0.11 + s2 * 0.07 + uTime * 0.6) + 0.03 * sin(-x * 0.19 + s2 * 0.23 + uTime * 0.8)
-    + 0.02 * sin(x * 0.37 - s2 * 0.29 + uTime * 1.1));
+  float tT = uTime + gTs;
+  y += turb * H * (0.035 * sin(x * 0.11 + s2 * 0.07 + tT * 0.6) + 0.03 * sin(-x * 0.19 + s2 * 0.23 + tT * 0.8)
+    + 0.02 * sin(x * 0.37 - s2 * 0.29 + tT * 1.1));
   // the foam of the surf zone belongs to the crest that last passed: this one behind it, the one before it (fn - 1)
   // ahead of it, so that it runs on across the edges between the crests' cells; it lies from where that one broke in
   float fz = s2 < 0.0 ? fn - 1.0 : fn, dbzF = s2 < 0.0 ? breakZone(fz, x) : dbz;
@@ -634,7 +636,7 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
   // whitewater (where it ran through the white mass as a fast travelling tremble against the sea beyond) and the
   // foam-streaked wash behind and ahead of it (whose lace it bobbed up and down: a shimmer along the lace's edges)
   float chopK = (1.0 - hw * bw * chopP) * sstep(-10.0, 60.0, d) * (1.0 - 0.85 * max(turb, zoneIn));
-  y += chopK * (0.45 * sin(x * 0.071 + z * 0.052 - uTime * 1.9) + 0.3 * sin(-x * 0.047 + z * 0.093 - uTime * 2.6));
+  y += chopK * (0.45 * sin(x * 0.071 + z * 0.052 - tT * 1.9) + 0.3 * sin(-x * 0.047 + z * 0.093 - tT * 2.6));
 
   float sand = 0.5 + landH(z);
   if (d < 0.0) y = min(y, sand - 1.6);
@@ -736,6 +738,10 @@ varying float vLand;
 varying vec2 vRest;
 varying vec2 vCrest;
 varying vec3 vBrk;
+varying float vSpd; // how fast the surface here rises or falls as the crests pass (units/s)
+varying vec4 vVel;  // how far the water here moves in a frame (xyz) and how far its foam drifts in that frame (w)
+varying float vDFoam; // and how much its foam (vFoam) grows in that frame
+varying vec2 vDBrk;   // and how far the breaker's frame (vBrk.xy, which rides the crest) moves over it in that frame
 uniform float uRowF; // how far the rows have slid toward the next one shoreward (see buildGeometry)
 void main() {
   float f, th, wt, sw, ag, f1, t1, w1, s1, a1;
@@ -746,12 +752,33 @@ void main() {
   vBrk = gBrk;
 #ifdef FACETS
   vNrm = vec3(0.0, 1.0, 0.0); // unused: the fragment shader takes each facet's own normal
+  vSpd = 0.0; // unused: the soft tier's ripples are a plain tiled map
+  vVel = vec4(0.0);
+  vDFoam = 0.0;
+  vDBrk = vec2(0.0);
 #else
   // normal from offsets near the grid spacing (x 4.7, z 1.75): no shading detail the mesh cannot follow
   vec3 P1 = surfPos(xz + vec2(1.8, 0.0), f1, t1, w1, s1, a1);
   vec3 P2 = surfPos(xz + vec2(0.0, 1.0), f1, t1, w1, s1, a1);
   vec3 n = cross(P2 - P, P1 - P);
   vNrm = length(n) > 1e-6 ? normalize(n) : vec3(0.0, 1.0, 0.0);
+  // the crests travel shoreward at c = OMEGA / k, so a point fixed over the bed rises or falls at c times the
+  // shoreward slope: what the fragment shader turns into the face's sweep across the screen
+  float cw = OMEGA / kOf(xz.y - shoreZ(xz.x));
+  vSpd = cw * (P2.y - P.y);
+  // where there is foam, the same water a frame later: how far it moves, and how far its foam drifts, in a frame
+  vVel = vec4(0.0);
+  vDFoam = 0.0;
+  vDBrk = vec2(0.0);
+  if (f > 0.0) {
+    gTs = 1.0 / 60.0;
+    vVel.xyz = surfPos(xz, f1, t1, w1, s1, a1) - P;
+    vVel.w = gDrift - drift;
+    vDFoam = f1 - f;
+    vDBrk = gBrk.xy - vBrk.xy;
+    vDBrk *= min(1.0, 2.0 / max(length(vDBrk), 1e-6)); // not across a jump between the crests' cells
+    gTs = 0.0;
+  }
 #endif
   vSand = sw;
   vAge = ag;
@@ -790,6 +817,10 @@ varying float vLand;
 varying vec2 vRest;
 varying vec2 vCrest;
 varying vec3 vBrk;
+varying float vSpd;
+varying vec4 vVel;
+varying float vDFoam;
+varying vec2 vDBrk;
 
 vec2 hash2(vec2 p) {
   p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
@@ -818,31 +849,43 @@ float vnoise(vec2 p) {
   return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
 const mat2 ROT = mat2(0.8, -0.6, 0.6, 0.8); // rotates each octave so the noise grid does not show
-// round holes of random size scattered over a jittered grid: 1 at a hole's centre, 0 on its rim, negative
-// outside (-0.5 at 1.5 radii); grow scales every hole, so foam opens up from pin holes into a lace
-float holes(vec2 p, float t, float grow) {
+// foam left between the holes of one scale (h: 1 at a hole's centre, 0 on its rim, -0.5 at 1.5 radii): 0 inside a
+// hole, a soft translucent rim, thickest far from holes
+float laceScale(float h) { return smoothstep(0.12, -0.45, h); }
+// one scale of lace: round holes of random size scattered over a jittered grid; grow scales every hole, so foam opens
+// up from pin holes into a lace. Averaged over a frame in which the pattern slides m (cells) under the pixel, as a
+// motion blur: each hole sweeps a capsule, and a point on its track is inside the hole for the chord through it (half
+// length hw at the soft rim's middle, 1.165 radii), a share 2 hw / |m| of the frame; the swept holes thin the foam
+// together. Unblurred (m = 0) the overlapping holes merge.
+float lace(vec2 p, float t, float grow, vec2 m) {
   vec2 i = floor(p), f = fract(p);
-  float h = -4.0;
+  float mm = max(dot(m, m), 1e-8), lm = sqrt(mm), h = -4.0, a = 1.0;
   for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
     vec2 g = vec2(float(x), float(y));
     vec2 o = hash2(i + g);
     vec2 c = g + 0.5 + 0.36 * sin(t * (0.6 + 0.5 * o.yx) + 6.2831 * o) - f;
-    float r = (0.18 + 0.5 * o.x * o.y) * grow;
-    h = max(h, 1.0 - length(c) / r);
+    float r = (0.18 + 0.5 * o.x * o.y) * grow, cm = dot(c, m);
+    float hc = 1.0 - length(c - m * clamp(cm / mm, -0.5, 0.5)) / r;
+    float hw = sqrt(max(1.357 * r * r - dot(c, c) + cm * cm / mm, 0.0));
+    h = max(h, hc);
+    a *= 1.0 - (1.0 - laceScale(hc)) * min(1.0, 2.0 * hw / lm);
   }
-  return h;
+  return mix(laceScale(h), a, smoothstep(0.0, 0.2, lm));
 }
-// foam left between the holes of one scale: 0 inside a hole, a soft translucent rim, thickest far from holes
-float laceScale(float h) { return smoothstep(0.12, -0.45, h); }
 
 // Foam thickness (0 = none; about 1 = opaque) at foam coordinates p.
 // Foam is a sheet of bubbles with round holes at three scales (domain-warped so they are not perfect circles).
 // The holes are sized so the foam covers about fa of the surface (one hole per cell of mean area
 // pi E[r^2] = 0.33 g^2, so a scale leaves exp(-0.33 g^2) uncovered); young foam has mostly small holes,
 // old foam opens into a coarse lace around large ones. Thickness grows away from the holes.
-// ft = lumpiness (0..1) from a few octaves of noise.
-float foamThick(vec2 p, float fa, float age, float dist, out float ft) {
-  float n1 = vnoise(p * 0.16), n2 = vnoise(ROT * p * 0.41 + 7.3), n3 = vnoise(ROT * ROT * p * 1.07 + 3.1);
+// ft = lumpiness (0..1) from a few octaves of noise. sl = how far p slides under the pixel in a frame, dfa = how
+// much fa grows in a frame.
+float foamThick(vec2 p, float fa, float age, float dist, vec2 sl, float dfa, out float ft) {
+  float sv = length(sl);
+  // (each octave fades to its mean where it slides fast, as the holes do below: the finest warps all of them)
+  vec3 kn = 1.0 - smoothstep(0.05, 0.2, sv * vec3(0.16, 0.41, 1.07));
+  float n1 = mix(0.5, vnoise(p * 0.16), kn.x), n2 = mix(0.5, vnoise(ROT * p * 0.41 + 7.3), kn.y);
+  float n3 = mix(0.5, vnoise(ROT * ROT * p * 1.07 + 3.1), kn.z);
   float t1 = 0.6 * n1 + 0.4 * n2 + 0.1, t2 = 0.6 * n2 + 0.4 * n3 + 0.1; // ~0.6 on average, like the old texture
   ft = clamp((t1 * 0.65 + t2 * 0.35 - 0.45) / 0.3, 0.0, 1.0);
   float C = clamp(fa * (0.75 + 0.5 * ft), 0.04, 0.97 + 0.025 * smoothstep(1.0, 1.5, fa)); // target coverage, lumpier with the texture; thick foam closes up
@@ -850,12 +893,27 @@ float foamThick(vec2 p, float fa, float age, float dist, out float ft) {
   vec3 w = mix(vec3(0.15, 0.30, 0.55), vec3(0.55, 0.30, 0.15), age);
   vec3 g = min(sqrt(G * w), vec3(1.5));                         // the 3x3 search reaches about 1.5
   vec2 q = p + 3.2 * vec2(t1 - 0.6, t2 - 0.6);
+  // the holes slide as q does, which the warp stretches and turns: q a frame on (at p + sl) less q now
+  vec2 p1 = p + sl;
+  float d1 = mix(0.5, vnoise(p1 * 0.16), kn.x) - n1, d2 = mix(0.5, vnoise(ROT * p1 * 0.41 + 7.3), kn.y) - n2;
+  float d3 = mix(0.5, vnoise(ROT * ROT * p1 * 1.07 + 3.1), kn.z) - n3;
+  vec2 sq = sv > 0.0 ? sl + 3.2 * vec2(0.6 * d1 + 0.4 * d2, 0.6 * d2 + 0.4 * d3) : vec2(0.0);
+  float sqv = length(sq);
   float k1 = 1.0 - smoothstep(700.0, 1600.0, dist);
   float k2 = 1.0 - smoothstep(250.0, 800.0, dist), k3 = 1.0 - smoothstep(70.0, 260.0, dist);
+  // where the cells slide under the pixel (a bore running in over the wash), each scale is blurred along its slide
+  // (lace); one sliding more than about a third of a cell in a frame, nearing the search's reach, fades towards its
+  // mean. So does one whose holes shrink or open fast as the foam thickens or thins (the bore's own front), the rims
+  // moving by about 0.3 dg for a mean radius 0.3 g, more than about a twentieth of a cell in a frame. Each keeps 0.4 of
+  // its contrast, so fast foam stays a lace rather than a flat haze
+  float dC = C > 0.04 && C < 0.97 ? dfa * (0.75 + 0.5 * ft) : 0.0;
+  vec3 dg = step(g, vec3(1.49)) * g * dC / (-0.66 * C * G);
+  vec3 km = 0.4 + 0.6 * (1.0 - smoothstep(0.15, 0.45, sqv * vec3(0.12, 0.35, 1.05))) * (1.0 - smoothstep(0.05, 0.2, 0.3 * abs(dg)));
+  k1 *= km.x; k2 *= km.y; k3 *= km.z;
   vec3 mean = exp(-0.33 * g * g) * 0.85;                         // a faded scale is replaced by its mean cover
-  float f1 = k1 > 0.0 ? mix(mean.x, laceScale(holes(q * 0.12, uTime * 0.25, g.x)), k1) : mean.x;
-  float f2 = k2 > 0.0 ? mix(mean.y, laceScale(holes(q * 0.35 + 5.1, uTime * 0.45, g.y)), k2) : mean.y;
-  float f3 = k3 > 0.0 ? mix(mean.z, laceScale(holes(q * 1.05 + 2.7, uTime * 0.8, g.z)), k3) : mean.z;
+  float f1 = k1 > 0.0 ? mix(mean.x, lace(q * 0.12, uTime * 0.25, g.x, sq * 0.12), k1) : mean.x;
+  float f2 = k2 > 0.0 ? mix(mean.y, lace(q * 0.35 + 5.1, uTime * 0.45, g.y, sq * 0.35), k2) : mean.y;
+  float f3 = k3 > 0.0 ? mix(mean.z, lace(q * 1.05 + 2.7, uTime * 0.8, g.z, sq * 1.05), k3) : mean.z;
   float lace = f1 * f2 * f3;
   return lace * (0.2 + 0.7 * clamp(fa, 0.0, 1.6)) * (0.6 + 0.6 * ft) * smoothstep(0.0, 0.3, fa); // sparse foam is a thin film
 }
@@ -909,7 +967,9 @@ vec2 rippleSlope(vec2 w, vec2 cx, vec2 cy) {
   // turned, then stretched (uRipScale < 1 widens them: AoM's are broad chevrons)
   mat2 MA = mat2(0.035, 0.0, 0.0, 0.13) * RIPA * uRipScale, MB = mat2(0.03, 0.0, 0.0, 0.11) * RIPB * uRipScale;
   vec3 q1 = normNT(MA * w + vec2(0.0, 0.05) * uTime, MA * cx, MA * cy, 7.1);
-  vec3 q2 = normNT(MB * w + vec2(0.31, 0.04) * uTime, MB * cx, MB * cy, 1.9);
+  // the second weave drifts slowly too: at 0.31 uv/s (about 19 units/s) its ripples outran the frame rate on the
+  // faces and flickered back and forth
+  vec3 q2 = normNT(MB * w + vec2(0.08, 0.04) * uTime, MB * cx, MB * cy, 1.9);
   return vec2(q1.x * 0.27, q1.y) * RIPA + vec2(q2.x * 0.27, q2.y) * RIPB;
 }
 // a bubble glint in each cell of sp that twinkles: at least about a pixel wide, dimmed as it widens, and gone where
@@ -959,6 +1019,30 @@ void main() {
   float calm = max(aer, 0.9 * smoothstep(0.1, 0.5, vFoam));
   // detail normals
   vec2 uv = vWorld.xz, ux = dFdx(uv), uy = dFdy(uv);
+  // The mesh is fixed over the bed, so a rising face slides the world xz under each pixel: mvPx is how far, in
+  // pixels per frame (at 60 fps, a design constant), from the vertical speed through the face's slope (the ray
+  // meets the face displaced by vSpd / dt along it). Where it passes a few tenths of a pixel the ripples, mapped on
+  // that xz, jump between frames: the trembling on the faces.
+  float mvPx;
+  {
+    vec3 Nu = Ng / max(abs(Ng.y), 0.05);
+    float mvL = length(V.xz) * abs(vSpd) / 60.0 / max(abs(dot(Nu, V)), 0.05);
+    vec2 e = normalize(-V.xz + 1e-6);
+    mvPx = mvL / max(max(abs(dot(ux, e)), abs(dot(uy, e))), 1e-4);
+  }
+  // The foam is mapped on the rest grid (vRest) and the breaker's frame (qb), which the passing crests also carry
+  // across the screen. In a frame the water at the pixel moves by vVel.xyz, and its surface by that . Ng along the
+  // normal, so the ray meets the surface V (vVel . Ng) / (V . Ng) further along; the water seen there next frame
+  // was D = that - vVel away, in the surface plane. D in pixels (along dpx, dpy) gives slR and slB: how far each
+  // foam pattern slides under the pixel in a frame (with its own scroll and drift), in its own units
+  vec2 slR, slB;
+  {
+    float vn = dot(V, Ng);
+    vec3 D = V * dot(vVel.xyz, Ng) / (vn < 0.0 ? min(vn, -0.05) : max(vn, 0.05)) - vVel.xyz;
+    vec2 ab = clamp(vec2(dot(D, cq1), dot(D, cq2)) * idq, -40.0, 40.0);
+    slR = ab.x * dFdx(vRest) + ab.y * dFdy(vRest) + vec2(0.0, 2.0 / 60.0 + vVel.w);
+    slB = ab.x * qx + ab.y * qy + vDBrk + vec2(0.0, 3.5 / 60.0);
+  }
   // cat's paws: the wind roughens the sea in large drifting patches, so the ripples are not one uniform weave
   float paw = smoothstep(0.2, 0.8, 0.6 * vnoise(ROT * uv * 0.0042 + vec2(0.0, 0.02) * uTime) + 0.4 * vnoise(uv * 0.0117 - vec2(0.015, 0.0) * uTime));
   vec2 dn = detailSlope(uv, ux, uy);
@@ -968,11 +1052,22 @@ void main() {
   vec3 Nb = normalize(N + dN); // the surface the ripples ride on: the emboss below shades them relative to it
   // the ripples, which fade out before they would shimmer
   float rk = uRipple * (0.45 + 0.9 * paw) * (1.0 - smoothstep(150.0, 1100.0, dist)) * (1.0 - calm);
+  // On the moving faces they are blurred along with the motion (a wider filter footprint, up to 5 times) and
+  // weakened (by up to 70 %); and where the finer weave is squeezed past 8 texels a pixel the footprint grows with it,
+  // up to 3 times (its own mips still let the fine ripples alias as the swell tilts them). Measured at 1/60 s steps,
+  // this more than halves the frame-to-frame shimmer on the faces in front of the player
+  float kb;
+  {
+    mat2 MA = mat2(0.035, 0.0, 0.0, 0.13) * RIPA * uRipScale; // as rippleSlope's finer weave
+    float fM = 1024.0 * max(length(MA * ux), length(MA * uy));
+    kb = max(clamp(fM / 8.0, 1.0, 3.0), min(1.0 + 5.0 * mvPx, 5.0));
+  }
+  rk *= 1.0 - 0.7 * smoothstep(0.3, 0.9, mvPx);
   if (rk > 0.0) {
 #ifndef SOFT
     rk *= 0.4 + 1.2 * smoothstep(0.15, 0.85, vnoise(ROT * uv * 0.035 + 1.7)); // stronger and weaker in patches a few tens of units across
 #endif
-    vec2 g = wK < 1.0 ? rippleSlope(ripWarp(uv), ux, uy) : vec2(0.0);
+    vec2 g = wK < 1.0 ? rippleSlope(ripWarp(uv), ux * kb, uy * kb) : vec2(0.0);
     vec3 gw = vec3(g.x, 0.0, g.y);
     if (wK > 0.0) { vec2 gb = rippleSlope(ripWarp(qb), qx, qy); gw = mix(gw, Tq * gb.x + Bq * gb.y, wK); }
     dN += gw * rk;
@@ -1033,12 +1128,12 @@ void main() {
   // film tinted by the water, thick foam scatters to bright white, with blue-grey crevices between the lumps
   float blot = clamp((0.65 * vnoise(uv * 0.028 + 0.37) + 0.35 * vnoise(ROT * uv * 0.071) - 0.38) / 0.3, 0.0, 1.0); // large-scale break-up
   float fa = vFoam * mix(0.7 + 0.6 * blot, 1.2, aer); // the large-scale break-up is for older foam, not fresh whitewater
-  float ft = 0.0, tau = 0.0;
+  float ft = 0.0, tau = 0.0, dfa = vDFoam * mix(0.7 + 0.6 * blot, 1.2, aer);
   if (fa > 0.01) {
-    if (wK < 1.0) tau = foamThick(vRest, fa, vAge, dist, ft);
+    if (wK < 1.0) tau = foamThick(vRest, fa, vAge, dist, slR, dfa, ft);
     if (wK > 0.0) {
       float ftB;
-      float tB = foamThick(qb, fa, vAge, dist, ftB);
+      float tB = foamThick(qb, fa, vAge, dist, slB, dfa, ftB);
       tau = mix(tau, tB, wK); ft = mix(ft, ftB, wK);
     }
   }
@@ -1836,7 +1931,7 @@ attribute vec4 aC; // variant 0..3, flip (+-1), lean (top thrown shoreward, per 
 attribute vec2 aD; // the crest's horizontal normal (x, z), seaward
 varying vec2 vUv, vM;
 varying vec3 vL;
-varying float vT, vAlpha, vBack, vQy, vDist;
+varying float vT, vAlpha, vBack, vQy, vDist, vCrisp;
 void main() {
   float age = uTime - aA.w, p = age / aB.z;
   if (p < 0.0 || p > 1.0) { gl_Position = vec4(0.0, 0.0, 2.0, 1.0); return; } // dead: beyond the far plane
@@ -1879,6 +1974,7 @@ void main() {
   // it dissolves from the thin spray inwards over the later part of its life (a steady one only a little: its
   // ragged top would wear down too fast)
   vT = 0.08 + mix(0.95 * smoothstep(0.35, 1.0, p), 0.35 * smoothstep(0.5, 1.0, p), st);
+  vCrisp = st;
   vec4 cp = projectionMatrix * viewMatrix * vec4(P, 1.0);
   // its depth is taken a few units nearer the camera (less when looking down, where the water would stop hiding
   // its sunk foot): the breaking face it stands against leans past its plane here and there, and would cut it in
@@ -1889,7 +1985,7 @@ void main() {
   gl_Position = vec4(cp.xy, cb.z / cb.w * cp.w, cp.w);
 }`;
 // (shared by the plumes and the foam curtain: vT is how far it has dissolved, uStep one shadow step across the
-// picture, 0.04 of its height)
+// picture, 0.04 of its height, vCrisp how crisp its edge is)
 const SPLASH_FRAG = /* glsl */`
 uniform sampler2D uPlume, uPlumeR;
 uniform vec3 uHazeCol;
@@ -1897,13 +1993,25 @@ uniform float uHazeK;
 uniform vec2 uStep;
 varying vec2 vUv, vM;
 varying vec3 vL;
-varying float vT, vAlpha, vBack, vQy, vDist;
+varying float vT, vAlpha, vBack, vQy, vDist, vCrisp;
 void main() {
   vec4 t = texture2D(uPlume, vUv);
   // dissolved from the thin spray inwards up to vT, and its foot thinned out grain by grain towards the water,
   // which would otherwise cut it off in a straight line
   float foot = smoothstep(0.0, 0.3, vQy + 0.15 * (t.g - 0.5));
-  float a = min(1.0, 1.25 * t.r) * smoothstep(vT - 0.12, vT + 0.06, t.g) * vAlpha * foot; // (its core solid white)
+  // (its core solid white.) The white water riding a bore (vCrisp 1) has a crisp edge, and its thin parts are clear
+  // water, not white haze (Round 20: its soft white fringe, hanging over the bore for seconds, read as vapour; cut
+  // crisp but white all over, it read as a flat white cut-out). Crisp only where its picture is sharp: further off it
+  // is read from a blurred mip level, which a crisp cut turned into smooth white blobs with a clear rim; there it
+  // keeps the soft edge, fainter
+  vec2 tz = vec2(textureSize(uPlume, 0));
+  vec2 ux = dFdx(vUv) * tz, uy = dFdy(vUv) * tz;
+  float far = smoothstep(0.75, 2.25, 0.5 * log2(max(max(dot(ux, ux), dot(uy, uy)), 1.0)));
+  float cr = vCrisp * (1.0 - far);
+  float clr = cr * (1.0 - smoothstep(0.22, 0.55, t.r));
+  float dn = mix(min(1.0, 1.25 * t.r), smoothstep(0.08, 0.14, t.r) * (1.0 - 0.6 * clr), cr) * (1.0 - 0.4 * vCrisp * far);
+  float dw = mix(0.12, 0.04, cr);
+  float a = dn * smoothstep(vT - dw, vT + 0.5 * dw, t.g) * vAlpha * foot;
   if (a < 0.01) discard;
   // lit as the heap of lumps in its relief, bent round by its rounded shape: the sun wrapped a little round into the
   // side turned away from it, the sky from above, both shut out of the creases. Shaded in display colour, between
@@ -1925,6 +2033,7 @@ void main() {
   // pure white; shaded as before it came out a milky grey-cyan veil over the water)
   float lit = (0.85 + 0.1 * n.y + 0.4 * dif) * mix(0.6, 1.0, t.b);
   vec3 col = mix(vec3(0.76, 0.94, 0.97), vec3(1.0), clamp(lit - 0.05, 0.0, 1.0));
+  col = mix(col, vec3(0.42, 0.86, 0.9) * (0.8 + 0.25 * dif), clr);
   // against the sun all of it glows a little with the light scattered through it, and its thin spray, the thin low
   // parts of its relief and the rims of its lumps on the sun's side more; and it takes the water's haze
   float dense = smoothstep(0.4, 0.9, t.r);
@@ -1935,14 +2044,15 @@ void main() {
 }`;
 // The foam curtain (see FoamCurtain): one strip per crest slot and layer, position = (column, 0..1 up, slot + NS
 // layer). Each column's state is read from uCur (NC columns; rows 2 slot: z, y of its foot, height, dissolve; 2 slot
-// + 1: lean, alpha, strips per unit x, picture offset) and run smoothly through the columns (Catmull-Rom).
+// + 1: lean, alpha, strips per unit x, picture offset; 2 NS + slot: how crisp its edge is) and run smoothly through
+// the columns (Catmull-Rom).
 const CURTAIN_VERT = /* glsl */`
 uniform float uTime, uX0, uDX;
 uniform vec3 uSunDir;
 uniform sampler2D uCur;
 varying vec2 vUv, vM;
 varying vec3 vL;
-varying float vT, vAlpha, vBack, vQy, vDist;
+varying float vT, vAlpha, vBack, vQy, vDist, vCrisp;
 vec4 tapC(int i, int r) { return texelFetch(uCur, ivec2(clamp(i, 0, NC - 1), r), 0); }
 vec4 crom(vec4 a, vec4 b, vec4 c, vec4 d, float t) {
   return b + 0.5 * t * ((c - a) + t * ((2.0 * a - 5.0 * b + 4.0 * c - d) + t * (3.0 * (b - c) + d - a)));
@@ -1960,6 +2070,8 @@ void main() {
   vec4 S = crom(a, b, c, d, f);
   float dzdx = cromD(a, b, c, d, f).x / uDX;
   vec4 Q = crom(tapC(j - 1, 2 * sl + 1), tapC(j, 2 * sl + 1), tapC(j + 1, 2 * sl + 1), tapC(j + 2, 2 * sl + 1), f);
+  int rc = 2 * NS + sl;
+  vCrisp = clamp(crom(tapC(j - 1, rc), tapC(j, rc), tapC(j + 1, rc), tapC(j + 2, rc), f).x, 0.0, 1.0);
   // the crest line's horizontal normal (seaward) and tangent
   vec2 N = normalize(vec2(-dzdx, 1.0));
   vec3 N3 = vec3(N.x, 0.0, N.y), T3 = vec3(N.y, 0.0, -N.x);
@@ -2065,8 +2177,8 @@ class FoamCurtain {
   constructor(scene, uniforms, { half, ns = 4, sub, rows, layers, texV, soft }) {
     const nc = Math.round(2 * half / CURTAIN_DX) + 1;
     this.half = half; this.nc = nc; this.ns = ns;
-    this.data = new Float32Array(nc * 2 * ns * 4);
-    this.cur = new THREE.DataTexture(this.data, nc, 2 * ns, THREE.RGBAFormat, THREE.FloatType);
+    this.data = new Float32Array(nc * 3 * ns * 4);
+    this.cur = new THREE.DataTexture(this.data, nc, 3 * ns, THREE.RGBAFormat, THREE.FloatType);
     this.cur.minFilter = this.cur.magFilter = THREE.NearestFilter;
     this.cur.generateMipmaps = false;
     this.cur.needsUpdate = true;
@@ -2118,7 +2230,7 @@ class FoamCurtain {
         const fn = nLo + (((s - nLo) % ns) + ns) % ns, dc = crestD(fn, x, time);
         const o = (2 * s * nc + j) * 4;
         if (j === jc) this.far[s] = dc;
-        let z = zs + Math.min(Math.max(dc, -20), 470), y = 0, h = 0, T = 1, lean = 0, alpha = 0, iTW = 0.01, uO = 0;
+        let z = zs + Math.min(Math.max(dc, -20), 470), y = 0, h = 0, T = 1, lean = 0, alpha = 0, iTW = 0.01, uO = 0, cr = 0;
         if (dc >= -20 && dc <= 470) {
           crestState(fn, x, dc, st);
           const tip = lipTip(st, dc), H = Math.min(st.H, 40), pC = st.pC;
@@ -2147,11 +2259,13 @@ class FoamCurtain {
             z += (f.z - 0.6 - z) * bT; y += (f.yb - 0.12 * H - y) * bT; h += (hb - h) * bT;
             T += (0.3 - T) * bT; lean += (0.08 - lean) * bT; alpha += (0.92 * edge - alpha) * bT;
           }
+          cr = bT; // (crisp-edged, as the bore's plumes)
           iTW = 1 / (4.2 * waveBaseHn(fn) * (st.outer ? SURF.outerGain : SURF.innerGain));
           uO = hash01(hashU(fn + 7777));
         }
         data[o] = z; data[o + 1] = y; data[o + 2] = h; data[o + 3] = T;
         data[o + row] = lean; data[o + row + 1] = alpha; data[o + row + 2] = iTW; data[o + row + 3] = uO;
+        data[((2 * ns + s) * nc + j) * 4] = cr;
       }
     }
     this.cur.needsUpdate = true;
@@ -2317,14 +2431,14 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
 
   // spray sources found in one emission tick: kind, x, z, y, H, wanted count (flat, reused)
   const jobs = [];
-  const LIFE = [0.6, 0.68, 0.52]; // mean particle life of each kind (lip spray, splash-up, bore-top sheet), s
+  const LIFE = [0.6, 0.68, 0.75]; // mean particle life of each kind (lip spray, splash-up, bore drops), s
   // splash plumes found in one tick: kind (0 plunge, 1 shore dump, 2 bore), x, crest fn, wanted count
   const pjobs = [];
   const PLIFE = [1.9, 1.65, 2.2]; // mean plume life of each kind, s
   // how many of each kind still come as separate plumes, over the foam curtain (the lip's and the shore dump's
   // are all in the curtain; the bore's keep billowing up off its face all the way in)
   const PACC = [0, 0, 1];
-  const _ps = {}, _pw = {}, _pf = {}, _sw = {};
+  const _ps = {}, _pw = {}, _pf = {}, _sf = {};
   function emitSpray(dt, cx) {
     emitAcc += dt;
     if (emitAcc < 1 / 30) return;
@@ -2347,10 +2461,11 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
         if (lip) { const n = Math.min(15, st.H * 0.45 * (0.5 + Math.random())) * k; jobs.push(0, ex, zs + tip.d, tip.y, st.H, n); want += n * LIFE[0]; }
         // splash-up: the landed lip throws a burst of white water up and forward from the plunge point
         if (splash) { const n = Math.min(9, st.H * 0.4 * (0.5 + Math.random())) * k; jobs.push(1, ex, zs + tip.d, 0, st.H, n); want += n * LIFE[1]; }
-        // a low sheet of spray skimming the bore's top (Round 17: in place of the mist that rose off the bore and the
-        // landing lip and swelled into vapour)
-        if (st.p > 1.2 && st.p < 3.2 && st.H > 2) {
-          const n = Math.min(16, st.H * 0.4 * Math.random() + 0.1) * k; jobs.push(2, ex, zs + dc - st.D, 0, st.H, n); want += n * LIFE[2];
+        // drops thrown up off the bore's top, arcing shoreward and falling back in (Round 20: in place of Round 17's
+        // low sheet skimming its top, whose slow white flecks read as snow); passed its lip tip and speed
+        if (st.p > 1.4 && st.p < 3.2 && st.H > 2) {
+          const n = Math.min(12, st.H * 0.35 * Math.random() + 0.1) * sstep(1.4, 1.8, st.p) * k;
+          jobs.push(2, ex, zs + lipTip(st, dc).d, TAU / kOf(dc) / SURF.period, st.H, n); want += n * LIFE[2];
         }
         // a line of splash plumes where the lip lands; where a wave dumps on the shore before its lip can land
         // (the shallows shrink its curl away: the plumes cover the collapse); and smaller ones off the bore front
@@ -2425,11 +2540,16 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
           spray.emit(px, Hs * (0.05 + 0.25 * Math.random()), ez + (Math.random() - 0.3) * 8,
             (Math.random() - 0.5) * 8, vy, vz,
             0.45 + Math.random() * 0.45, (3 + 4.5 * Math.random()) * (0.6 + 0.4 * Hs / 14), 1.0, 0.75, -0.2);
-        } else { // a flat sheet just over the bore's top, riding with it: no rise, no growth, fading as it sinks
-          const pz = ez + (Math.random() - 0.5) * 0.6 * H;
-          const py = evalSurf(px, pz, time, false, _sw).y + 0.3 + Math.random();
-          spray.emit(px, py, pz, (Math.random() - 0.5) * 4, 1 + Math.random() * 3, -H * 0.8 - Math.random() * 6,
-            0.35 + Math.random() * 0.35, 3 + Math.random() * 3, 1.5, 0.45, 0, 1.5);
+        } else { // off the bore's top, a little faster than it, rising 0.08-0.35 H and falling back in, fading as it sinks
+          if (i === 0) boreFace(ex, shoreZ(ex), ez - shoreZ(ex), H, time, _sf);
+          const Hs = Math.min(H, 40), vy = Math.sqrt(60 * Hs * (0.08 + 0.27 * Math.random()));
+          const pz = _sf.z + shoreZ(px) - shoreZ(ex) + Math.random() * 0.4 * Hs;
+          const py = _sf.yb + (_sf.top - _sf.yb) * (0.65 + 0.35 * Math.random());
+          // (a few bigger, fainter ones: clear blobs of water among the white drops)
+          const big = Math.random() < 0.25;
+          spray.emit(px, py, pz, (Math.random() - 0.5) * 6, vy, -ey * (1.05 + 0.3 * Math.random()) - 2 * Math.random(),
+            Math.min(0.95, 0.3 + 1.6 * vy / 30), big ? 2.6 + 1.6 * Math.random() : 1.2 + 1.4 * Math.random(), 0.4,
+            big ? 0.45 : 0.8, -0.25, 0.2 * Hs + 1);
         }
       }
     }

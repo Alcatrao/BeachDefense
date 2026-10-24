@@ -1001,6 +1001,55 @@ nothing pushed. The previous session's transcript passed 500 MB and was rotated;
   look was matched by eye against the screenshots; the body is pale against the pale AoM beach (clearer on classic);
   the halo is a shell, not a screen-space bloom; one still each for the classic look and the soft tier.
 
+## Round 20 (24 Oct 2026, owner: "Try to take care of any flickering and trembling in the waves (lots of rapid
+## movements in a very short time). The splash effect in the area the tube breaks is amazing, but the splashes the foam
+## wave make (after the tube broke) can sometimes look more like snow or vapor than water splashes")
+Committed with the code; nothing pushed. The fixes of Rounds 13-15 and 17 are kept; the tube-break splash (the
+curtain's burst, spray kinds 0/1, plume kinds 0/1) is untouched.
+- Measured first: the paused loop stepped at 1/60 s, 40 frames a window, luminance read back at half scale. hi = RMS of
+  each pixel's departure from its 5-frame mean (the jitter), rv = % of frames in which a pixel's change of at least 3
+  levels flips sign (back-and-forth), d8 = mean change over 8 frames (the motion itself). Sources: the ripple maps on
+  the moving faces (the mesh is fixed over the bed, so a rising face slides world xz under each pixel and the ripples,
+  mapped on xz, jump between frames; the second weave also scrolled 0.31 uv/s, about 19 units/s, faster than a frame
+  can show); the foam lace sliding under the pixel as the crests carry it, and its holes opening or closing fast on
+  the bore's front; and the bore's splashes.
+- Vertex shader: vSpd (the crest speed OMEGA / k times the shoreward slope: how fast the surface rises or falls); where
+  there is foam, the same surface 1/60 s on (gTs shifts the time in phaseAt, rollerLumps, the bore turbulence and the
+  chop): vVel (how far the water moves, and its foam drifts, in a frame), vDFoam (how much its foam grows) and vDBrk (how
+  far the breaker's frame moves; clamped across a jump between the crests' cells). Not on the soft tier (all zero).
+- Ripples: mvPx, how many pixels a frame the face slides under the pixel; the ripple filter footprint widens with it
+  (up to 5 times) and where the finer weave is squeezed past 8 texels a pixel (up to 3 times), and the ripples weaken by
+  up to 70 % past 0.3-0.9 px a frame. The second weave drifts at 0.08 uv/s.
+- Foam: lace() replaces holes(): each of the three scales is motion-blurred along its slide in a frame (each hole sweeps
+  a capsule, and the swept holes thin the foam by their chord's share of the frame). The slide comes from the water's
+  screen-space motion (slR on the rest grid, slB on the breaker's frame) carried through the noise warp. Each noise
+  octave fades to its mean where it slides fast; a scale sliding more than about a third of a cell a frame, or whose
+  holes resize fast, fades towards its mean but keeps 0.4 of its contrast, so fast foam stays a lace, not a haze.
+- Bore splashes ("vapour"): the bore's steady plumes (kind 2) and the foam curtain's bore band (vCrisp; a third row of
+  the curtain's state texture) get a crisp edge (dissolve width 0.12 to 0.04) and their thin parts (t.r below
+  0.22-0.55) turn clear cyan water (0.42, 0.86, 0.9) at 40 % density instead of white haze. Crisp only where the
+  picture is sharp: at mip level 0.75-2.25 (from dFdx/dFdy of the uv times the texture size) it returns to the soft
+  edge, 40 % fainter, because a crisp cut on a blurred mip made smooth white blobs with a clear rim.
+- Bore spray ("snow"): Round 17's low sheet of slow white flecks over the bore is replaced by drops thrown up off the
+  bore's top past its lip tip (p 1.4-3.2), a little faster than the bore, rising 0.08-0.35 H and falling back under
+  gravity, streaked along their velocity; a quarter are bigger, fainter clear blobs. Mean life 0.75 s (was 0.52), up
+  to 12 per emit (was 16).
+- Verified (headless preview, 1920x1080, the same seed in a Round 19 copy of HEAD (reference/head19, git-ignored) and in
+  this build; hi/rv, Round 19 then Round 20; the waves are deterministic until the break, the spray and plumes are not):
+  player view t 25.8 frame 2.96/2.41 to 1.13/0.43, horizon band 5.23/8.02 to 2.18/1.79; t 30.7 frame 3.34/4.64 to
+  2.16/1.43, mid 5.11/11.05 to 3.44/3.83; t 32.0 frame 3.88/4.81 to 2.62/2.26, mid 5.84/13.43 to 3.75/7.39, low
+  5.39/6.86 to 3.96/3.25; t 34.3 frame 2.19/1.62 to 1.07/0.32. Wide view t 35.5 frame 1.61/0.88 to 0.72/0.12; beach view
+  t 36.5 frame 1.33/0.55 to 0.51/0.06. Bore: player view t 40.2 band 3.17/3.79 to 1.85/0.99, t 41.5 band 3.51/4.80 to
+  1.73/1.02; wide view t 40.85 mid 2.21/1.90 to 1.19/0.42. The motion itself (d8) falls less (t 25.8 frame 5.06 to
+  3.43, t 32.0 6.93 to 5.63): the waves still move, mostly the calmer ripples. Stills in reference/r20-shots/
+  (git-ignored): key_jitter_pv_32 and key_jitter_bore_pv (frame and jitter map, before over after), bf_cu_1/bf_cu_2 (the
+  bore at the player view, t 40.4-41.0, before/after), bf_pv_1/bf_pv_2 (t 40.3-41.5); the rest are iterations. The soft
+  tier (?soft=1) compiles and renders; no shader errors, only the preview's pointer-lock ones.
+- Limits: not play-tested (the real loop did not run); mvPx assumes 60 fps, so at lower frame rates the blur covers
+  less than the true motion; the jitter is lower, not gone (player view mid at t 32.0 still flips on 7 % of frames);
+  the vertex shader evaluates the surface a second time where there is foam (cost not measured); one small soft blob
+  can remain over a far bore (t 41.5); the bore's look was judged by eye.
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
