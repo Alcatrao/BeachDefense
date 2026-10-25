@@ -1125,6 +1125,55 @@ splashes) only.
   loop of streaks and drops per fragment, up to a few hundred sprites) and whether it thins the other plumes in a full
   pool were not measured; the crest was judged on seed 1's inner and outer bars only.
 
+## Round 23 (25 Oct 2026, owner: "Keep autonomously testing it and refining water, waves, splash, tubes and so forth,
+## and research new approaches to it as well, keeping performance in consideration. I'm also not against using a
+## different library/engine altogether (like unity or something instead of 3js) if you think it would be more adequate")
+Committed with the code; nothing pushed. The tubes, the pinned-white foam and the bright AoM look are unchanged (owner
+choices); two of the three changes are speed-ups that draw the same pixels.
+- Engine: stay on three.js (WebGLRenderer, GLSL). Unity's HDRP water, Crest and KWS do not run in web builds, Godot's
+  web export is WebGL2 only (no C#), Babylon.js and PlayCanvas would be a rewrite of every shader for no gain, and
+  Unreal has no web export; any switch adds a rewrite and, for Unity and Godot, multi-MB wasm downloads. Since r184
+  WebGLRenderer can run TSL node materials, so a later WebGPU port can go one material at a time on the current
+  renderer. Reconsider if the surf needs GPU-held state (a simulation) or if three.js deprecates WebGLRenderer; before
+  a WebGPU port, check three.js issue #30560 (many draw calls are slow there; the tiles below add up to 47) and
+  renderer.info.render.calls. Sources and the comparison: notes-claude/research-r23-engines.md.
+- Techniques shortlist (notes-claude/research-r23-techniques.md, ranked, with sources): pixel-footprint LOD on the
+  sprites, order-free bounded blending on the bore's line, a diagnostic ladder with GPU timer queries (done, below), a
+  mipmapped atlas baked from the procedural sprite shapes, velocity-stretched drops, lip translucency (per-channel
+  Beer-Lambert and a sun-behind lobe), specular anti-aliasing, an analytic shallow-water look.
+- GPU timing (reference/helpers_r23.js, git-ignored): EXT_disjoint_timer_query_webgl2 around each layer's draw, or
+  around the whole frame with a variant material, after a warm-up (the GPU clock ramps under load), the variants
+  interleaved frame by frame, median and p25 of 40-100 frames; NPCs hidden. Preview quality medium, 1920x1080.
+- The water surface in tiles (buildGeometry, createSurf): one position attribute and one index, 48 draw ranges (8
+  across at x -2000, -800, -400, 0, 400, 800, 2000; 6 deep at z -125, 100, 250, 460, 1200), each a Mesh with its own
+  bounding sphere (the rest grid widened by the rows' slide, the rogue lip's throw and its height range), so the
+  camera's frustum culls them; surf.mesh is now a Group. The vertex shader (surfPos three or four times) was a third
+  of the water's cost and about half the grid is out of view from the beach. Pixel-identical (frame diff 0). Water
+  GPU time, player view 0.879 -> 0.703 ms, outer bore 1.387 -> 1.27, jet close 1.047 -> 0.708.
+- The bore's line (sline()) discards at once outside the sheet's dome and the drops over it, and of its eleven
+  streaks draws only the five nearest X (with their drops). Pixel-identical. Splash GPU time, outer bore 1.49 ->
+  1.19 ms, jet close 1.27 -> 0.94.
+- Lobed foam holes (lace(..., lw)): on the two coarse lace scales each hole's radius varies by a random 2- and
+  3-lobed term, so they are torn shapes; the domain warp that broke up the circles fades where the foam slides fast,
+  and the motion blur then stretched round holes into rows of capsules. The fine scale stays round. Water +0.04-0.07
+  ms (p25); deterministic like the rest.
+- Flicker, measured: hi (__tseq) also counts every edge that sweeps over a pixel (one step of s gives hi ~0.12 s over
+  30 frames), so the tube face's high hi in the player view was the lip arriving (per-pixel sequences: one clean step,
+  base 171 -> 246), not shimmer; no single shading term changed it. The new zz (__zz) counts only zig-zags (for each
+  pair of successive frame changes of opposite sign, the smaller): player view t 47.6 band 0.214 (z2 0.4 %, z4 0,
+  p99 1.66 levels a frame), water alone in its middle 0.226; game view t 48.9 0.164; beach t 49.55 0.05. The bore's
+  line (Round 22's open item), player view band t 51.9-52.4: 0.18-0.19 with it against 0.07 without (z2 0.2-0.35 %,
+  z4 <= 0.01 %, p99 1.3-1.4), the size of the water's own, so not a visible twinkle. Flat rectangles in its place add
+  none; no one feature of its picture (drops, streaks, tears, breaking, LOD) accounts for more than a seventh, one
+  flat colour (which also lowers its contrast on the white bore) for about two thirds; the sprites draw in fixed slot
+  order, so it is not a changing draw order. Left as it is.
+- Verified (headless preview, 1920x1080, seed 1): stills before and after each change (r23a-i in reference/r20-shots,
+  git-ignored; the lobed holes face on and on the lip r23d_fc476, r23d_lip476, the player view r23e_pv476); timings
+  as above; flicker as above. No shader errors, only the preview's pointer-lock ones.
+- Limits: not play-tested; timed on this PC's GPU only (the software tier and phones not timed); lip translucency,
+  specular anti-aliasing, sprite LOD and order-free blending were researched, not tried; the tiles' bounds are sized
+  from evalSurf's ranges, so a much bigger rogue wave would need them widened.
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to

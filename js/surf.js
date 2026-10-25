@@ -896,12 +896,14 @@ const mat2 ROT = mat2(0.8, -0.6, 0.6, 0.8); // rotates each octave so the noise 
 // foam left between the holes of one scale (h: 1 at a hole's centre, 0 on its rim, -0.5 at 1.5 radii): 0 inside a
 // hole, a soft translucent rim, thickest far from holes
 float laceScale(float h) { return smoothstep(0.12, -0.45, h); }
-// one scale of lace: round holes of random size scattered over a jittered grid; grow scales every hole, so foam opens
-// up from pin holes into a lace. Averaged over a frame in which the pattern slides m (cells) under the pixel, as a
-// motion blur: each hole sweeps a capsule, and a point on its track is inside the hole for the chord through it (half
-// length hw at the soft rim's middle, 1.165 radii), a share 2 hw / |m| of the frame; the swept holes thin the foam
-// together. Unblurred (m = 0) the overlapping holes merge.
-float lace(vec2 p, float t, float grow, vec2 m) {
+// one scale of lace: holes of random size scattered over a jittered grid; grow scales every hole, so foam opens
+// up from pin holes into a lace. With lw = 1 each hole's radius varies around it by a random 2- and 3-lobed term
+// (cos 2θ, sin 2θ)·q and (cos 3θ, sin 3θ)·q.yx, so the holes are torn shapes, not circles; lw = 0 keeps them round.
+// Averaged over a frame in which the pattern slides m (cells) under the pixel, as a motion blur: each hole sweeps a
+// capsule, and a point on its track is inside the hole for the chord through it (half length hw at the soft rim's
+// middle, 1.165 radii), a share 2 hw / |m| of the frame; the swept holes thin the foam together. Unblurred (m = 0)
+// the overlapping holes merge.
+float lace(vec2 p, float t, float grow, vec2 m, float lw) {
   vec2 i = floor(p), f = fract(p);
   float mm = max(dot(m, m), 1e-8), lm = sqrt(mm), h = -4.0, a = 1.0;
   for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
@@ -909,8 +911,13 @@ float lace(vec2 p, float t, float grow, vec2 m) {
     vec2 o = hash2(i + g);
     vec2 c = g + 0.5 + 0.36 * sin(t * (0.6 + 0.5 * o.yx) + 6.2831 * o) - f;
     float r = (0.18 + 0.5 * o.x * o.y) * grow, cm = dot(c, m);
-    float hc = 1.0 - length(c - m * clamp(cm / mm, -0.5, 0.5)) / r;
-    float hw = sqrt(max(1.357 * r * r - dot(c, c) + cm * cm / mm, 0.0));
+    // dd: from the nearest point of the hole's track; the lobe terms written without normalising dd (re >= 0.29 r)
+    vec2 dd = c - m * clamp(cm / mm, -0.5, 0.5), q = o * 2.0 - 1.0;
+    float ld = length(dd), il = lw / max(ld * ld, 1e-8);
+    float re = r * (1.0 + il * (0.3 * dot(vec2(dd.x * dd.x - dd.y * dd.y, 2.0 * dd.x * dd.y), q)
+      + 0.2 / max(ld, 1e-4) * dot(vec2(dd.x * (4.0 * dd.x * dd.x - 3.0 * ld * ld), dd.y * (3.0 * ld * ld - 4.0 * dd.y * dd.y)), q.yx)));
+    float hc = 1.0 - ld / re;
+    float hw = sqrt(max(1.357 * re * re - dot(c, c) + cm * cm / mm, 0.0));
     h = max(h, hc);
     a *= 1.0 - (1.0 - laceScale(hc)) * min(1.0, 2.0 * hw / lm);
   }
@@ -918,7 +925,9 @@ float lace(vec2 p, float t, float grow, vec2 m) {
 }
 
 // Foam thickness (0 = none; about 1 = opaque) at foam coordinates p.
-// Foam is a sheet of bubbles with round holes at three scales (domain-warped so they are not perfect circles).
+// Foam is a sheet of bubbles with holes at three scales, domain-warped so they are not perfect circles. The warp
+// fades where the foam slides fast, and the motion blur would then stretch round holes into rows of capsules, so
+// the two coarse scales also get random lobed outlines.
 // The holes are sized so the foam covers about fa of the surface (one hole per cell of mean area
 // pi E[r^2] = 0.33 g^2, so a scale leaves exp(-0.33 g^2) uncovered); young foam has mostly small holes,
 // old foam opens into a coarse lace around large ones. Thickness grows away from the holes.
@@ -955,9 +964,9 @@ float foamThick(vec2 p, float fa, float age, float dist, vec2 sl, float dfa, out
   vec3 km = 0.4 + 0.6 * (1.0 - smoothstep(0.15, 0.45, sqv * vec3(0.12, 0.35, 1.05))) * (1.0 - smoothstep(0.05, 0.2, 0.3 * abs(dg)));
   k1 *= km.x; k2 *= km.y; k3 *= km.z;
   vec3 mean = exp(-0.33 * g * g) * 0.85;                         // a faded scale is replaced by its mean cover
-  float f1 = k1 > 0.0 ? mix(mean.x, lace(q * 0.12, uTime * 0.25, g.x, sq * 0.12), k1) : mean.x;
-  float f2 = k2 > 0.0 ? mix(mean.y, lace(q * 0.35 + 5.1, uTime * 0.45, g.y, sq * 0.35), k2) : mean.y;
-  float f3 = k3 > 0.0 ? mix(mean.z, lace(q * 1.05 + 2.7, uTime * 0.8, g.z, sq * 1.05), k3) : mean.z;
+  float f1 = k1 > 0.0 ? mix(mean.x, lace(q * 0.12, uTime * 0.25, g.x, sq * 0.12, 1.0), k1) : mean.x;
+  float f2 = k2 > 0.0 ? mix(mean.y, lace(q * 0.35 + 5.1, uTime * 0.45, g.y, sq * 0.35, 1.0), k2) : mean.y;
+  float f3 = k3 > 0.0 ? mix(mean.z, lace(q * 1.05 + 2.7, uTime * 0.8, g.z, sq * 1.05, 0.0), k3) : mean.z;
   float lace = f1 * f2 * f3;
   return lace * (0.2 + 0.7 * clamp(fa, 0.0, 1.6)) * (0.6 + 0.6 * ft) * smoothstep(0.0, 0.3, fa); // sparse foam is a thin film
 }
@@ -1375,18 +1384,41 @@ function buildGeometry(quality) {
       zPrev[i] = z;
     }
   }
-  const idx = new Uint32Array((nx - 1) * (nz - 1) * 6);
+  // The grid is drawn as tiles (one index buffer, a draw range each) that the camera's frustum culls: about half of
+  // it is out of view from the beach, and the vertex shader (surfPos three or four times) is a third of the water's
+  // cost. The tiles go shore to sea and left to right, as the one grid did. Their bounds are the rest grid widened by
+  // how far the vertices move: the rows slide by one step, a rogue lip is thrown up to ~120 shoreward and its surface
+  // spans y -28..83 (evalSurf), so y -60..130 and z -170..+60 leave a margin.
+  const cx = [-2000, -800, -400, 0, 400, 800, 2000].map(x => xs.findIndex(v => v >= x));
+  const cz = [-125, 100, 250, 460, 1200].map(z => zs.findIndex(v => v >= z));
+  const ci = [0, ...cx, nx - 1], cj = [0, ...cz, nz - 1];
+  const idx = new Uint32Array((nx - 1) * (nz - 1) * 6), tiles = [];
   k = 0;
-  for (let j = 0; j < nz - 1; j++) for (let i = 0; i < nx - 1; i++) {
-    const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
-    idx[k++] = a; idx[k++] = c; idx[k++] = b;
-    idx[k++] = b; idx[k++] = c; idx[k++] = d;
+  for (let tj = 0; tj < cj.length - 1; tj++) for (let ti = 0; ti < ci.length - 1; ti++) {
+    const start = k;
+    let z0 = Infinity, z1 = -Infinity;
+    for (let j = cj[tj]; j < cj[tj + 1]; j++) for (let i = ci[ti]; i < ci[ti + 1]; i++) {
+      const a = j * nx + i, b = a + 1, c = a + nx, d = c + 1;
+      idx[k++] = a; idx[k++] = c; idx[k++] = b;
+      idx[k++] = b; idx[k++] = c; idx[k++] = d;
+    }
+    for (let j = cj[tj]; j <= cj[tj + 1]; j++) for (let i = ci[ti]; i <= ci[ti + 1]; i++) {
+      const z = pos[(j * nx + i) * 3 + 2], s = pos[(j * nx + i) * 3 + 1];
+      z0 = Math.min(z0, z, z + s); z1 = Math.max(z1, z, z + s);
+    }
+    const box = new THREE.Box3(new THREE.Vector3(xs[ci[ti]], -60, z0 - 170), new THREE.Vector3(xs[ci[ti + 1]], 130, z1 + 60));
+    tiles.push({ start, count: k - start, sphere: box.getBoundingSphere(new THREE.Sphere()) });
   }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-  g.setIndex(new THREE.BufferAttribute(idx, 1));
-  g.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, 2300), 8000);
-  return { geometry: g, vertices: nx * nz, ds };
+  const position = new THREE.BufferAttribute(pos, 3), index = new THREE.BufferAttribute(idx, 1);
+  const geometries = tiles.map(t => {
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', position);
+    g.setIndex(index);
+    g.setDrawRange(t.start, t.count);
+    g.boundingSphere = t.sphere;
+    return g;
+  });
+  return { geometries, vertices: nx * nz, ds };
 }
 
 // ---------- spray particles ----------
@@ -2126,9 +2158,20 @@ vec4 sline() {
   float yt = 0.94 - 1.1 * X * X + 0.05 * sin(X * 23.0 + 6.283 * jh(1.0)) + 0.035 * sin(X * 47.0 + 6.283 * jh(2.0));
   float th = 0.2 + 0.07 * sin(X * 17.0 + 6.283 * jh(3.0));
   float nv = vn(vec2(X * 9.0, Y * 7.0)), nw = fwidth(nv);
+  // (Round 23) nothing is drawn beyond the sheet's dome and the drops over it, so those pixels go at once; and of the
+  // eleven streaks (each with its drops) only the five nearest X are drawn: a streak's centre runs from x0 = 0.084
+  // (i - 5) (+-0.025) at its top out to 1.45 x0 at its foot, its drops fly at 1.05-1.2 x0 over the sheet. All eleven,
+  // with their hashes, for every pixel of hundreds of overlapping sprites cost as much as the water surface itself
+  float ax = max(abs(X) - 0.03 - aa, 0.0);
+  if (abs(X) > 0.97 + aa || Y > 1.2 - 1.1 * ax * ax + aa) discard;
   float tear = mix(smoothstep(0.2 + 0.6 * brk - nw, 0.3 + 0.6 * brk + nw, nv), 1.0 - smoothstep(0.1, 0.9, 0.25 + 0.6 * brk), lod);
   float a = smoothstep(yt + aa, yt - aa, Y) * smoothstep(yt - th - 0.12, yt - th, Y) * tear;
-  for (int i = 0; i < 11; i++) {
+  float xe = X / 1.1, y0e = 0.86 - 1.1 * xe * xe;
+  float m = Y > y0e ? 1.12 : 1.0 + 0.45 * clamp((y0e - Y) / max(y0e - 0.2, 0.05), 0.0, 1.0);
+  int ic = int(floor(5.5 + X / (0.084 * m)));
+  for (int j = -2; j <= 2; j++) {
+    int i = ic + j;
+    if (i < 0 || i > 10) continue;
     float fi = float(i), s = (fi - 5.0) / 5.0 + 0.12 * (jh(fi + 30.0) - 0.5);
     // from inside the sheet down to near the foot, fanning out as it falls, tapering, a little wavy
     float x0 = 0.42 * s, y0 = 0.86 - 1.1 * x0 * x0, yb = 0.05 + 0.3 * jh(fi + 31.0);
@@ -2504,7 +2547,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
   // here and keeps the de-tiled layers' doubled fetches cheap on GPUs short of texture throughput
   normTex.anisotropy = soft ? 1 : 4;
 
-  const { geometry, vertices, ds: rowDs } = buildGeometry(quality);
+  const { geometries, vertices, ds: rowDs } = buildGeometry(quality);
   const uniforms = {
     uTime: { value: 0 },
     uRowF: { value: 0 },
@@ -2524,9 +2567,14 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
     side: THREE.DoubleSide,
     transparent: true,
   });
-  const mesh = new THREE.Mesh(geometry, material);
-  mesh.frustumCulled = false;
+  // the tiles (see buildGeometry), in their order and first of the see-through things (the trails are drawn over it)
+  const mesh = new THREE.Group();
   mesh.name = 'surf';
+  geometries.forEach((g, k) => {
+    const m = new THREE.Mesh(g, material);
+    m.renderOrder = -0.5 + 1e-4 * k;
+    mesh.add(m);
+  });
   scene.add(mesh);
 
   const decals = new Decals(scene, uniforms, 1024);
@@ -2815,7 +2863,7 @@ export function createSurf(scene, { sunDir, quality = 'medium', rogueIn, look = 
     setLook(L) { applyLook(material.uniforms, typeof L === 'string' ? LOOKS[L] : L); },
     dispose() {
       scene.remove(mesh); scene.remove(spray.points); decals.dispose(scene); splashes.dispose(scene); curtain.dispose(scene);
-      geometry.dispose(); material.dispose();
+      geometries.forEach(g => g.dispose()); material.dispose();
       spray.points.geometry.dispose(); spray.points.material.dispose();
     },
   };
