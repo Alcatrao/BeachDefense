@@ -23,6 +23,7 @@ export const SURF = {
   q: 0.55,            // horizontal crest sharpening (Gerstner-like)
   setLen: 7,          // waves per set
   runup: 3.2,         // swash run-up length per unit wave height
+  swashLobe: 0.3,     // how much a wave's run-up varies along the beach (+-; its lobes are ~7-14 m wide)
   film: 1.4,          // swash film thickness over the sand
   flatSand: 100,      // must match main.js FLAT_SAND_WIDTH
   duneStart: -650,    // must match main.js DUNE_START
@@ -108,6 +109,16 @@ function waveBaseHn(fn) {
 }
 function waveHn(fn, x) {
   return waveBaseHn(fn) * SURF.innerGain + (SURF.rogueH / 3 - waveBaseHn(fn) * SURF.innerGain) * rogueG(fn, x);
+}
+// Each wave's swash runs up further in some places than in others: lobes along the beach (-1..1, fixed per wave;
+// mirrored in GLSL), and their slope along x.
+function swashLobe(fn, x) {
+  return 0.55 * Math.sin(x * 0.045 + fn * 2.7) + 0.33 * Math.sin(x * 0.097 + fn * 4.1 + 1.3)
+    + 0.12 * Math.sin(x * 0.16 + fn * 1.9 + 0.4);
+}
+function swashLobeDx(fn, x) {
+  return 0.02475 * Math.cos(x * 0.045 + fn * 2.7) + 0.03201 * Math.cos(x * 0.097 + fn * 4.1 + 1.3)
+    + 0.0192 * Math.cos(x * 0.16 + fn * 1.9 + 0.4);
 }
 function waveParams(fn, x, o) {
   const h = hashU((fn + 100000) | 0);
@@ -345,14 +356,20 @@ export function evalSurf(x, z, t, curl, out = {}) {
     const phi0 = phaseAt(x, 0, t);
     const f0 = Math.floor(phi0 / TAU);
     const tau = phi0 / TAU - f0;
-    const R = SURF.runup * waveHn(f0, x);
     const tt = tau / 0.75;
-    const r = tt < 1 ? R * (tt < 0.3 ? Math.sin(tt / 0.3 * 1.5708) : Math.cos((tt - 0.3) / 0.7 * 1.5708)) : 0;
-    wet = sstep(-r - 3, -r + 12, d);
+    const lob = SURF.swashLobe * swashLobe(f0, x);
+    const R0 = SURF.runup * waveHn(f0, x), R = R0 * (1 + lob);
+    const r0 = tt < 1 ? R0 * (tt < 0.3 ? Math.sin(tt / 0.3 * 1.5708) : Math.cos((tt - 0.3) / 0.7 * 1.5708)) : 0;
+    const r = r0 * (1 + lob);
+    // the bands along the front are measured across it (along d, its steep lobe sides would thin them to slivers)
+    const gF = r0 * SURF.swashLobe * swashLobeDx(f0, x);
+    wet = sstep(-3, 12, (d + r) / Math.sqrt(1 + gF * gF));
     const bed = d > 0 ? sand - SURF.slope * d : sand;
     // sand the swash has wetted (up to the highest run-up of this or the last wave) keeps a thin layer just above it
-    const Rw = Math.max(tt < 0.3 ? r : R, SURF.runup * waveHn(f0 - 1, x) * 0.8);
-    const dampSand = sstep(-Rw - 12, -Rw - 4, d); // drops below the sand only where it is already invisible
+    const Rp = SURF.runup * waveHn(f0 - 1, x) * 0.8, Rc = tt < 0.3 ? r : R;
+    const Rq = Rp * (1 + SURF.swashLobe * swashLobe(f0 - 1, x)), Rw = Math.max(Rc, Rq);
+    const gW = Rc >= Rq ? (tt < 0.3 ? r0 : R0) * SURF.swashLobe * swashLobeDx(f0, x) : Rp * SURF.swashLobe * swashLobeDx(f0 - 1, x);
+    const dampSand = sstep(-12, -4, (d + Rw) / Math.sqrt(1 + gW * gW)); // drops below the sand only where it is already invisible
     const ys = bed + SURF.film * wet + (0.2 * dampSand - 1.5 * (1 - dampSand)) * (1 - wet);
     const k = sstep(40, 20, d);
     // smooth max of the sea surface and the swash film: a hard max leaves a crease the grid renders as a staircase
@@ -429,6 +446,7 @@ const float BSPAN = ${SURF.breakSpan.toFixed(5)};
 const float QQ = ${SURF.q.toFixed(5)};
 const float SETLEN = ${SURF.setLen.toFixed(5)};
 const float RUNUP = ${SURF.runup.toFixed(5)};
+const float SWLOBE = ${SURF.swashLobe.toFixed(5)};
 const float FILM = ${SURF.film.toFixed(5)};
 const float FLATSAND = ${SURF.flatSand.toFixed(5)};
 const float DUNESTART = ${SURF.duneStart.toFixed(5)};
@@ -484,6 +502,13 @@ float boreRag(float fn, float x) {
   return 0.45 * sin(x * 0.093 + fn * 3.7) + 0.35 * sin(x * 0.17 + fn * 1.3 + 2.0) + 0.2 * sin(x * 0.24 + fn * 5.1 + 0.7);
 }
 float waveHn(float fn, float x) { float b = waveBaseHn(fn) * INGAIN; return b + (ROGUEH / 3.0 - b) * rogueG(fn, x); }
+// how much further than the mean wave fn's swash runs up at x (-1..1), and its slope along x
+float swashLobe(float fn, float x) {
+  return 0.55 * sin(x * 0.045 + fn * 2.7) + 0.33 * sin(x * 0.097 + fn * 4.1 + 1.3) + 0.12 * sin(x * 0.16 + fn * 1.9 + 0.4);
+}
+float swashLobeDx(float fn, float x) {
+  return 0.02475 * cos(x * 0.045 + fn * 2.7) + 0.03201 * cos(x * 0.097 + fn * 4.1 + 1.3) + 0.0192 * cos(x * 0.16 + fn * 1.9 + 0.4);
+}
 // where crest fn starts to break at x: on the outer bar if it is big enough (surfPos's dbA), else its inner-bar
 // break distance (db0)
 float breakZone(float fn, float x) {
@@ -532,7 +557,7 @@ float rollerLumps(float x, float u, float fn) {
     + 0.25 * sin(x * 0.131 - u * 0.09 + 1.3 * t) + 0.2 * sin(x * 0.17 + u * 0.21 + 1.6 * t + fn);
 }
 // returns displaced position; foam/thin/wet via out params
-vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out float sandW, out float age) {
+vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out vec4 sandW, out float age) {
   float x = xz.x, z = xz.y;
   float zs = shoreZ(x);
   float d = z - zs;
@@ -680,35 +705,46 @@ vec3 surfPos(vec2 xz, out float foam, out float thin, out float wetOut, out floa
   if (d < 0.0) y = min(y, sand - 1.6);
   float wet = 0.0;
   float filmP = d > 0.0 ? 1.0 : 0.0; // is there water here (not just damp sand)?
-  sandW = 0.0;
+  sandW = vec4(100.0, 100.0, 0.0, 0.0); // no damp sand
   if (d < 40.0) {
     float phi0 = phaseAt(x, 0.0);
     float f0 = floor(phi0 / TAU);
     float tau = phi0 / TAU - f0;
-    float R = RUNUP * waveHn(f0, x);
     float tt = tau / 0.75;
-    float r = tt < 1.0 ? R * (tt < 0.3 ? sin(tt / 0.3 * 1.5708) : cos((tt - 0.3) / 0.7 * 1.5708)) : 0.0;
-    wet = sstep(-r - 3.0, -r + 12.0, d);
+    // each wave runs up further in some places than in others (lobes along the beach, new ones every wave)
+    float lob = SWLOBE * swashLobe(f0, x);
+    float R0 = RUNUP * waveHn(f0, x), R = R0 * (1.0 + lob);
+    float r0 = tt < 1.0 ? R0 * (tt < 0.3 ? sin(tt / 0.3 * 1.5708) : cos((tt - 0.3) / 0.7 * 1.5708)) : 0.0;
+    float r = r0 * (1.0 + lob);
+    // dF: distance seaward of the front, measured across it (along d, its steep lobe sides thinned every band along
+    // it to a sliver and frayed it into teeth on the grid)
+    float gF = r0 * SWLOBE * swashLobeDx(f0, x);
+    float dF = (d + r) * inversesqrt(1.0 + gF * gF);
+    wet = sstep(-3.0, 12.0, dF);
     filmP = max(filmP, wet);
     float bed = d > 0.0 ? sand - SLOPE * d : sand;
-    // sand the swash has wetted (up to the highest run-up of this or the last wave) keeps a thin layer just above it
-    float Rw = max(tt < 0.3 ? r : R, RUNUP * waveHn(f0 - 1.0, x) * 0.8);
-    float dampSand = sstep(-Rw - 12.0, -Rw - 4.0, d);
+    // sand the swash has wetted (up to the highest run-up of this or the last wave) keeps a thin layer just above it;
+    // dW: distance seaward of that line, across it
+    float Rp = RUNUP * waveHn(f0 - 1.0, x) * 0.8, Rc = tt < 0.3 ? r : R;
+    float Rq = Rp * (1.0 + SWLOBE * swashLobe(f0 - 1.0, x)), Rw = max(Rc, Rq);
+    float gW = Rc >= Rq ? (tt < 0.3 ? r0 : R0) * SWLOBE * swashLobeDx(f0, x) : Rp * SWLOBE * swashLobeDx(f0 - 1.0, x);
+    float dW = (d + Rw) * inversesqrt(1.0 + gW * gW);
+    float dampSand = sstep(-12.0, -4.0, dW);
     float ys = bed + FILM * wet + (0.2 * dampSand - 1.5 * (1.0 - dampSand)) * (1.0 - wet);
     float k = sstep(40.0, 20.0, d);
     float hm = clamp(0.5 + 0.5 * (ys - y) / 2.5, 0.0, 1.0);
     float ym = y + (ys - y) * hm + 2.5 * hm * (1.0 - hm);
     y += (ym - y) * k; dA += (d - dA) * k * hm * (1.0 - wm); // pulling the step back to rest would lean it
-    // wet-sand look: dark where damp, a glassy film just behind the retreating water
-    float edge = max(-d - r, 0.0);
-    float glaze = tt > 0.3 ? exp(-edge / (0.25 * R + 4.0)) : 0.0;
-    float damp = sstep(-Rw - 2.0, -Rw + 6.0, d) * (1.0 - sstep(-r - 6.0, -r + 2.0, d)) * sstep(10.0, 0.0, d);
-    sandW = damp * (1.0 + glaze) * 0.5; // 0..0.5 damp, up to 1 with the glassy film
+    // wet-sand look (dark where damp, a glassy film just behind the retreating water), shaded per pixel from these
+    // distances: the shading itself, interpolated over the grid's 4.7 columns, left steps along the lobes' steep sides
+    sandW = vec4(dW, dF, sstep(10.0, 0.0, d), tt > 0.3 ? 1.0 / (0.25 * R + 4.0) : 0.0);
     // foam on the swash, densest at the uprush tip
-    float tip = sstep(-r - 3.0, -r + 4.0, d) * (1.0 - sstep(-r + 4.0, -r + 20.0, d));
+    float tip = sstep(-3.0, 4.0, dF) * (1.0 - sstep(4.0, 20.0, dF));
     wet = clamp(max(wet * 0.3 * sstep(10.0, -5.0, d), 0.85 * tip), 0.0, 1.0) * sstep(1.0, 0.9, tt);
     // swash foam rides up and back with the water, and opens into a lace once the backwash starts
-    gDrift = r * sstep(30.0, 30.0 - max(4.0 * r, 40.0), d); // ramp >= 4r long: the foam never folds over and stretches at most ~1.6x
+    // ramp >= 4r long: the foam never folds over and stretches at most ~1.6x (the unlobed run-up: the lobes' slope
+    // along x would shear the foam texture)
+    gDrift = r0 * sstep(30.0, 30.0 - max(4.0 * r0, 40.0), d);
     swAge = sstep(0.25, 0.85, tt);
   }
 
@@ -775,7 +811,7 @@ varying vec3 vNrm;
 varying float vFoam;
 varying float vThin;
 varying float vDepth;
-varying float vSand;
+varying vec4 vSand; // the damp sand's distances: seaward of the run-up's line and of the front, near the shore, glaze
 varying float vAge;
 varying float vLand;
 varying vec2 vRest;
@@ -787,7 +823,8 @@ varying float vDFoam; // and how much its foam (vFoam) grows in that frame
 varying vec2 vDBrk;   // and how far the breaker's frame (vBrk.xy, which rides the crest) moves over it in that frame
 uniform float uRowF; // how far the rows have slid toward the next one shoreward (see buildGeometry)
 void main() {
-  float f, th, wt, sw, ag, f1, t1, w1, s1, a1;
+  float f, th, wt, ag, f1, t1, w1, a1;
+  vec4 sw, s1;
   vec2 xz = position.xz + vec2(0.0, uRowF * position.y);
   vec3 P = surfPos(xz, f, th, wt, sw, ag);
   float drift = gDrift;
@@ -855,7 +892,7 @@ varying vec3 vNrm;
 varying float vFoam;
 varying float vThin;
 varying float vDepth;
-varying float vSand;
+varying vec4 vSand;
 varying float vAge;
 varying float vLand;
 varying vec2 vRest;
@@ -1240,10 +1277,13 @@ void main() {
   W *= 1.0 - haze;
 
   // damp sand left by the swash: a dark, transparent layer, mirror-like where the film is still draining
-  // (the layer and the dry-sand drop are judged per pixel from the interpolated depth, so the edge is smooth)
+  // (the layer and the dry-sand drop are judged per pixel from the interpolated depth, so the edge is smooth, and
+  // so are its damp line and its glassy film from the interpolated distances to the run-up's line and the front)
   float sandL = (1.0 - smoothstep(0.3, 0.7, vDepth)) * vLand;
   if (sandL > 0.0) {
-    float damp = min(vSand * 2.0, 1.0), glaze = clamp(vSand * 2.0 - 1.0, 0.0, 1.0);
+    float edge = max(-vSand.y, 0.0), gl = vSand.w > 0.0 ? exp(-edge * vSand.w) : 0.0;
+    float sw = smoothstep(-2.0, 6.0, vSand.x) * (1.0 - smoothstep(-6.0, 2.0, vSand.y)) * vSand.z * (1.0 + gl);
+    float damp = min(sw, 1.0), glaze = clamp(sw - 1.0, 0.0, 1.0); // 0..1 damp, then up to 1 glassy film
     vec3 Ns = normalize(vec3(0.0, 1.0, 0.0) + vec3(dn.x, 0.0, dn.y) * 0.03);
     float Fs = 0.02 + 0.98 * pow(1.0 - max(dot(Ns, V), 0.0), 5.0);
     vec3 Rs = reflect(-V, Ns);
@@ -1324,10 +1364,12 @@ function gridLines(min, max, fine0, fine1, base, grow) {
 // where the straight grid rendered them as teeth. The surface itself is unchanged (surfPos is sampled at the
 // moved rest positions). The rows fade back to straight lines outside the play area (|x| 1000 -> 2000, and
 // from z 600 to 2000 offshore), so the far field and the mesh edges stay as they were; the near edge follows
-// row 0, which stays under the sand (d < -125, the swash reaches about -90).
+// row 0, which stays under the sand. On the sand the phase lines run obliquely to the shore (d changes by up to
+// ~100 along a row in the play area), so the fine rows start at d -245 at x 0 to reach d -146 or further all along
+// the beach: the lobed swash runs up to about d -120, and the sand it wetted stays damp up to ~12 further.
 // The rows also travel with the crests. Standing still, they were crossed by every crest ~10 times a second, and
 // each crossing changed how the mesh caught a bore's sharp top: its edge jumped up and down by a pixel or so all
-// the way in. From d -125 to z 460 the rows are evenly spaced in phase, ds apart (the base spacing 200 out, finer
+// the way in. From d -245 to z 460 the rows are evenly spaced in phase, ds apart (the base spacing 200 out, finer
 // toward the shore, where the waves shorten), and each one slides toward the next row shoreward by uRowF of the
 // way (the step is kept in position.y), which goes 0 -> 1 as the waves advance by ds and starts over: the mesh
 // is then the same as it was, one row on, so the crests see the same rows all the time. The rows below stand
@@ -1339,10 +1381,10 @@ function buildGeometry(quality) {
   const xs = gridLines(-4950, 4950, -800, 800, 3.5 * f, 0.0075);
   const sh0 = shoreZ(0), ph0 = wobble(0);
   const ds = 1.3 * f * kOf(200), zs = [];
-  const zB = sh0 - 125, nL = Math.ceil((zB + 260) / (3.9 * f)); // coarse rows under the sand
-  for (let j = 0; j < nL; j++) zs.push(-260 + (zB + 260) * j / nL);
+  const dB = -245, zB = sh0 + dB, nL = Math.ceil(40 / (3.9 * f)); // coarse rows under the sand
+  for (let j = 0; j < nL; j++) zs.push(zB - 40 + 40 * j / nL);
   const j0 = zs.length; // the lowest row that moves follows this one
-  for (let s = sOf(-125), d = -125; ; s += ds) {
+  for (let s = sOf(dB), d = dB; ; s += ds) {
     for (let it = 0; it < 20; it++) d -= (sOf(d) - s) / kOf(d);
     if (sh0 + d > 460) break;
     zs.push(sh0 + d);
@@ -1576,7 +1618,8 @@ void main() {
   vec2 q = position.xy * vec2(aC.x, -1.0) * aA.z; // y flipped onto z: the quad faces up (front side)
   float c = cos(aA.w), s = sin(aA.w);
   vec2 xz = aA.xy + aC.zw * (uTime - aB.x) + vec2(c * q.x - s * q.y, s * q.x + c * q.y);
-  float f, th, wt, sw, ag;
+  float f, th, wt, ag;
+  vec4 sw;
   gFlat = true; // on the water at (x, z) itself, where the splash or the body is (the mesh bunches its points at crests)
   vec3 P = surfPos(xz, f, th, wt, sw, ag);
   // gone where the water is too shallow to hold foam (the swash draining off the sand)

@@ -1174,6 +1174,50 @@ choices); two of the three changes are speed-ups that draw the same pixels.
   specular anti-aliasing, sprite LOD and order-free blending were researched, not tried; the tiles' bounds are sized
   from evalSurf's ranges, so a much bigger rogue wave would need them widened.
 
+## Round 24 (25 Oct 2026, owner's request as for Round 23: "Keep autonomously testing it and refining water, waves,
+## splash, tubes and so forth, and research new approaches to it as well, keeping performance in consideration")
+Committed with the code; nothing pushed. The tubes, the pinned-white foam and the bright AoM look are unchanged (owner
+choices). The work went to the swash, picked by measurement and a timeline contact sheet.
+- Ruled out first (__zz, 30 frames at 1/60 s): the sun glints add no shimmer. Without the sharp glint terms zz is
+  the same in every view (frame 0.067, game 0.077, player 0.095, sea 0.285), so specular anti-aliasing is not needed.
+  The sea view's zig-zags (zz 0.389, z2 3.1 %, p99 3.1 levels a frame) come mostly from the near ripples (without
+  them 0.271) and the lace (0.241); chop, bumps, caustics, Fresnel and specular each change it by 0.02 or less. Left
+  as it is; a pixel-footprint fade of those two is the candidate if it shows in play.
+- The swash's run-up edge was ruler-straight along the beach. Each wave's run-up now varies along it (SURF.swashLobe
+  0.3; swashLobe(fn, x), three sines summing to -1..1, new lobes every wave; mirrored in evalSurf): lobes ~40-80
+  units (7-14 m) wide whose tips run a median 8 units (up to ~23) past their cusps. The damp line, the higher of this
+  wave's reach and 0.8 of the last one's, is lobed too, so the damp marks are arcs meeting in seaward cusps, like real
+  swash marks.
+- The bands along the front and the damp line are measured across them (dF, dW: the distance along d over
+  sqrt(1 + slope^2) of the line along x). Measured along d, the lobes' steep sides thinned the foam band at the tip to
+  slivers and frayed it into teeth on the grid. The swash foam's drift uses the unlobed run-up, so the lobes' slope
+  along x does not shear the foam texture.
+- Finer mesh rows up the left beach (buildGeometry). The phase lines run obliquely to the shore, so left of x ~ -150
+  the swash sat on the coarse ~5-unit rows under the sand (Round 23 too). The fine rows now start at d -245 at x 0
+  (was -125) and reach d -146 or further all along the beach; the lobed swash runs up to about d -120 and the damp
+  sand ~12 further. Grid 883 x 767, triangles 1.18 M -> 1.35 M.
+- The damp-sand look is shaded per pixel: the vertex shader passes the distances (vec4 vSand: dW, dF, a near-shore
+  factor, the glassy film's falloff) and the fragment shader evaluates the smoothsteps. Interpolated over the grid's
+  4.7-unit columns, the shading had left steps along the lobes' steep sides (seen from the top-down debug camera, not
+  the game cameras). Against the analytic map (top-down, 3 px a unit, x -720..-480, t 71.2): p99 error 21.8 -> 10.5
+  levels, pixels off by more than 25 levels 0.71 % -> 0. Game views unchanged (mean difference 0.05 levels or less,
+  max 5; the top-down swash view max 13 on 0.01 % of its pixels).
+- Cost (GPU timer queries, whole frame, the variants interleaved in both orders, p25): Round 24 against Round 23
+  +0.01-0.03 ms in the beach, game, swash-top, land and player views; the per-pixel damp line within noise (+-0.01).
+  Tried and dropped: a vertex-shader early-out for water far up the sand (no saving: the cost is the extra hidden
+  triangles, not their shading) and dropping the rows that lie under the sand across a whole tile (309 k -> 227 k
+  triangles in those tiles, pixel-identical, but within 0.01 ms).
+- CPU mirror: evalSurf follows the lobed front and damp line (the NPCs' wading and splashes sample it). GPU heights
+  against it (float render target, top-down): mean |dy| 0.0025-0.0074, max 0.47, only in the invisible damp edge.
+- Verified (headless preview, 1920x1080, seed 1, quality medium): stills r24c-j in reference/r20-shots (git-ignored;
+  the lobed swash r24f_swtl, r24f_x0; the damp line before, after and analytic r24j_damp). No shader errors, only the
+  preview's pointer-lock ones.
+- Open: main.js's loop advances the game by a fixed 1/60 s a frame (requestAnimationFrame; the owner's code,
+  unchanged), so on a 120 or 144 Hz monitor the waves, NPCs and movement run 2-2.4 times fast. Asked the owner for
+  their refresh rate before touching it.
+- Limits: not play-tested; timed on this PC's GPU only; each wave's lobes are fixed (they do not evolve during the
+  uprush); the damp line's cusps come from a hard max and stay sharp (a smooth max is the option if they look cut).
+
 ## Tooling
 .claude/launch.json ("beach-claude": python http.server on 8771 serving this worktree).
 notes-claude/_move.js (source of updateMovement), shotserver.py (local POST receiver used to
